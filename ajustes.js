@@ -12,15 +12,15 @@ const Ajustes = {
     { k:'cuenta',  ico:'ajustes',    t:'Cuenta y nube',        s:'Tu cuenta, tus tableros y dónde se guarda cada cosa' },
     { k:'copias',  ico:'copia',      t:'Copias de seguridad',  s:'Guardar y recuperar tus datos' },
     { grupo:'Cada apartado' },
-    { k:'porhacer', ico:'tablero',    t:'Tareas',   s:'Columnas, personas, al acabar, fotos y emails' },
-    { k:'cal',      ico:'calendario', t:'Calendario Tareas',          s:'Cómo se ve al abrirlo' },
+    { k:'porhacer', ico:'tablero',    t:'Tareas',   s:'Colores, columnas, personas, al acabar, fotos y emails' },
+    { k:'cal',      ico:'calendario', t:'Calendario Tareas',          s:'Cómo se ve al abrirlo · colores' },
     { k:'listas',   ico:'listas',     t:'Listas',              s:'El color de cada lista · sonidos' },
-    { k:'agenda',   ico:'agenda',     t:'Agenda',              s:'Cómo se ve al abrirla' },
+    { k:'agenda',   ico:'agenda',     t:'Agenda',              s:'Cómo se ve al abrirla · colores' },
     { k:'tickets',  ico:'tickets',    t:'Tickets',             s:'Colores de los tickets' },
-    { k:'sitios',   ico:'sitios',     t:'Sitios',              s:'El color de cada casa' },
+    { k:'sitios',   ico:'sitios',     t:'Sitios',              s:'Colores · el color de cada casa' },
     { k:'calc',     ico:'calculadora',t:'Calculadora',         s:'Temas de la calculadora' },
     { k:'bloc',     ico:'bloc',       t:'Notas secretas',      s:'Contraseña y copia' },
-    { k:'grabar',   ico:'grabar',     t:'Grabar',              s:'Dónde se guardan las notas de voz' }
+    { k:'grabar',   ico:'grabar',     t:'Grabar',              s:'Dónde se guardan las notas · colores' }
   ],
   // nombres de antes → página y apartado a abrir
   ANTES: { general:['general'], temas:['tema'], colores:['tema','colores'], tableros:['cuenta'], columnas:['porhacer','columnas'], personas:['porhacer','personas'],
@@ -29,6 +29,7 @@ const Ajustes = {
   ancho(){ return matchMedia('(min-width: 760px)').matches; },
   abrir(t){
     this.pintarMenu();
+    TemaSec.aplicar('conf');
     abrir('ajustes');
     if(t) this.tab(t); else if(this.ancho()) this.ir(this.pagina || 'general'); else this.alMenu();
   },
@@ -74,6 +75,7 @@ const Ajustes = {
     const a = App.ajustes, ini = a.inicio === 'tablero' ? 'tareas' : (a.inicio || 'portada');
     const ops = [['portada','portada','Portada'],['tareas','tablero','Tareas'],['cal','calendario','Calendario Tareas'],['listas','listas','Listas'],['agenda','agenda','Agenda'],['tickets','tickets','Tickets'],['sitios','sitios','Sitios'],['calc','calculadora','Calculadora'],['grabar','grabar','Grabar']];
     return this.tarjeta('🚪 Al abrir la app, ver…', `<div class="gen-inicio">${ops.map(([k, ic, t]) => `<button data-ini="${k}" class="${k === ini ? 'on' : ''}"><span>${icono(ic)}</span>${t}</button>`).join('')}</div>`, 'Lo primero que se ve al entrar en la app, en este aparato.')
+      + this.acord('colores', '🎨', 'Colores de la portada', 'Ahora: ' + TemaSec.nombre('portada'), TemaSec.rejilla('portada') + '<p class="aj-ayuda">Solo cambia la pantalla de inicio (también con el botón 🎨 de la portada).</p>')
       + this.tarjeta('↕️ Orden de la portada', '<button class="btn-sec btn-ancho" id="ajOrden">↺ Volver al orden de siempre</button>', 'Para cambiar de sitio un botón de la portada, <b>mantenlo pulsado</b> un momento y <b>arrástralo</b> donde quieras.')
       + this.tarjeta('🎤 Idioma del micrófono', this.seg('ajVoz', [['es-ES','Castellano'],['ca-ES','Català'],['en-GB','English']], a.idiomaVoz),
         'Para dictar en las tareas, la agenda y las notas. Puedes decir «coma», «punto», «punto y aparte», «nueva línea».')
@@ -83,6 +85,7 @@ const Ajustes = {
     const a = App.ajustes;
     $$('[data-ini]', cont).forEach(b => b.onclick = async () => { a.inicio = b.dataset.ini; await this.guardar(); $$('[data-ini]', cont).forEach(x => x.classList.toggle('on', x === b)); toast('🚪 Al abrir: ' + b.textContent.trim()); });
     this.enlazarSeg('ajVoz', async v => { a.idiomaVoz = v; await this.guardar(); });
+    TemaSec.enlazar(cont, 'portada');
     $('#ajOrden').onclick = () => { Portada.ordenDeSiempre(); toast('↺ La portada vuelve al orden de siempre'); };
     this.enlazarEnlaces(cont);
   },
@@ -95,13 +98,19 @@ const Ajustes = {
         'Cambia los colores de <b>toda la app</b>: la portada, las tareas, el calendario, la agenda, los botones y las ventanas.')
       + this.acord('colores', '🖌️', 'Cambiar cada color, uno a uno', 'Si quieres afinar el tema: el fondo, los botones, la letra…', '<div id="ajColores"></div>')
       + this.tarjeta('🧩 Apartados que pueden tener sus propios colores',
-        fila('listas', 'Listas', 'Cada lista tiene su color (o «Como la app»)', 'listas')
+        fila('portada', 'Portada (pantalla de inicio)', 'Ahora: ' + TemaSec.nombre('portada') + ' · con el botón 🎨 de la portada', 'general:colores')
+        + fila('tablero', 'Tareas', 'Ahora: ' + TemaSec.nombre('tareas'), 'porhacer:colores')
+        + fila('calendario', 'Calendario Tareas', 'Ahora: ' + TemaSec.nombre('cal'), 'cal')
+        + fila('agenda', 'Agenda', 'Ahora: ' + TemaSec.nombre('agenda'), 'agenda')
+        + fila('listas', 'Listas', 'Cada lista tiene su color (o «Como la app»)', 'listas')
         + fila('tickets', 'Tickets', 'Ahora: ' + tk.name, 'tickets')
-        + fila('sitios', 'Sitios', 'Cada casa tiene su color', 'sitios')
-        + fila('calculadora', 'Calculadora', 'Ahora: ' + calc, 'calc'),
+        + fila('sitios', 'Sitios', 'Ahora: ' + TemaSec.nombre('sitios') + ' · y cada casa su color', 'sitios')
+        + fila('calculadora', 'Calculadora', 'Ahora: ' + calc, 'calc')
+        + fila('grabar', 'Grabar', 'Ahora: ' + TemaSec.nombre('grabar'), 'grabar')
+        + fila('ajustes', 'Configuración', 'Ahora: ' + TemaSec.nombre('conf') + ' · con el botón 🎨 de arriba', 'tema'),
         'Estos colores <b>solo cambian su apartado</b>. Si eliges «Como la app», siguen el tema de arriba.');
   },
-  e_tema(cont){ this.temas(); this.colores(); this.enlazarEnlaces(cont); },
+  e_tema(cont){ this.temas(); this.colores(); this.enlazarEnlaces(cont); const c = $('[data-irp="tema"]', cont); if(c) c.onclick = () => TemaSec.elegir('conf'); },
 
   /* ---------- CUENTA Y NUBE ---------- */
   p_cuenta(){
@@ -179,6 +188,7 @@ const Ajustes = {
   p_porhacer(){
     const a = App.ajustes;
     return this.nota('Los <b>tableros</b> (crear, compartir, cambiar) están en ' + this.enlace('cuenta', '☁️ Cuenta y nube'))
+      + this.acord('colores', '🎨', 'Colores de Tareas', 'Ahora: ' + TemaSec.nombre('tareas'), TemaSec.rejilla('tareas') + '<p class="aj-ayuda">Solo cambian <b>Tareas</b> (también con el botón 🎨 de arriba, dentro de Tareas).</p>')
       + this.acord('columnas', '🗂️', 'Columnas', 'Nombre, color, orden, mostrar u ocultar', '<div id="ajColumnas"></div>')
       + this.acord('personas', '👥', 'Personas', 'A quién se le pueden asignar tareas', '<div id="ajPersonas"></div>')
       + this.acord('fiesta', '🎉', 'Al acabar una tarea', 'Confeti, mensaje, música y email', '<div id="ajFiesta"></div>')
@@ -192,7 +202,7 @@ const Ajustes = {
   },
   e_porhacer(cont){
     const a = App.ajustes;
-    this.enlazarEnlaces(cont);
+    this.enlazarEnlaces(cont); TemaSec.enlazar(cont, 'tareas');
     this.columnas(); this.personas(); this.fiesta();
     this.enlazarSeg('ajFoto', async v => { a.calidadFoto = v; await this.guardar(); });
     this.enlazarSeg('ajVid', async v => { a.calidadVideo = v; await this.guardar(); });
@@ -203,9 +213,9 @@ const Ajustes = {
   p_cal(){
     return this.tarjeta('📅 Al abrir el calendario, ver…', this.seg('ajCalModo', [['dia','Día'],['mes','Mes'],['anio','Año']], App.ajustes.calModo || 'mes'),
         'El calendario muestra las tareas que tienen fecha. Si cambias de vista dentro del calendario, se recuerda.')
-      + this.nota('Sus colores son los de toda la app: ' + this.enlace('tema', '🎨 Tema y colores'));
+      + this.tarjeta('🎨 Colores de el Calendario Tareas', TemaSec.rejilla('cal'), 'Solo cambian <b>el Calendario Tareas</b> (también se cambian con el botón 🎨 de arriba, dentro del apartado). «Como la app» = el tema de toda la app.');
   },
-  e_cal(cont){ this.enlazarEnlaces(cont); this.enlazarSeg('ajCalModo', async v => { App.ajustes.calModo = v; Cal.modo = v; await this.guardar(); }); },
+  e_cal(cont){ this.enlazarEnlaces(cont); TemaSec.enlazar(cont, 'cal'); this.enlazarSeg('ajCalModo', async v => { App.ajustes.calModo = v; Cal.modo = v; await this.guardar(); }); },
 
   /* ---------- LISTAS ---------- */
   p_listas(){
@@ -233,9 +243,10 @@ const Ajustes = {
   p_agenda(){
     return this.tarjeta('📒 Al abrir la agenda, ver…', this.seg('ajAgModo', [['dia','Día'],['mes','Mes'],['anio','Año']], Agenda.modo || 'mes'),
         'Si cambias de vista dentro de la agenda, se recuerda.')
-      + this.nota('Los colores de cada nota y de cada día se eligen en la misma agenda. Los colores de la agenda son los de toda la app: ' + this.enlace('tema', '🎨 Tema y colores'));
+      + this.tarjeta('🎨 Colores de la Agenda', TemaSec.rejilla('agenda'), 'Solo cambian <b>la Agenda</b> (también se cambian con el botón 🎨 de arriba, dentro del apartado). «Como la app» = el tema de toda la app.')
+      + this.nota('Los colores de cada nota y de cada día se eligen en la misma agenda, al tocar el día.');
   },
-  e_agenda(cont){ this.enlazarEnlaces(cont); this.enlazarSeg('ajAgModo', async v => { Agenda.modo = v; lsSet('ph3-ag-modo', v); Agenda.pintar(); }); },
+  e_agenda(cont){ this.enlazarEnlaces(cont); TemaSec.enlazar(cont, 'agenda'); this.enlazarSeg('ajAgModo', async v => { Agenda.modo = v; lsSet('ph3-ag-modo', v); Agenda.pintar(); }); },
 
   /* ---------- TICKETS ---------- */
   p_tickets(){
@@ -251,10 +262,11 @@ const Ajustes = {
     const filas = cs.map(h => { const p = Sitios.pal(h.color);
       return `<details class="aj-casa"><summary><span class="aj-casa-m" style="background:${p.shades[1]};border-color:${p.ac}">${Sitios.icoHtml(h, '🏠')}</span><span class="aj-ac-tx"><b>${esc(h.nombre)}</b><small>${esc(p.name || '')} · toca para cambiar</small></span><em>›</em></summary>
         <div class="st-pals">${PAL_KEYS.map(k => `<button data-casa="${h.id}" data-pal="${k}" class="${k === h.color ? 'on' : ''}" title="${esc(PALETTES[k].name)}" style="background:${PALETTES[k].shades[1]};border-color:${PALETTES[k].ac}"></button>`).join('')}</div></details>`; }).join('');
-    return this.tarjeta('🎨 El color de cada casa', filas || '<p class="aj-ayuda">Aún no tienes casas. Créalas en Sitios.</p>',
+    return this.tarjeta('🎨 Colores de Sitios (fondo y botones)', TemaSec.rejilla('sitios'), 'El fondo de «Mis sitios», los botones y las ventanas. También se cambia con el botón 🎨 de arriba, dentro de Sitios. Dentro de cada casa manda el color de la casa.')
+      + this.tarjeta('🏠 El color de cada casa', filas || '<p class="aj-ayuda">Aún no tienes casas. Créalas en Sitios.</p>',
       'Cada casa tiene su color: se ve en su tarjeta y dentro de la casa. También se cambia desde el ⋯ de cada casa.');
   },
-  e_sitios(cont){ $$('[data-casa]', cont).forEach(b => b.onclick = async () => { const h = Sitios.s(b.dataset.casa); if(!h) return; await Sitios.guardar({ ...h, color:b.dataset.pal }); this.ir('sitios', null, true); toast('🎨 ' + h.nombre + ': ' + PALETTES[b.dataset.pal].name); }); },
+  e_sitios(cont){ TemaSec.enlazar(cont, 'sitios'); $$('[data-casa]', cont).forEach(b => b.onclick = async () => { const h = Sitios.s(b.dataset.casa); if(!h) return; await Sitios.guardar({ ...h, color:b.dataset.pal }); this.ir('sitios', null, true); toast('🎨 ' + h.nombre + ': ' + PALETTES[b.dataset.pal].name); }); },
 
   /* ---------- CALCULADORA y NOTAS SECRETAS ---------- */
   p_calc(){ return '<div id="ajCalc"></div>'; },
@@ -262,15 +274,17 @@ const Ajustes = {
   p_grabar(){
     const n = Grabar.lista.length, t = Grabar.lista.reduce((s, x) => s + (x.size || 0), 0);
     return this.tarjeta('🎙️ Notas de voz', `<p class="aj-ayuda">Tienes <b>${n}</b> ${n === 1 ? 'nota' : 'notas'} (${tamTxt(t)}).</p>`,
-      'Se guardan <b>solo en este aparato</b>, en mp3 ligero (unos 360 KB por minuto). Para tener una nota en otro sitio, deslízala a la <b>derecha</b> y guárdala en Archivos o Descargas.');
+      'Se guardan <b>solo en este aparato</b>, en mp3 ligero (unos 360 KB por minuto). Para tener una nota en otro sitio, deslízala a la <b>derecha</b> y guárdala en Archivos o Descargas.')
+      + this.tarjeta('🎨 Colores de Grabar', TemaSec.rejilla('grabar'), 'Solo cambian <b>Grabar</b> (también se cambian con el botón 🎨 de arriba, dentro del apartado). «Como la app» = el tema de toda la app.');
   },
+  e_grabar(cont){ TemaSec.enlazar(cont, 'grabar'); },
   p_bloc(){ return '<div id="ajBloc"></div>'; },
   e_bloc(){ Bloc.pintarAjustes($('#ajBloc')); },
 
   /* Temas rápidos */
   temas(){
     const a = App.ajustes;
-    const titulo = g => `<h4 class="temas-grupo">${g === 'blanco' ? '⚪ Con fondo blanco' : g === 'home' ? '🏠 Como en HOME' : '🎨 Con fondo de color'}</h4>`;
+    const titulo = g => `<h4 class="temas-grupo">${g === 'blanco' ? '⚪ Con fondo blanco' : g === 'home' ? '🏠 Como en HOME' : g === 'pastel' ? '🌸 Pasteles (como la agenda de HOME)' : g === 'especial' ? '✨ Especiales, con fondo de dos colores' : '🎨 Con fondo de color'}</h4>`;
     let grupoAnt = null;
     $('#ajTemas').innerHTML = Object.entries(TEMAS).map(([k, t]) => {
       const c = t.c, g = t.grupo || 'color', cab = g !== grupoAnt ? titulo(g) : ''; grupoAnt = g;
@@ -283,7 +297,7 @@ const Ajustes = {
       + '<p class="aj-ayuda" style="grid-column:1/-1">Si quieres, más abajo puedes cambiar cada color uno a uno.</p>';
     $$('#ajTemas .tema').forEach(b => b.onclick = async () => {
       a.tema = b.dataset.k; a.colores = { ...TEMAS[a.tema].c };
-      aplicarTema(a.colores); await this.guardar(); this.temas(); pintarTodo();
+      TemaSec.aplicar(TemaSec.actual); await this.guardar(); this.temas(); pintarTodo();
       toast('🎨 Tema «' + TEMAS[a.tema].nombre + '»');
     });
   },
@@ -299,12 +313,12 @@ const Ajustes = {
       f.innerHTML = `<span>${esc(nombre)}</span><div></div>`;
       l.appendChild(f);
       selColor(f.lastElementChild, a.colores[k], PALETA.filter(p => p[0]).concat([['blanco','Blanco','#ffffff']]), async v => {
-        a.colores[k] = v || '#ffffff'; a.tema = 'propio'; aplicarTema(a.colores); await this.guardar(); pintarTodo();
+        a.colores[k] = v || '#ffffff'; a.tema = 'propio'; TemaSec.aplicar(TemaSec.actual); await this.guardar(); pintarTodo();
       });
     });
     $('#ajResetCol').onclick = async () => {
       const base = TEMAS[a.tema] ? a.tema : 'grises';
-      a.tema = base; a.colores = { ...TEMAS[base].c }; aplicarTema(a.colores); await this.guardar(); this.colores(); pintarTodo();
+      a.tema = base; a.colores = { ...TEMAS[base].c }; TemaSec.aplicar(TemaSec.actual); await this.guardar(); this.colores(); pintarTodo();
     };
   },
 

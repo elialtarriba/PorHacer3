@@ -10,10 +10,10 @@
 <meta name="theme-color" content="#eeeff1">
 <title>PorHacer3</title>
 <link rel="icon" href="logo.png" type="image/png">
-<link rel="apple-touch-icon" href="apple-touch-icon.png?v=98">
+<link rel="apple-touch-icon" href="apple-touch-icon.png?v=104">
 <link rel="manifest" href="manifest.json">
-<link rel="stylesheet" href="estilos.css?v=98">
-<link rel="stylesheet" href="estilos3.css?v=98">
+<link rel="stylesheet" href="estilos.css?v=104">
+<link rel="stylesheet" href="estilos3.css?v=104">
 </head>
 <body>
 
@@ -43,6 +43,7 @@
         <button class="ibtn" id="btnListas" hidden></button>
         <button class="ibtn" id="btnCal" hidden></button>
         <button class="ibtn" id="btnAjustes" hidden></button>
+        <button class="ibtn ibtn-tema" data-temasec="tareas" title="Colores de Tareas" aria-label="Colores de Tareas"></button>
         <button class="ibtn ibtn-portada" data-portada title="Portada" aria-label="Ir a la portada"></button>
       </div>
       <div class="insignias">
@@ -98,6 +99,7 @@
     </div>
     <div class="cal-der">
       <button class="ibtn" id="btnAjustes2" hidden></button>
+      <button class="ibtn ibtn-tema" data-temasec="cal" title="Colores del Calendario" aria-label="Colores del Calendario"></button>
     </div>
   </header>
   <div class="cal-ctrl">
@@ -120,7 +122,7 @@
     <header class="po-cab">
       <img src="logo.png" alt="" class="po-logo">
       <div class="po-tit"><h1>Por<span>Hacer</span><sup>3</sup></h1><small id="poSaludo"></small></div>
-      <span class="ver" id="verTxt2">V9.3</span>
+      <div class="po-der"><span class="ver" id="verTxt2">V9.12</span><button class="ibtn ibtn-tema po-tema-b" data-temasec="portada" title="Colores de la portada" aria-label="Colores de la portada"></button></div>
     </header>
     <div class="po-hoy" id="poHoy"></div>
     <div class="po-rejilla" id="poRejilla"></div>
@@ -135,6 +137,7 @@
   <header class="top sec-top">
     <button class="ibtn ibtn-portada" data-portada title="Portada" aria-label="Ir a la portada"></button>
     <div class="sec-tit"><h2>Agenda</h2><small id="agSub"></small></div>
+    <button class="ibtn ibtn-tema" data-temasec="agenda" title="Colores de la Agenda" aria-label="Colores de la Agenda"></button>
     <button class="ibtn" id="agMic" title="Dictar una nota con su fecha" aria-label="Dictar una nota"></button>
   </header>
   <div class="ag-cuerpo" id="agCuerpo"></div>
@@ -161,6 +164,7 @@
     <button class="ibtn ibtn-portada" data-portada title="Portada" aria-label="Ir a la portada"></button>
     <div class="sec-tit"><h2 id="stTit">Mis sitios</h2><small id="stSub"></small></div>
     <button class="ibtn st-atras" id="stAtras" title="Atrás" aria-label="Atrás" hidden>‹</button>
+    <button class="ibtn ibtn-tema" data-temasec="sitios" title="Colores de Sitios" aria-label="Colores de Sitios"></button>
   </header>
   <div class="st-cuerpo" id="stCuerpo"></div>
   <div class="st-barra" id="stBarra"></div>
@@ -171,7 +175,7 @@
   <header class="top sec-top">
     <button class="ibtn ibtn-portada" data-portada title="Portada" aria-label="Ir a la portada"></button>
     <div class="sec-tit"><h2>Grabar</h2><small id="grbSub"></small></div>
-    <span class="grb-hueco"></span>
+    <button class="ibtn ibtn-tema" data-temasec="grabar" title="Colores de Grabar" aria-label="Colores de Grabar"></button>
   </header>
   <div class="grb-cuerpo">
     <button class="grb-boton" id="grbBoton"></button>
@@ -334,6 +338,7 @@
       <button class="aj-atras" id="ajAtras" aria-label="Volver al menú de configuración">‹</button>
       <span class="cab-ico" id="icoAjCab"></span>
       <b id="ajTit">Configuración</b>
+      <button class="ibtn ibtn-tema aj-tema-b" data-temasec="conf" title="Colores de Configuración" aria-label="Colores de Configuración"></button>
       <button class="cerrar" data-cerrar="ajustes" aria-label="Cerrar">✕</button>
     </div>
     <div class="aj-cuerpo">
@@ -403,31 +408,31 @@
 
 <div class="toast" id="toast"></div>
 
-<script src="iconos.js?v=98"></script>
-<script src="iconos-home.js?v=98"></script>
-<script src="temas.js?v=98"></script>
-<script src="db.js?v=98"></script>
-<script src="firebase-config.js?v=98"></script>
-<script src="email-config.js?v=98"></script>
-<script src="correo.js?v=98"></script>
-<script src="audio.js?v=98"></script>
-<script src="listas.js?v=98"></script>
-<script src="bloc.js?v=98"></script>
-<script src="avisos.js?v=98"></script>
-<script src="fiesta.js?v=98"></script>
-<script src="nube.js?v=98"></script>
-<script src="fotos.js?v=98"></script>
-<script src="videos.js?v=98"></script>
-<script src="voz.js?v=98"></script>
-<script src="calendario.js?v=98"></script>
-<script src="ajustes.js?v=98"></script>
-<script src="copias.js?v=98"></script>
-<script src="mio.js?v=98"></script>
-<script src="agenda.js?v=98"></script>
-<script src="tickets.js?v=98"></script>
-<script src="sitios.js?v=98"></script>
-<script src="grabar.js?v=98"></script>
-<script src="portada.js?v=98"></script>
-<script src="app.js?v=98"></script>
+<script src="iconos.js?v=104"></script>
+<script src="iconos-home.js?v=104"></script>
+<script src="temas.js?v=104"></script>
+<script src="db.js?v=104"></script>
+<script src="firebase-config.js?v=104"></script>
+<script src="email-config.js?v=104"></script>
+<script src="correo.js?v=104"></script>
+<script src="audio.js?v=104"></script>
+<script src="listas.js?v=104"></script>
+<script src="bloc.js?v=104"></script>
+<script src="avisos.js?v=104"></script>
+<script src="fiesta.js?v=104"></script>
+<script src="nube.js?v=104"></script>
+<script src="fotos.js?v=104"></script>
+<script src="videos.js?v=104"></script>
+<script src="voz.js?v=104"></script>
+<script src="calendario.js?v=104"></script>
+<script src="ajustes.js?v=104"></script>
+<script src="copias.js?v=104"></script>
+<script src="mio.js?v=104"></script>
+<script src="agenda.js?v=104"></script>
+<script src="tickets.js?v=104"></script>
+<script src="sitios.js?v=104"></script>
+<script src="grabar.js?v=104"></script>
+<script src="portada.js?v=104"></script>
+<script src="app.js?v=104"></script>
 </body>
 </html>

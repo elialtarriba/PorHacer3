@@ -1,6 +1,6 @@
 /* PorHacer · app principal: tablero de columnas, tareas y editor */
 
-const VERSION = 'V9.6';
+const VERSION = 'V9.12';
 const $ = (s, r=document) => r.querySelector(s);
 const $$ = (s, r=document) => Array.from(r.querySelectorAll(s));
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -47,7 +47,7 @@ function bordeDe(t){ return App.ajustes.bordeColumna ? colDe(t.colId).color : (t
 
 /* ---------- Popups y avisos ---------- */
 function abrir(id){ $('#'+id).classList.add('abierto'); }
-function cerrar(id){ $('#'+id).classList.remove('abierto'); }
+function cerrar(id){ $('#'+id).classList.remove('abierto'); if(id === 'ajustes' && typeof TemaSec !== 'undefined') TemaSec.aplicar(TemaSec.DE_VISTA[document.body.dataset.vista] || null); }
 let _toastT;
 function toast(txt, accion, fn, ms=3200){
   const t = $('#toast');
@@ -1055,7 +1055,16 @@ function eventos(){
     else if($('#ajustes').classList.contains('abierto')){ cerrar('ajustes'); pintarTodo(); }
   });
   // Evitar el zoom con doble toque en iPhone
-  let ult = 0; document.addEventListener('touchend', e => { const n = Date.now(); if(n - ult < 300 && !e.target.closest('input,textarea,select')) e.preventDefault(); ult = n; }, { passive:false });
+  // Evitar el zoom con doble toque, pero SOLO si son dos toques seguidos en el mismo sitio (no al acabar de desplazar, ni en botones)
+  let ult = 0, ux = 0, uy = 0, sx = 0, sy = 0;
+  document.addEventListener('touchstart', e => { const t = e.touches[0]; if(t){ sx = t.clientX; sy = t.clientY; } }, { passive:true });
+  document.addEventListener('touchend', e => {
+    const t = e.changedTouches[0], n = Date.now(); if(!t) return;
+    const toque = Math.hypot(t.clientX - sx, t.clientY - sy) < 10;
+    if(!toque){ ult = 0; return; }                                   // era un desplazamiento: no cuenta
+    if(n - ult < 300 && Math.hypot(t.clientX - ux, t.clientY - uy) < 30 && !e.target.closest('input,textarea,select,button,summary,label,a,[contenteditable]')) e.preventDefault();
+    ult = n; ux = t.clientX; uy = t.clientY;
+  }, { passive:false });
   document.addEventListener('visibilitychange', () => { if(!document.hidden){ fechaCabecera(); pintarTodo(); } });
 }
 

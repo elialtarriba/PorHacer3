@@ -4,6 +4,7 @@
 const VISTAS = { grabar:'vGrabar', calc:'vCalc', portada:'vPortada', tareas:'vTablero', listas:'vListas', cal:'vCal', agenda:'vAgenda', tickets:'vTickets', sitios:'vSitios' };
 function soloVista(id){
   $$('.vista').forEach(v => v.classList.toggle('activa', v.id === id));
+  TemaSec.aplicar(TemaSec.DE_VISTA[id] || null);
   const f = $('#fab'); if(f) f.style.display = id === 'vTablero' ? '' : 'none';
   document.body.dataset.vista = id;
 }
@@ -201,6 +202,7 @@ const Portada = {
   },
   iniciar(){
     $$('[data-portada]').forEach(b => { b.innerHTML = icono('portada'); b.onclick = () => irA('portada'); });
+    $$('[data-temasec]').forEach(b => { b.innerHTML = icono('paleta'); b.onclick = () => TemaSec.elegir(b.dataset.temasec); });
     this.iniciarMover();
     Mio.al('grabar', () => this.pintar());
     $('#lsVolver').innerHTML = icono('portada');
@@ -221,7 +223,7 @@ const Calc = {
     this._carga = new Promise(ok => {
       const f = $('#calcFrame');
       f.addEventListener('load', () => setTimeout(() => ok(this.win()), 60), { once:true });
-      f.src = 'calculadora.html?v=98';
+      f.src = 'calculadora.html?v=104';
     });
     return this._carga;
   },
@@ -253,5 +255,44 @@ const Calc = {
     window.App = App;            // para que la calculadora (en su marco) lea los colores de la app
     const orig = aplicarTema;
     aplicarTema = function(c){ orig(c); Calc.temaApp(); };
+  }
+};
+
+/* ---------- Colores propios de cada apartado (Tareas, Calendario, Agenda, Grabar) ----------
+   Cada uno puede tener su tema o «Como la app». Al entrar en el apartado se ponen sus colores
+   (también en sus ventanas) y al salir vuelven los de toda la app. Se guarda en este aparato. */
+const TemaSec = {
+  NOMBRES: { tareas:'Tareas', cal:'Calendario Tareas', agenda:'Agenda', grabar:'Grabar', sitios:'Sitios', conf:'Configuración', portada:'Portada' },
+  DE_VISTA: { vPortada:'portada', vTablero:'tareas', vCal:'cal', vAgenda:'agenda', vGrabar:'grabar', vSitios:'sitios' },
+  actual: null,
+  de(sec){ const k = ((App.ajustes && App.ajustes.temaSec) || {})[sec]; return k && TEMAS[k] ? k : null; },
+  colores(sec){ const k = sec && this.de(sec); return k ? TEMAS[k].c : App.ajustes.colores; },
+  aplicar(sec){ if(!App.ajustes) return; this.actual = sec; aplicarTema(this.colores(sec)); },
+  nombre(sec){ const k = this.de(sec); return k ? TEMAS[k].nombre : 'Como la app'; },
+  rejilla(sec){
+    const act = this.de(sec) || '', titulo = g => `<h4 class="temas-grupo">${g === 'blanco' ? '⚪ Con fondo blanco' : g === 'home' ? '🏠 Como en HOME' : g === 'pastel' ? '🌸 Pasteles (como la agenda de HOME)' : g === 'especial' ? '✨ Especiales, con fondo de dos colores' : '🎨 Con fondo de color'}</h4>`;
+    const prev = c => `<div class="prev" style="background:linear-gradient(180deg,${c.bg},${c.bg2})"><i style="background:${c.card};border-color:#e5484d"></i><i style="background:${c.card};border-color:#3b82f6"></i><i style="background:${c.card};border-color:#22a55a"></i><em style="background:linear-gradient(180deg,${c.accent2},${c.accent});box-shadow:0 0 0 3px ${c.dark}"></em></div>`;
+    let g0 = null;
+    return `<div class="temas ts-temas"><button class="tema ${act ? '' : 'on'}" data-ts="">${prev(App.ajustes.colores)}<b>Como la app</b></button>`
+      + Object.entries(TEMAS).map(([k, t]) => { const g = t.grupo || 'color', cab = g !== g0 ? titulo(g) : ''; g0 = g;
+        return cab + `<button class="tema ${act === k ? 'on' : ''}" data-ts="${k}">${prev(t.c)}<b>${esc(t.nombre)}</b></button>`; }).join('') + '</div>';
+  },
+  async poner(sec, k){
+    App.ajustes.temaSec = { ...(App.ajustes.temaSec || {}) }; if(k) App.ajustes.temaSec[sec] = k; else delete App.ajustes.temaSec[sec];
+    await guardarAjustes();
+    if(this.actual === sec) this.aplicar(sec);
+    if(sec === 'tareas' || sec === 'cal') pintarTodo();
+    toast('🎨 ' + this.NOMBRES[sec] + ': ' + this.nombre(sec));
+  },
+  enlazar(cont, sec, alCambiar){ $$('[data-ts]', cont).forEach(b => b.onclick = async () => { await this.poner(sec, b.dataset.ts); $$('[data-ts]', cont).forEach(x => x.classList.toggle('on', x === b)); alCambiar && alCambiar(); }); },
+  // ventana desde el propio apartado (botón 🎨 de arriba)
+  elegir(sec){
+    const p = popMio(`<h3 class="mp-h">🎨 Colores de ${this.NOMBRES[sec]}</h3>
+      <p class="mp-p">Solo cambian <b>${this.NOMBRES[sec]}</b>. «Como la app» = el tema de toda la app.</p>
+      ${this.rejilla(sec)}
+      <div class="mp-fila"><button class="mp-b" data-toda>🎨 Tema de toda la app</button><button class="mp-b mp-pri" data-x>Listo</button></div>`, 'ts-pop');
+    this.enlazar(p, sec);
+    p.querySelector('[data-x]').onclick = () => cerrarPopMio();
+    p.querySelector('[data-toda]').onclick = () => { cerrarPopMio(); Ajustes.abrir('temas'); };
   }
 };

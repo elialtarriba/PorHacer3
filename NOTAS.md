@@ -9,6 +9,45 @@ Aquí se apunta lo que Elisabeth pide sobre la app, para no perder el hilo. Leer
 
 
 
+
+
+
+
+
+
+## 2026-10-29 · PorHacer3 · V9.12
+
+- En la **pantalla de inicio (portada)** echaba de menos cambiar el tema, y quería **temas diferentes, dispares unos de otros y bonitos**.
+- Hecho: botón **🎨** en la portada (debajo de la versión). Solo cambia la portada. También en Configuración → General → «Colores de la portada» y en Tema y colores.
+- 10 temas nuevos **✨ Especiales, con fondo de dos colores**: Atardecer, Mar Mediterráneo, Bosque encantado, Limón y menta, Uva y oro, Coral y turquesa, Algodón de azúcar, Café con leche, Cielo de verano y Lavanda y menta. Sirven para cualquier apartado o para toda la app.
+
+## 2026-10-29 · PorHacer3 · V9.11
+
+- En **Grabar** y en **Configuración** echaba de menos poder cambiar el tema (en Grabar el botón 🎨 ya estaba desde la V9.8, arriba a la derecha).
+- Hecho: botón **🎨** en la cabecera de **Configuración** (al lado de ✕): Configuración puede tener su propio tema; al cerrarla vuelven los colores del sitio donde estabas. También en Tema y colores → «Apartados que pueden tener sus propios colores» → Configuración.
+
+## 2026-10-29 · PorHacer3 · V9.10
+
+- En **Mis sitios** echaba de menos la paleta de temas: quería escoger también el **color del fondo de Sitios** (además del color de cada casa).
+- Hecho: botón **🎨** arriba a la derecha en Sitios (y en Configuración → Sitios → «Colores de Sitios (fondo y botones)»). Cambia el fondo de «Mis sitios», los botones y las ventanas. Dentro de cada casa sigue mandando el color de la casa.
+
+## 2026-10-29 · PorHacer3 · V9.9
+
+- Echaba de menos el botón de colores en **Calendario Tareas** y quería un **tema propio para la Agenda** (ya estaba en la V9.8: botón 🎨 arriba a la derecha en Calendario Tareas y en Agenda).
+- Añadidos 5 temas nuevos, **🌸 Pasteles (como la agenda de HOME)**: salvia, azul, rosa, lavanda y miel. Se pueden elegir para cualquier apartado (Agenda, Calendario Tareas, Tareas, Grabar) o para toda la app.
+
+## 2026-10-29 · PorHacer3 · V9.8
+
+- Pidió encontrar **dentro de Tareas un botón para cambiar el tema de Tareas**.
+- Hecho: botón **🎨 (paleta)** arriba en **Tareas**, **Calendario Tareas**, **Agenda** y **Grabar**. Abre «Colores de …» con «Como la app» y todos los temas (también los de HOME). Solo cambia ese apartado (también sus ventanas, como el editor de tareas); al salir vuelven los colores de toda la app. Se guarda en este aparato.
+- También en Configuración: en la página de cada apartado («Colores de …») y en Tema y colores → «Apartados que pueden tener sus propios colores» (ahora con Tareas, Calendario Tareas, Agenda y Grabar).
+
+## 2026-10-29 · PorHacer3 · V9.7
+
+- Dijo que en la **agenda intentaba cambiar los colores y no lo hacía**.
+- Causa encontrada: la protección contra el «zoom con doble toque» se comía el toque si se tocaba un color justo después de desplazar la ventana (o tocar otro botón) en menos de 0,3 s; además, la lista de «Color del día» era tan larga que había que desplazar para llegar a los colores.
+- Arreglado: la protección solo actúa con dos toques seguidos en el mismo sitio y nunca en botones; los colores del día salen en una rejilla de 4, más juntos, y se ven todos sin desplazar.
+
 ## 2026-10-29 · PorHacer3 · V9.6
 
 - Pidió cambiar los nombres de los botones: **PorHacer → Tareas** y **Calendario → Calendario Tareas** (en la portada, en Configuración y en «Al abrir la app, ver…»). La app sigue llamándose PorHacer3.

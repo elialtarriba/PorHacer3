@@ -649,3 +649,13 @@
 .po-b.abriendo .d-giro{transform:rotate(560deg)}
 .po-b.abriendo .c-arco{transform:translateY(-7px) rotate(28deg)}
 .po-b.abriendo{box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 55%,transparent),0 12px 30px color-mix(in srgb,var(--accent) 40%,transparent)}
+
+/* Colores del día: más juntos, para que se vean todos sin tener que desplazar */
+.mp-desp .mp-colores{grid-template-columns:repeat(4,1fr);gap:6px 4px}
+.mp-desp .mp-colores button{flex-direction:column;justify-content:center;gap:3px;padding:7px 2px;font-size:10.5px;text-align:center;line-height:1.1;min-height:58px}
+.mp-desp .mp-colores i{width:26px;height:26px;border-width:2.5px}
+.aj-tema-b{width:40px;height:40px;border-radius:13px;flex:none}
+.aj-tema-b svg{width:26px;height:26px}
+.po-der{display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex:none}
+.po-tema-b{width:42px;height:42px;border-radius:13px}
+.po-tema-b svg{width:28px;height:28px}

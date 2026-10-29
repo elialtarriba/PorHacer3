@@ -65,6 +65,53 @@ const TEMAS = {
   homeMiel: { nombre:'HOME · Miel y naranja', grupo:'home', c:{
     bg:'#fdf8e4', bg2:'#f8ecc2', card:'#fffdf5', colbg:'#fdf6e0', ink:'#5a3e2b', ink2:'#9a8060', line:'#f0e2b0',
     dark:'#5a3e2b', accent:'#d9814f', accent2:'#f4b48a', accentInk:'#ffffff', tile1:'#fffdf5', tile2:'#f9e8a8' }},
+  // ---- Especiales: fondos de dos colores, muy distintos entre sí ----
+  eAtardecer: { nombre:'Atardecer', grupo:'especial', c:{
+    bg:'#ffd9c2', bg2:'#f6a6c1', card:'#fffaf7', colbg:'#fff1ec', ink:'#4a2238', ink2:'#9a6479', line:'#f6d2d6',
+    dark:'#6b2d5c', accent:'#e8505b', accent2:'#ff8a7a', accentInk:'#ffffff', tile1:'#fffaf7', tile2:'#fde3e6' }},
+  eMar: { nombre:'Mar Mediterráneo', grupo:'especial', c:{
+    bg:'#d3f1fb', bg2:'#86cfe8', card:'#f7fdff', colbg:'#ecf8fd', ink:'#0b2e4a', ink2:'#4e7790', line:'#c8e7f3',
+    dark:'#023e8a', accent:'#0077b6', accent2:'#2ea8e0', accentInk:'#ffffff', tile1:'#f7fdff', tile2:'#d9eef8' }},
+  eBosque: { nombre:'Bosque encantado', grupo:'especial', c:{
+    bg:'#e1f2e3', bg2:'#a6d4b3', card:'#f8fdf9', colbg:'#eef8f0', ink:'#14352a', ink2:'#55806b', line:'#cfe6d5',
+    dark:'#1b4332', accent:'#2d6a4f', accent2:'#52a37a', accentInk:'#ffffff', tile1:'#f8fdf9', tile2:'#dbeedf' }},
+  eLimon: { nombre:'Limón y menta', grupo:'especial', c:{
+    bg:'#fbf8cc', bg2:'#b9f0df', card:'#fffff6', colbg:'#f7fbe8', ink:'#23413d', ink2:'#5f857c', line:'#e2efcf',
+    dark:'#2a6f68', accent:'#e9a21b', accent2:'#f6c445', accentInk:'#ffffff', tile1:'#fffff6', tile2:'#e8f5dc' }},
+  eUva: { nombre:'Uva y oro', grupo:'especial', c:{
+    bg:'#efe3ff', bg2:'#ffe6ad', card:'#fffcff', colbg:'#f8f2ff', ink:'#2e1048', ink2:'#7b5f92', line:'#e8dcf4',
+    dark:'#3c096c', accent:'#7b2cbf', accent2:'#a463e0', accentInk:'#ffffff', tile1:'#fffcff', tile2:'#efe4fb' }},
+  eCoral: { nombre:'Coral y turquesa', grupo:'especial', c:{
+    bg:'#ffe3dd', bg2:'#bff0ea', card:'#fffdfc', colbg:'#fff3f0', ink:'#173f3c', ink2:'#5e8582', line:'#f2dad5',
+    dark:'#1f7a74', accent:'#ff6f61', accent2:'#ff9a8f', accentInk:'#ffffff', tile1:'#fffdfc', tile2:'#e3f5f2' }},
+  eArcoiris: { nombre:'Algodón de azúcar', grupo:'especial', c:{
+    bg:'#ffdcec', bg2:'#d3edff', card:'#fffcfe', colbg:'#fdf3f9', ink:'#3a3350', ink2:'#7d7896', line:'#efdcea',
+    dark:'#4a4e69', accent:'#ff5d8f', accent2:'#ff8fb1', accentInk:'#ffffff', tile1:'#fffcfe', tile2:'#ecebf8' }},
+  eCafe: { nombre:'Café con leche', grupo:'especial', c:{
+    bg:'#f2e5d5', bg2:'#d4b393', card:'#fffaf4', colbg:'#f8efe4', ink:'#3b2416', ink2:'#86664f', line:'#e8d6c1',
+    dark:'#4b2e1e', accent:'#8c5a3c', accent2:'#b07d58', accentInk:'#ffffff', tile1:'#fffaf4', tile2:'#efe0cd' }},
+  eVerano: { nombre:'Cielo de verano', grupo:'especial', c:{
+    bg:'#dff1ff', bg2:'#fff0bd', card:'#fffffb', colbg:'#f2f8ff', ink:'#14263f', ink2:'#5c7290', line:'#dbe7f2',
+    dark:'#1d3557', accent:'#ff9f1c', accent2:'#ffbf5a', accentInk:'#ffffff', tile1:'#fffffb', tile2:'#e8f0fa' }},
+  eLavMenta: { nombre:'Lavanda y menta', grupo:'especial', c:{
+    bg:'#e9e1ff', bg2:'#c8f5e3', card:'#fdfcff', colbg:'#f5f2ff', ink:'#2f2a4d', ink2:'#726c93', line:'#e2dcf5',
+    dark:'#4b3f8f', accent:'#7d5fd3', accent2:'#a48df0', accentInk:'#ffffff', tile1:'#fdfcff', tile2:'#e7f6f0' }},
+  // ---- Pasteles (como la agenda y los tickets de HOME) ----
+  pSalvia: { nombre:'Pastel salvia', grupo:'pastel', c:{
+    bg:'#eef4e8', bg2:'#dfead6', card:'#fbfdf8', colbg:'#f3f8ee', ink:'#2f4a3d', ink2:'#6f8a78', line:'#d6e5cd',
+    dark:'#3d5e4c', accent:'#6f8f62', accent2:'#93b386', accentInk:'#ffffff', tile1:'#fbfdf8', tile2:'#dcebd3' }},
+  pAzul: { nombre:'Pastel azul', grupo:'pastel', c:{
+    bg:'#eaf2f9', bg2:'#d9e7f3', card:'#fbfdff', colbg:'#f1f6fb', ink:'#2f3a4a', ink2:'#6b7f96', line:'#d2e2ef',
+    dark:'#3c5470', accent:'#4f7fa8', accent2:'#79a3c8', accentInk:'#ffffff', tile1:'#fbfdff', tile2:'#d6e6f3' }},
+  pRosa: { nombre:'Pastel rosa', grupo:'pastel', c:{
+    bg:'#fbeff3', bg2:'#f5dfe7', card:'#fffbfc', colbg:'#fdf4f7', ink:'#6b2f45', ink2:'#a3707f', line:'#f1d6df',
+    dark:'#8a4560', accent:'#b0577a', accent2:'#d07f9e', accentInk:'#ffffff', tile1:'#fffbfc', tile2:'#f6dbe5' }},
+  pLavanda: { nombre:'Pastel lavanda', grupo:'pastel', c:{
+    bg:'#f4f1fb', bg2:'#e7e1f5', card:'#fdfcff', colbg:'#f7f5fc', ink:'#4a3f57', ink2:'#857b96', line:'#e2dcf0',
+    dark:'#5a4a7a', accent:'#6f5cb5', accent2:'#998ad6', accentInk:'#ffffff', tile1:'#fdfcff', tile2:'#e5def5' }},
+  pMiel: { nombre:'Pastel miel', grupo:'pastel', c:{
+    bg:'#fdf6e0', bg2:'#f6e9bf', card:'#fffdf5', colbg:'#fdf8e8', ink:'#5a4a1e', ink2:'#968356', line:'#efe2b6',
+    dark:'#6b5520', accent:'#c9962e', accent2:'#e2b95a', accentInk:'#ffffff', tile1:'#fffdf5', tile2:'#f5e6b4' }},
   // ---- Con fondo de color ----
   grises: { nombre:'Grises y rojo (como los iconos)', c:{
     bg:'#eeeff1', bg2:'#e2e3e7', card:'#ffffff', colbg:'#f7f7f9', ink:'#2c2c2e', ink2:'#7c7c84', line:'#dcdde1',
