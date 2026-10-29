@@ -1,6 +1,13 @@
 /* PorHacer · iconos dibujados al estilo de las imágenes de la app
    (marco oscuro redondeado + detalles en rojo). Usan los colores del tema. */
 const ICO = {
+  // Grabar: marco con ondas de sonido y el punto rojo de grabar
+  grabar: `<svg viewBox="0 0 64 64" aria-hidden="true">
+    <rect x="6" y="10" width="52" height="44" rx="12" fill="#fff" stroke="var(--dark)" stroke-width="4.5"/>
+    <g stroke="var(--dark)" stroke-width="4" stroke-linecap="round"><path d="M15 28v8M21 23v18M43 23v18M49 28v8"/></g>
+    <circle cx="32" cy="32" r="8.5" fill="var(--accent)" stroke="var(--dark)" stroke-width="3"/>
+  </svg>`,
+
   // Copia de seguridad: caja con flecha roja
   copia: `<svg viewBox="0 0 64 64" aria-hidden="true">
     <path d="M10 30h44v20a6 6 0 0 1-6 6H16a6 6 0 0 1-6-6z" fill="#fff" stroke="var(--dark)" stroke-width="4.5" stroke-linejoin="round"/>

@@ -6,6 +6,21 @@ Aquí se apunta lo que Elisabeth pide sobre la app, para no perder el hilo. Leer
 
 
 
+
+## 2026-10-29 · PorHacer3 · V9.4
+
+Lo que pidió:
+- Poder **cambiar de posición los botones de la portada** con solo pulsar y arrastrar (p. ej. la calculadora arriba).
+- Un botón nuevo **Grabar** (con un icono del estilo de los demás). Dentro, un botón rectangular «Grabar»: pulsar = empieza a grabar una nota de voz; volver a pulsar = para. Las notas van **una debajo de otra**, con la **fecha y la hora** encima y la opción de ponerles **el nombre que quieras**.
+  - Deslizar a la **izquierda** → sale **rojo** con «Eliminar» → eliminar **con confirmación**.
+  - Deslizar a la **derecha** → sale **naranja** → **guardar la nota en el aparato**.
+- Pregunta: ¿se pueden grabar conversaciones telefónicas? (respuesta: no desde la app; el iPhone no deja usar el micrófono a una web durante una llamada; el propio iPhone tiene grabación de llamadas en la app Teléfono).
+
+Hecho:
+- Portada: **mantener pulsado** un botón un momento (tiembla) y **arrastrarlo**; el orden se guarda en el aparato. En Configuración → General: «↺ Volver al orden de siempre».
+- `grabar.js`: apartado **Grabar** con su baldosa y su icono (marco con ondas y punto rojo). Notas en mp3 ligero, **solo en este aparato** (IndexedDB «PorHacer3-grabaciones»). Escuchar con ▶︎ y barra (tocar la barra para saltar). Si sales del apartado mientras grabas, se para y se guarda.
+- Se puede elegir que la app se abra en «Grabar». Configuración → Grabar dice cuántas notas hay y cuánto ocupan.
+
 ## 2026-10-29 · PorHacer3 · V9.3
 
 Lo que pidió:
@@ -18,6 +33,8 @@ Hecho:
   - **Cada apartado**: PorHacer (columnas, personas, al acabar, fotos y vídeos, emails) · Calendario (vista al abrir) · Listas (color de cada lista, sonidos, aviso) · Agenda (vista al abrir) · Tickets (colores) · Sitios (color de cada casa) · Calculadora (temas) · Notas secretas.
   - Dentro de cada página, las partes largas se despliegan de una en una, para no ver tantos datos a la vez.
 - Reloj de la portada: grande, centrado, con los números del 1 al 12 (12, 3, 6 y 9 en rojo), rayitas de minutos y la hora en números abajo.
+- (Después) El reloj era demasiado grande: vuelve el **rectángulo** de antes (día en rojo, fecha y botones) y el reloj con números va **dentro, a la derecha, ocupando el sitio que sobraba**. Le gusta poder cambiar los colores en cada apartado y la configuración nueva.
+- Calculadora: quitado el texto «v61 · PorHacer3» de abajo a la derecha.
 
 ## 2026-10-29 · PorHacer3 · V9.2
 

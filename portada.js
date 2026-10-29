@@ -1,7 +1,7 @@
 /* PorHacer3 · Portada: la pantalla con todos los apartados.
    Cada apartado tiene un solo botón (arriba a la izquierda) para volver aquí. */
 
-const VISTAS = { calc:'vCalc', portada:'vPortada', tareas:'vTablero', listas:'vListas', cal:'vCal', agenda:'vAgenda', tickets:'vTickets', sitios:'vSitios' };
+const VISTAS = { grabar:'vGrabar', calc:'vCalc', portada:'vPortada', tareas:'vTablero', listas:'vListas', cal:'vCal', agenda:'vAgenda', tickets:'vTickets', sitios:'vSitios' };
 function soloVista(id){
   $$('.vista').forEach(v => v.classList.toggle('activa', v.id === id));
   const f = $('#fab'); if(f) f.style.display = id === 'vTablero' ? '' : 'none';
@@ -11,6 +11,7 @@ function irA(sec){
   if(!VISTAS[sec]) sec = 'portada';
   cerrarHojaMio();
   if(typeof Voz !== 'undefined' && Voz.activo) Voz.parar();
+  if(sec !== 'grabar' && typeof Grabar !== 'undefined'){ if(Grabar.rec){ Grabar.pulsar(); toast('⏹ Grabación parada y guardada'); } Grabar.parar(); }
   ({
     portada: () => { soloVista('vPortada'); Portada.pintar(true); },
     tareas:  () => { soloVista('vTablero'); pintarTodo(); },
@@ -19,7 +20,8 @@ function irA(sec){
     agenda:  () => Agenda.abrir(),
     tickets: () => Tickets.abrir(),
     sitios:  () => Sitios.abrir(),
-    calc:    () => Calc.abrir()
+    calc:    () => Calc.abrir(),
+    grabar:  () => Grabar.abrir()
   })[sec]();
   Portada.actual = sec;
 }
@@ -33,7 +35,8 @@ const Portada = {
     { k:'agenda',  t:'Agenda',     ico:'agenda',     c:'var(--accent)' },
     { k:'tickets', t:'Tickets',    ico:'tickets',    c:'var(--accent)' },
     { k:'sitios',  t:'Sitios',     ico:'sitios',     c:'var(--dark)' },
-    { k:'calc',    t:'Calculadora', ico:'calculadora', c:'var(--dark)' }
+    { k:'calc',    t:'Calculadora', ico:'calculadora', c:'var(--dark)' },
+    { k:'grabar',  t:'Grabar',      ico:'grabar',      c:'var(--accent)' }
   ],
   saludo(){
     const h = new Date().getHours(), n = (typeof Nube !== 'undefined' && Nube.perfil && Nube.perfil.nombre) || '';
@@ -55,13 +58,14 @@ const Portada = {
       if(k === 'tickets'){ const m = hoy.slice(0, 7), ts = Mio.todos('tickets').filter(t => (t.fecha || '').startsWith(m)), tot = ts.reduce((s, t) => s + (t.importe || 0), 0);
         return ts.length ? pl(ts.length, 'ticket', 'tickets') + (tot ? ' · ' + dinero(tot) : '') : 'Ninguno este mes'; }
       if(k === 'calc') return 'Cuentas, % e IVA';
+      if(k === 'grabar'){ const n = Grabar.lista.length; return n ? pl(n, 'nota de voz', 'notas de voz') : 'Notas de voz'; }
       if(k === 'sitios'){ const s = Mio.todos('sitios'), casas = s.filter(x => x.tipo === 'casa').length, cosas = s.reduce((n, x) => n + Object.keys(x.cosas || {}).length, 0);
         return casas ? pl(casas, 'casa', 'casas') + ' · ' + pl(cosas, 'cosa', 'cosas') : 'Empieza por tu casa'; }
     }catch(e){}
     return '';
   },
   pintar(entrar){
-    if(!$('#vPortada').classList.contains('activa')) return;
+    if(!$('#vPortada').classList.contains('activa') || this._moviendo) return;
     const d = new Date();
     $('#poSaludo').textContent = this.saludo();
     const agHoy = Mio.uno('agenda', hoyIso()), nNotas = agHoy ? (agHoy.items || []).filter(i => !i.hecha).length : 0;
@@ -69,6 +73,12 @@ const Portada = {
     const marcas = Array.from({ length:60 }, (_, k) => `<line x1="100" y1="${k % 5 ? 12 : 10}" x2="100" y2="${k % 5 ? 17 : 22}" transform="rotate(${k * 6} 100 100)" class="${k % 5 ? 'rm' : 'rM'}"/>`).join('');
     const nums = Array.from({ length:12 }, (_, k) => { const n = k + 1, ang = n * 30 * Math.PI / 180; return `<text x="${(100 + 67 * Math.sin(ang)).toFixed(1)}" y="${(100 - 67 * Math.cos(ang) + 7).toFixed(1)}" class="${n % 3 ? 'rn' : 'rn rn3'}">${n}</text>`; }).join('');
     $('#poHoy').innerHTML = `
+      <span class="po-dia"><b>${d.getDate()}</b><span>${MESES_C[d.getMonth()].slice(0, 3)}</span></span>
+      <div class="po-hoy-tx"><b>${capital(DIAS[d.getDay()])}</b><small>${d.getDate()} de ${MESES[d.getMonth()]} de ${d.getFullYear()}</small>
+        <div class="po-hoy-chips">
+          <button data-ir="tareas">✅ ${tHoy ? tHoy + (tHoy === 1 ? ' tarea' : ' tareas') + ' hoy' : 'Sin tareas hoy'}</button>
+          <button data-ir="agenda">📒 ${nNotas ? nNotas + (nNotas === 1 ? ' nota' : ' notas') : 'Agenda libre'}</button>
+        </div></div>
       <div class="po-reloj" aria-label="Reloj">
         <svg viewBox="0 0 200 200" id="poReloj" aria-hidden="true">
           <circle cx="100" cy="100" r="96" class="r-aro"/><circle cx="100" cy="100" r="88" class="r-cara"/>
@@ -79,28 +89,23 @@ const Portada = {
           <g id="poS"><line x1="100" y1="124" x2="100" y2="26" class="r-s"/><circle cx="100" cy="26" r="4" class="r-sp"/></g>
           <circle cx="100" cy="100" r="7" class="r-c"/><circle cx="100" cy="100" r="2.6" fill="#fff"/>
         </svg>
-      </div>
-      <div class="po-fecha"><span class="po-dia"><b>${d.getDate()}</b><span>${MESES_C[d.getMonth()].slice(0, 3)}</span></span>
-        <span class="po-hoy-tx"><b>${capital(DIAS[d.getDay()])}</b><small>${d.getDate()} de ${MESES[d.getMonth()]} de ${d.getFullYear()}</small></span></div>
-      <div class="po-hoy-chips">
-        <button data-ir="tareas">✅ ${tHoy ? tHoy + (tHoy === 1 ? ' tarea' : ' tareas') + ' hoy' : 'Sin tareas hoy'}</button>
-        <button data-ir="agenda">📒 ${nNotas ? nNotas + (nNotas === 1 ? ' nota' : ' notas') : 'Agenda libre'}</button>
       </div>`;
     this.reloj();
     const g = $('#poRejilla');
-    g.innerHTML = this.SECC.map((s, i) => `
-      <button class="po-b" data-ir="${s.k}" style="--c:${s.c};--i:${i}">
-        <span class="po-ico">${icono(s.ico)}</span>
-        <b>${s.t}</b><small>${esc(this.info(s.k))}</small>
-        <span class="po-flecha">›</span>
-      </button>`).join('') + `
-      <button class="po-b po-conf" data-conf style="--c:var(--accent);--i:7">
+    const baldosa = (k, i) => k === 'conf' ? `
+      <button class="po-b po-conf" data-k="conf" data-conf style="--c:var(--accent);--i:${i}">
         <span class="po-ico po-engranaje">${icono('ajustes')}</span>
         <b>Configuración</b><small>Al abrir · temas · copias</small>
         <span class="po-flecha">›</span>
-      </button>`;
+      </button>` : (S => `
+      <button class="po-b" data-k="${S.k}" data-ir="${S.k}" style="--c:${S.c};--i:${i}">
+        <span class="po-ico">${icono(S.ico)}</span>
+        <b>${S.t}</b><small>${esc(this.info(S.k))}</small>
+        <span class="po-flecha">›</span>
+      </button>`)(this.SECC.find(x => x.k === k));
+    g.innerHTML = this.orden().map(baldosa).join('');
     $('#poCajaSitio').innerHTML = `
-      <button class="po-caja" id="poCaja" style="--i:8" aria-label="Notas secretas">
+      <button class="po-caja" id="poCaja" style="--i:10" aria-label="Notas secretas">
         <span class="po-brillo"></span>
         <span class="po-dial"><svg viewBox="0 0 100 100" aria-hidden="true">
           <circle cx="50" cy="50" r="46" class="d-aro"/>
@@ -114,10 +119,53 @@ const Portada = {
         <span class="po-caja-tx"><b>Notas secretas</b><small>${(typeof Bloc !== 'undefined' && Bloc.existe && Bloc.existe()) ? 'Cifradas · solo se abren con tu contraseña' : 'Pon una contraseña y escribe en secreto'}</small></span>
         <span class="po-candado"><svg viewBox="0 0 40 48" aria-hidden="true"><path class="c-arco" d="M11 22v-7a9 9 0 0 1 18 0v7" fill="none" stroke-width="5" stroke-linecap="round"/><rect x="5" y="21" width="30" height="24" rx="7" class="c-cuerpo"/><circle cx="20" cy="31" r="3.4" class="c-ojo"/><rect x="18.4" y="32" width="3.2" height="7" rx="1.6" class="c-ojo"/></svg></span>
       </button>`;
-    $$('#vPortada [data-ir]').forEach(b => b.onclick = e => this.entrarEn(b.dataset.ir, b));
-    $('#vPortada [data-conf]').onclick = e => { const b = e.currentTarget; b.classList.add('girando'); setTimeout(() => { b.classList.remove('girando'); Ajustes.abrir(); }, 420); };
+    $$('#vPortada [data-ir]').forEach(b => b.onclick = e => { if(Date.now() - (this._soltado || 0) < 600) return; this.entrarEn(b.dataset.ir, b); });
+    $('#vPortada [data-conf]').onclick = e => { if(Date.now() - (this._soltado || 0) < 600) return; const b = e.currentTarget; b.classList.add('girando'); setTimeout(() => { b.classList.remove('girando'); Ajustes.abrir(); }, 420); };
     $('#poCaja').onclick = () => this.abrirCaja();
     if(entrar){ const v = $('#vPortada'); v.classList.remove('entra'); void v.offsetWidth; v.classList.add('entra'); }
+  },
+  /* ---------- Orden de las baldosas (mantener pulsado y arrastrar) ---------- */
+  orden(){
+    const def = [...this.SECC.map(s => s.k), 'conf'];
+    let o = []; try{ o = JSON.parse(lsGet('ph3-po-orden') || '[]'); }catch(e){}
+    o = o.filter(k => def.includes(k)); def.forEach(k => { if(!o.includes(k)) o.splice(k === 'conf' ? o.length : Math.min(o.length, def.indexOf(k)), 0, k); });
+    return o;
+  },
+  ordenDeSiempre(){ lsSet('ph3-po-orden', null); this.pintar(); },
+  iniciarMover(){
+    const g = $('#poRejilla'), sc = $('.po-scroll'); let D = null, raf = null;
+    const levantar = () => {
+      if(!D) return; D.on = true; this._moviendo = true;
+      try{ navigator.vibrate && navigator.vibrate(18); }catch(e){}
+      const r = D.el.getBoundingClientRect(); D.dx = D.x - r.left; D.dy = D.y - r.top;
+      const f = D.el.cloneNode(true); f.classList.add('po-fantasma'); f.removeAttribute('data-ir'); f.removeAttribute('data-k');
+      Object.assign(f.style, { width:r.width + 'px', height:r.height + 'px' }); document.body.appendChild(f); D.f = f;
+      D.el.classList.add('po-hueco'); g.classList.add('ordenando'); colocar(D.x, D.y);
+    };
+    const colocar = (x, y) => { D.f.style.transform = `translate(${x - D.dx}px,${y - D.dy}px) scale(1.06) rotate(-2deg)`; };
+    const auto = () => { if(!D || !D.on) return; const r = sc.getBoundingClientRect(); if(D.cy < r.top + 70) sc.scrollTop -= 9; else if(D.cy > r.bottom - 70) sc.scrollTop += 9; raf = requestAnimationFrame(auto); };
+    const empezar = (x, y, t) => { const el = t.closest && t.closest('#poRejilla .po-b'); if(!el) return; D = { x, y, cx:x, cy:y, el, on:false, t:setTimeout(levantar, 380) }; this._moviendo = true; };
+    const mover = (x, y) => {
+      if(!D) return false;
+      if(!D.on){ if(Math.hypot(x - D.x, y - D.y) > 10){ clearTimeout(D.t); D = null; this._moviendo = false; } return false; }
+      D.cx = x; D.cy = y; colocar(x, y); if(!raf) raf = requestAnimationFrame(auto);
+      const sobre = document.elementFromPoint(x, y), b = sobre && sobre.closest && sobre.closest('#poRejilla .po-b');
+      if(b && b !== D.el){ const hs = [...g.children], i = hs.indexOf(D.el), j = hs.indexOf(b); if(i < j) b.after(D.el); else b.before(D.el); }
+      return true;
+    };
+    const acabar = () => {
+      if(!D) return; clearTimeout(D.t); cancelAnimationFrame(raf); raf = null;
+      if(D.on){ D.f.remove(); D.el.classList.remove('po-hueco'); g.classList.remove('ordenando'); this._soltado = Date.now(); this._moviendo = false;
+        lsSet('ph3-po-orden', JSON.stringify([...new Set([...g.children].map(b => b.dataset.k).filter(Boolean))])); toast('↕️ Orden guardado'); }
+      D = null; this._moviendo = false;
+    };
+    g.addEventListener('touchstart', e => { if(e.touches.length === 1) empezar(e.touches[0].clientX, e.touches[0].clientY, e.target); }, { passive:true });
+    g.addEventListener('touchmove', e => { if(D && mover(e.touches[0].clientX, e.touches[0].clientY) && e.cancelable) e.preventDefault(); }, { passive:false });
+    g.addEventListener('touchend', acabar); g.addEventListener('touchcancel', acabar);
+    g.addEventListener('pointerdown', e => { if(e.pointerType === 'mouse' && e.button === 0) empezar(e.clientX, e.clientY, e.target); });
+    addEventListener('pointermove', e => { if(e.pointerType === 'mouse' && D) mover(e.clientX, e.clientY); });
+    addEventListener('pointerup', e => { if(e.pointerType === 'mouse') acabar(); });
+    g.addEventListener('contextmenu', e => { if(e.target.closest('.po-b')) e.preventDefault(); });
   },
   // Reloj de agujas pequeñito
   reloj(){
@@ -156,6 +204,8 @@ const Portada = {
   },
   iniciar(){
     $$('[data-portada]').forEach(b => { b.innerHTML = icono('portada'); b.onclick = () => irA('portada'); });
+    this.iniciarMover();
+    Mio.al('grabar', () => this.pintar());
     $('#lsVolver').innerHTML = icono('portada');
     $('#verTxt2').textContent = VERSION;
     Mio.al('agenda', () => this.pintar()); Mio.al('tickets', () => this.pintar()); Mio.al('sitios', () => this.pintar());
@@ -174,7 +224,7 @@ const Calc = {
     this._carga = new Promise(ok => {
       const f = $('#calcFrame');
       f.addEventListener('load', () => setTimeout(() => ok(this.win()), 60), { once:true });
-      f.src = 'calculadora.html?v=94';
+      f.src = 'calculadora.html?v=96';
     });
     return this._carga;
   },

@@ -19,7 +19,8 @@ const Ajustes = {
     { k:'tickets',  ico:'tickets',    t:'Tickets',             s:'Colores de los tickets' },
     { k:'sitios',   ico:'sitios',     t:'Sitios',              s:'El color de cada casa' },
     { k:'calc',     ico:'calculadora',t:'Calculadora',         s:'Temas de la calculadora' },
-    { k:'bloc',     ico:'bloc',       t:'Notas secretas',      s:'Contraseña y copia' }
+    { k:'bloc',     ico:'bloc',       t:'Notas secretas',      s:'Contraseña y copia' },
+    { k:'grabar',   ico:'grabar',     t:'Grabar',              s:'Dónde se guardan las notas de voz' }
   ],
   // nombres de antes → página y apartado a abrir
   ANTES: { general:['general'], temas:['tema'], colores:['tema','colores'], tableros:['cuenta'], columnas:['porhacer','columnas'], personas:['porhacer','personas'],
@@ -71,8 +72,9 @@ const Ajustes = {
   /* ---------- GENERAL ---------- */
   p_general(){
     const a = App.ajustes, ini = a.inicio === 'tablero' ? 'tareas' : (a.inicio || 'portada');
-    const ops = [['portada','portada','Portada'],['tareas','tablero','PorHacer'],['cal','calendario','Calendario'],['listas','listas','Listas'],['agenda','agenda','Agenda'],['tickets','tickets','Tickets'],['sitios','sitios','Sitios'],['calc','calculadora','Calculadora']];
+    const ops = [['portada','portada','Portada'],['tareas','tablero','PorHacer'],['cal','calendario','Calendario'],['listas','listas','Listas'],['agenda','agenda','Agenda'],['tickets','tickets','Tickets'],['sitios','sitios','Sitios'],['calc','calculadora','Calculadora'],['grabar','grabar','Grabar']];
     return this.tarjeta('🚪 Al abrir la app, ver…', `<div class="gen-inicio">${ops.map(([k, ic, t]) => `<button data-ini="${k}" class="${k === ini ? 'on' : ''}"><span>${icono(ic)}</span>${t}</button>`).join('')}</div>`, 'Lo primero que se ve al entrar en la app, en este aparato.')
+      + this.tarjeta('↕️ Orden de la portada', '<button class="btn-sec btn-ancho" id="ajOrden">↺ Volver al orden de siempre</button>', 'Para cambiar de sitio un botón de la portada, <b>mantenlo pulsado</b> un momento y <b>arrástralo</b> donde quieras.')
       + this.tarjeta('🎤 Idioma del micrófono', this.seg('ajVoz', [['es-ES','Castellano'],['ca-ES','Català'],['en-GB','English']], a.idiomaVoz),
         'Para dictar en las tareas, la agenda y las notas. Puedes decir «coma», «punto», «punto y aparte», «nueva línea».')
       + this.nota('Los <b>colores</b> de toda la app están en ' + this.enlace('tema', '🎨 Tema y colores') + ' · Tu <b>cuenta</b> y <b>dónde se guarda</b> cada cosa, en ' + this.enlace('cuenta', '☁️ Cuenta y nube'));
@@ -81,6 +83,7 @@ const Ajustes = {
     const a = App.ajustes;
     $$('[data-ini]', cont).forEach(b => b.onclick = async () => { a.inicio = b.dataset.ini; await this.guardar(); $$('[data-ini]', cont).forEach(x => x.classList.toggle('on', x === b)); toast('🚪 Al abrir: ' + b.textContent.trim()); });
     this.enlazarSeg('ajVoz', async v => { a.idiomaVoz = v; await this.guardar(); });
+    $('#ajOrden').onclick = () => { Portada.ordenDeSiempre(); toast('↺ La portada vuelve al orden de siempre'); };
     this.enlazarEnlaces(cont);
   },
 
@@ -256,6 +259,11 @@ const Ajustes = {
   /* ---------- CALCULADORA y NOTAS SECRETAS ---------- */
   p_calc(){ return '<div id="ajCalc"></div>'; },
   e_calc(){ Calc.pintarAjustes($('#ajCalc')); },
+  p_grabar(){
+    const n = Grabar.lista.length, t = Grabar.lista.reduce((s, x) => s + (x.size || 0), 0);
+    return this.tarjeta('🎙️ Notas de voz', `<p class="aj-ayuda">Tienes <b>${n}</b> ${n === 1 ? 'nota' : 'notas'} (${tamTxt(t)}).</p>`,
+      'Se guardan <b>solo en este aparato</b>, en mp3 ligero (unos 360 KB por minuto). Para tener una nota en otro sitio, deslízala a la <b>derecha</b> y guárdala en Archivos o Descargas.');
+  },
   p_bloc(){ return '<div id="ajBloc"></div>'; },
   e_bloc(){ Bloc.pintarAjustes($('#ajBloc')); },
 
