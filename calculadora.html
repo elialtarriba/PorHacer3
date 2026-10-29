@@ -1,0 +1,1002 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#E5DED0">
+<title>Calculadora · PorHacer3</title>
+<link rel="icon" href="logo.png" type="image/png">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+html,body{height:100%}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;background:#f5ead8;color:#3a2810;height:100vh;display:flex;flex-direction:column;overflow-x:hidden;overflow-y:auto;}
+
+/* Calculator base styles */
+.calculator-shell{
+  --calc-accent:#D98463;--calc-accent-dark:#B96546;--calc-shell-top:#F8F3EA;--calc-shell-bottom:#E5DED0;
+  --calc-display:#B8DDE6;--calc-display-text:#10222B;--calc-num-top:#F2F1EC;--calc-num-bottom:#C9C9BD;
+  --calc-num-shadow:#7E8177;--calc-op-top:#EFF4FA;--calc-op-bottom:#CAD2DD;--calc-op-shadow:#8490A0;
+  --calc-clear-top:#FFD8D5;--calc-clear-bottom:#F2A6A0;--calc-clear-shadow:#D3665E;
+  width:100%; height:100dvh; min-height:100vh; overflow-y:auto; overflow-x:hidden; -webkit-overflow-scrolling:touch; padding:env(safe-area-inset-top, 40px) 20px env(safe-area-inset-bottom, 40px) 20px; box-sizing:border-box;
+  display:flex; flex-direction:column; position:relative;
+  background:linear-gradient(180deg,var(--calc-shell-top),var(--calc-shell-bottom));}body.edit-mode .calculator-shell { box-shadow: inset 0 0 0 4px #4A90E2; }
+body.edit-mode .calc-key::after, body.edit-mode .calc-mini-key::after, body.edit-mode .calculator-display::after, body.edit-mode .calc-tool-panel::after, body.edit-mode .calc-tool-button::after, body.edit-mode #easter-egg-text::after {
+  content:''; position:absolute; inset:0; border:3px solid #4A90E2; border-radius:inherit; opacity:0; pointer-events:none; z-index:99; transition:opacity .1s;
+}
+body.edit-mode .calc-key:active::after, body.edit-mode .calc-mini-key:active::after, body.edit-mode .calculator-display:active::after, body.edit-mode .calc-tool-panel:active::after, body.edit-mode .calc-tool-button:active::after, body.edit-mode #easter-egg-text:active::after { opacity:1; }
+.calc-top-bar { display:flex; align-items:center; justify-content:space-between; margin-top:16px; margin-bottom:16px; padding:0 4px; }
+.calc-top-bar h1 { font-size:16px; font-weight:800; color:#573722; text-transform:uppercase; letter-spacing:1px; }
+.calc-close-btn{display:inline-flex;align-items:center;justify-content:center;padding:2px 10px;min-height:22px;line-height:1;background:linear-gradient(180deg,var(--calc-op-top),var(--calc-op-bottom));border:1px solid rgba(255,255,255,.5);border-radius:14px;font-size:12px;font-weight:800;color:#151515;box-shadow:0 3px 0 var(--calc-op-shadow),0 4px 6px rgba(0,0,0,.15);cursor:pointer;transition:all .1s}
+.calc-close-btn:active{transform:translateY(3px);box-shadow:0 0 0 var(--calc-op-shadow),inset 0 2px 4px rgba(0,0,0,.1)}
+
+.calculator-display{flex-shrink:0;min-height:124px;padding:14px 16px;border-radius:14px;background:var(--calc-display);border:4px solid color-mix(in srgb,var(--calc-shell-top) 80%,#000);border-bottom-color:color-mix(in srgb,var(--calc-shell-bottom) 60%,#fff);border-right-color:color-mix(in srgb,var(--calc-shell-bottom) 60%,#fff);box-shadow:inset 2px 4px 10px rgba(0,0,0,.3),inset -2px -2px 5px rgba(255,255,255,.4),0 2px 0 rgba(255,255,255,.6);text-align:right;color:var(--calc-display-text);cursor:pointer;position:relative;z-index:10;}
+.calculator-expression{min-height:24px;font-family:ui-rounded, 'SF Pro Rounded', 'Helvetica Rounded', Arial, sans-serif;font-size:20px;font-weight:600;letter-spacing:1px;color:color-mix(in srgb,var(--calc-display-text) 55%,transparent);overflow-wrap:anywhere}
+.calculator-value{margin-top:15px;font-family:ui-rounded, 'SF Pro Rounded', 'Helvetica Rounded', Arial, sans-serif;font-size:clamp(48px,12vw,80px);line-height:1.05;font-weight:600;letter-spacing:1.5px;overflow-wrap:anywhere;transform:scaleY(1.35);transform-origin:right bottom}
+
+.calculator-display-actions{display:flex;align-items:center;justify-content:flex-end;gap:10px;margin:12px 2px 4px}
+.calculator-signature-btn { margin-right:auto; padding: 0 10px; display: flex; align-items: center; justify-content: center; } .calculator-signature{width:70px;height:24px;object-fit:contain;mix-blend-mode:multiply;pointer-events:none;}
+
+.calc-mini-key{min-height:42px;min-width:72px;padding:0 16px;border:none;border-radius:12px;font-size:20px;font-weight:600;color:#151515;background:linear-gradient(180deg,var(--calc-op-top),var(--calc-op-bottom));box-shadow:0 4px 0 var(--calc-op-shadow),0 6px 10px rgba(0,0,0,.16),inset 0 1px 0 rgba(255,255,255,.9);cursor:pointer}
+.calc-mini-key.copy{font-size:13px}.calc-mini-key.sound{min-width:48px;padding:0 12px;font-size:19px}.calc-mini-key:active{transform:translateY(5px);box-shadow:0 0 0 var(--calc-op-shadow),inset 0 3px 5px rgba(0,0,0,.2)}
+
+.calc-colors-overlay {
+  position:absolute; top:auto; left:16px; right:16px; bottom:calc(env(safe-area-inset-bottom, 20px) + 20px); max-height:400px;
+  background:var(--calc-display);
+  border:1px solid rgba(52,35,28,.35); border-radius:14px;
+  display:none; flex-direction:column; z-index:9; z-index:9;
+  box-shadow:0 10px 30px rgba(0,0,0,.15);
+  overflow:hidden;
+}
+.calc-colors-overlay.open { display:flex; }
+.calc-colors-container {
+  flex:1; padding:20px; display:flex; flex-wrap:wrap; gap:12px; align-content:flex-start; justify-content:center; overflow-y:auto;
+}
+.calc-color { width:44px; height:44px; border-radius:12px; border:2px solid rgba(255,255,255,.5); box-shadow:0 3px 6px rgba(0,0,0,.2); cursor:pointer; }
+.calc-color:active { transform:translateY(2px); }
+.calc-color-tooltip { position:absolute; bottom:115%; left:50%; transform:translateX(-50%); background:rgba(0,0,0,0.7); color:#fff; padding:4px 8px; border-radius:6px; font-size:11px; font-weight:600; white-space:nowrap; pointer-events:none; opacity:0; transition:opacity 0.2s; z-index:100; box-shadow:0 2px 6px rgba(0,0,0,0.2); }
+.calc-color-custom:hover .calc-color-tooltip, .calc-color-custom:active .calc-color-tooltip { opacity:1; }
+.calc-colors-actions { padding:12px; background:rgba(0,0,0,.05); border-top:1px solid rgba(0,0,0,.1); display:flex; justify-content:center; gap: 10px; }
+.calc-colors-actions button { padding:10px 20px; border-radius:10px; border:none; background:#7A736B; color:#FFF; font-weight:bold; cursor:pointer; }
+.calc-colors-actions button:active { opacity: 0.8; }
+
+.calc-copy-overlay { position:absolute; inset:0; z-index:100; background:rgba(0,0,0,0.5); display:none; align-items:center; justify-content:center; }
+.calc-copy-overlay.open { display:flex; }
+.calc-copy-menu { background:var(--calc-display); padding:20px; border-radius:16px; display:flex; flex-direction:column; gap:10px; min-width:240px; text-align:center;}
+.calc-copy-menu h3 { margin-bottom:10px; font-size:18px; color:var(--calc-display-text);}
+.calc-copy-menu button { padding:14px; border-radius:10px; border:none; background:var(--calc-op-bottom); font-size:16px; font-weight:bold; cursor:pointer;}
+.calc-copy-menu button:active { opacity:0.8; }
+
+.calculator-percent-tools{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;margin-top:12px;background:var(--calc-tool-panel,var(--calc-shell-top));padding:10px;border-radius:12px;box-shadow:inset 0 2px 4px rgba(0,0,0,.05);position:relative}
+.calc-tool-button{position:relative;overflow:hidden;flex:1;padding:12px 6px;font-size:clamp(10px,3vw,13px);font-weight:800;color:#151515;background:linear-gradient(180deg,var(--calc-tool-btn-top,rgba(255,255,255,.8)),var(--calc-tool-btn-bottom,rgba(255,255,255,.5)));border:1px solid rgba(0,0,0,.2);border-radius:10px;cursor:pointer;box-shadow:0 8px 0 var(--calc-tool-btn-shadow,rgba(0,0,0,.1)),0 11px 15px rgba(0,0,0,.26),inset 0 0 0 1px rgba(255,255,255,.6),inset 0 2px 1px rgba(255,255,255,.95)}.calc-tool-button::before{content:'';position:absolute;top:16%;left:16%;right:16%;bottom:8%;border-radius:40%;box-shadow:inset 0 4px 6px rgba(0,0,0,.08),inset 0 -4px 6px rgba(255,255,255,.3);background:radial-gradient(ellipse at center,rgba(0,0,0,.04) 0%,transparent 70%);pointer-events:none;transition:opacity .15s}.calc-tool-button:active, .calc-tool-button.active{transform:translateY(8px);box-shadow:0 0 0 var(--calc-tool-btn-shadow,rgba(0,0,0,.1)),inset 0 3px 5px rgba(0,0,0,.2)}.calc-tool-button:active::before, .calc-tool-button.active::before{opacity:0.4}
+#calc-discount-button{--calc-tool-btn-top:color-mix(in srgb,var(--calc-tool-btn-discount,#FFF) 80%,#FFF);--calc-tool-btn-bottom:var(--calc-tool-btn-discount,rgba(255,255,255,.5));--calc-tool-btn-shadow:color-mix(in srgb,var(--calc-tool-btn-discount,rgba(0,0,0,.1)) 75%,#000);}
+#calc-increase-button{--calc-tool-btn-top:color-mix(in srgb,var(--calc-tool-btn-increase,#FFF) 80%,#FFF);--calc-tool-btn-bottom:var(--calc-tool-btn-increase,rgba(255,255,255,.5));--calc-tool-btn-shadow:color-mix(in srgb,var(--calc-tool-btn-increase,rgba(0,0,0,.1)) 75%,#000);}
+#calc-vat-button{--calc-tool-btn-top:color-mix(in srgb,var(--calc-tool-btn-vat,#FFF) 80%,#FFF);--calc-tool-btn-bottom:var(--calc-tool-btn-vat,rgba(255,255,255,.5));--calc-tool-btn-shadow:color-mix(in srgb,var(--calc-tool-btn-vat,rgba(0,0,0,.1)) 75%,#000);}
+.calc-tool-panel{display:none;margin-top:10px;padding:12px;border:1px solid rgba(52,35,28,.18);border-radius:12px;background:var(--calc-percent-panel-bg, rgba(255,255,255,.42))}.calc-tool-panel.open{display:block}.calc-tool-fields{display:grid;grid-template-columns:minmax(0,1fr) 92px;gap:9px}.calc-tool-field label{display:block;margin-bottom:4px;color:var(--calc-display-text);font-size:11px;font-weight:600}.calc-tool-field input{width:100%;min-height:42px;padding:8px 10px;border:1.5px solid rgba(52,35,28,.28);border-radius:9px;background:var(--calc-tool-inputs, rgba(255,255,255,.82));color:#151515;font-size:18px;text-align:right; cursor:pointer}.calc-tool-calculate{position:relative;overflow:hidden;width:100%;min-height:42px;margin-top:9px;border:1px solid rgba(255,255,255,.7);border-radius:10px;color:#151515;font-weight:600;background:linear-gradient(180deg,var(--calc-tool-calc-top,color-mix(in srgb,var(--calc-tool-calc-btn,var(--calc-accent)) 55%,#fff 45%)),var(--calc-tool-calc-bottom,var(--calc-tool-calc-btn,var(--calc-accent))));box-shadow:0 8px 0 var(--calc-tool-calc-shadow,var(--calc-accent-dark)),0 11px 15px rgba(0,0,0,.26),inset 0 2px 1px rgba(255,255,255,.95);cursor:pointer;--calc-tool-calc-top:color-mix(in srgb,var(--calc-tool-calc-btn,var(--calc-accent)) 80%,#FFF);--calc-tool-calc-bottom:var(--calc-tool-calc-btn,var(--calc-accent));--calc-tool-calc-shadow:color-mix(in srgb,var(--calc-tool-calc-btn,var(--calc-accent-dark)) 75%,#000);}.calc-tool-calculate:active{transform:translateY(8px);box-shadow:0 0 0 var(--calc-tool-calc-shadow,var(--calc-accent-dark)),inset 0 3px 5px rgba(0,0,0,.2)}.calc-tool-calculate::before{content:'';position:absolute;top:12%;left:16%;right:16%;bottom:12%;border-radius:40%;box-shadow:inset 0 4px 6px rgba(0,0,0,.08),inset 0 -4px 6px rgba(255,255,255,.3);background:radial-gradient(ellipse at center,rgba(0,0,0,.04) 0%,transparent 70%);pointer-events:none;transition:opacity .15s}.calc-tool-calculate:active::before{opacity:0.4}.calc-tool-result{min-height:0;margin-top:10px;padding:9px 11px;border-radius:9px;background:var(--calc-display);color:var(--calc-display-text);font-size:13px;line-height:1.45}
+
+.calculator-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px; padding-top: 10px;}
+.calc-key{position:relative;overflow:hidden;min-height:clamp(58px, 15vh, 80px);border:1px solid rgba(255,255,255,.72);border-radius:10px;font-size:30px;font-weight:400;color:#151515;background:linear-gradient(180deg,var(--calc-num-top),var(--calc-num-bottom));box-shadow:0 8px 0 var(--calc-num-shadow),0 11px 15px rgba(0,0,0,.26),inset 0 2px 1px rgba(255,255,255,.95);cursor:pointer}.calc-key::before{content:'';position:absolute;top:12%;left:16%;right:16%;bottom:12%;border-radius:40%;box-shadow:inset 0 4px 6px rgba(0,0,0,.08),inset 0 -4px 6px rgba(255,255,255,.3);background:radial-gradient(ellipse at center,rgba(0,0,0,.04) 0%,transparent 70%);pointer-events:none;transition:opacity .15s}.calc-key:active{transform:translateY(8px);box-shadow:0 0 0 var(--calc-num-shadow),inset 0 3px 5px rgba(0,0,0,.2)}.calc-key:active::before{opacity:0.4}.calc-key.op{background:linear-gradient(180deg,var(--calc-op-top),var(--calc-op-bottom));box-shadow:0 8px 0 var(--calc-op-shadow),0 11px 15px rgba(0,0,0,.26),inset 0 2px 1px rgba(255,255,255,.95)}.calc-key.op:active{box-shadow:0 0 0 var(--calc-op-shadow),inset 0 3px 5px rgba(0,0,0,.2)}.calc-key.clear{background:linear-gradient(180deg,var(--calc-clear-top),var(--calc-clear-bottom));box-shadow:0 8px 0 var(--calc-clear-shadow),0 11px 15px rgba(0,0,0,.26),inset 0 2px 1px rgba(255,255,255,.95)}.calc-key.clear:active{box-shadow:0 0 0 var(--calc-clear-shadow),inset 0 3px 5px rgba(0,0,0,.2)}.calc-key.top-op{background:linear-gradient(180deg,var(--calc-top-op-top, var(--calc-clear-top)),var(--calc-top-op-bottom, var(--calc-clear-bottom)));box-shadow:0 8px 0 var(--calc-top-op-shadow, var(--calc-clear-shadow)),0 11px 15px rgba(0,0,0,.26),inset 0 2px 1px rgba(255,255,255,.95)}.calc-key.top-op:active{box-shadow:0 0 0 var(--calc-top-op-shadow, var(--calc-clear-shadow)),inset 0 3px 5px rgba(0,0,0,.2)}.calc-key.equals{background:linear-gradient(180deg,var(--calc-accent-top, color-mix(in srgb,var(--calc-accent) 55%,#fff 45%)),var(--calc-accent-bottom, var(--calc-accent)));box-shadow:0 8px 0 var(--calc-accent-dark),0 11px 15px rgba(0,0,0,.26),inset 0 2px 1px rgba(255,255,255,.95)}.calc-key.equals:active{box-shadow:0 0 0 var(--calc-accent-dark),inset 0 3px 5px rgba(0,0,0,.2)}
+
+/* History Overlay Styles */
+.calc-history-overlay {
+  position:absolute; top:calc(env(safe-area-inset-top, 20px) + 160px); left:16px; right:16px; bottom:env(safe-area-inset-bottom, 20px);
+  background:var(--calc-display);
+  border:1px solid rgba(52,35,28,.35); border-radius:14px;
+  display:none; flex-direction:column; z-index:9;
+  box-shadow:0 10px 30px rgba(0,0,0,.15);
+  overflow:hidden;
+}
+.calc-history-overlay.open { display:flex; }
+.calc-history-list {
+  flex:1; overflow-y:auto; padding:10px; display:flex; flex-direction:column; gap:8px;
+}
+.calc-history-item {
+  border-bottom:1px solid rgba(52,35,28,.15); padding:12px; text-align:right;
+  color:var(--calc-display-text); font-size:24px; position:relative;
+}
+.calc-history-item:last-child { border-bottom:none; }
+.calc-history-item .hist-expr { font-size:18px; color:color-mix(in srgb,var(--calc-display-text) 60%,transparent); border-bottom:1px solid rgba(52,35,28,.3); display:inline-block; padding-bottom:4px; margin-bottom:4px;}
+.calc-history-item .hist-date { position:absolute; top:12px; left:12px; font-size:10px; color:color-mix(in srgb,var(--calc-display-text) 50%,transparent); }
+.calc-history-item .hist-icon { position:absolute; top:12px; right:12px; font-size:14px; opacity:0.5; }
+
+.calc-history-actions {
+  display:grid; grid-template-columns:1fr 1fr; gap:1px; background:rgba(52,35,28,.3);
+}
+.calc-history-actions button {
+  background:#6b645b; color:white; border:none; padding:16px; font-size:15px; font-weight:800; cursor:pointer;
+}
+.calc-history-actions button:active { background:#555049; }
+
+@media(max-width:430px){
+  .calculator-signature{width:60px; height:20px;}.calculator-display-actions{gap:7px}
+  .calc-mini-key{min-width:58px;padding:0 11px}.calc-mini-key.sound{min-width:44px;padding:0 9px}
+  .calculator-grid{gap:8px}
+}
+
+/* PorHacer3: botón de la portada (igual que en todos los apartados) */
+.calc-portada{width:46px;height:46px;border-radius:15px;display:grid;place-items:center;border:1px solid rgba(0,0,0,.06);cursor:pointer;
+  background:linear-gradient(180deg,var(--tile1,#fff),var(--tile2,#e6e6ea));box-shadow:0 4px 0 rgba(0,0,0,.10),0 8px 16px rgba(30,30,40,.14),inset 0 1px 0 rgba(255,255,255,.9)}
+.calc-portada svg{width:30px;height:30px;display:block}
+.calc-portada:active{transform:translateY(3px);box-shadow:0 1px 0 rgba(0,0,0,.12)}
+.calc-top-bar{margin-top:10px!important}
+</style>
+</head>
+<body ontouchstart="">
+<div class="calculator-shell" id="calculator-shell" onclick="if(typeof isEditMode!=='undefined' && isEditMode) handleEditModeSelect('shell')">
+  <div class="calc-top-bar">
+    <button class="calc-portada" id="calc-portada" onclick="irPortada()" title="Portada" aria-label="Ir a la portada"></button>
+  </div>
+  
+  <div id="edit-top-bar" style="display:none; background:#4A90E2; color:white; padding:10px 14px; border-radius:14px; margin-top:10px; margin-bottom:12px; align-items:center; justify-content:space-between;">
+    <div>
+      <div style="font-size:12px; font-weight:800; text-transform:uppercase; opacity:0.9;">🎨 Editando:</div>
+      <div id="edit-mode-target" style="font-size:16px; font-weight:900;">Fondo</div>
+    </div>
+    <div style="display:flex; align-items:center; gap:6px;"><button onclick="deleteCurrentCustomTheme()" title="Borrar diseño" style="background:#ff4d4d; color:white; border:none; padding:8px 10px; border-radius:10px; font-weight:bold; cursor:pointer; font-size:14px; box-shadow: 0 2px 5px rgba(0,0,0,0.2);">🗑️</button><button onclick="renameCurrentCustomTheme()" title="Renombrar diseño" style="background:#fff; color:#4A90E2; border:none; padding:8px 10px; border-radius:10px; font-weight:bold; cursor:pointer; font-size:14px; box-shadow: 0 2px 5px rgba(0,0,0,0.2);">✏️</button><button onclick="saveAsNewTheme()" style="background:#fff; color:#4A90E2; border:none; padding:8px 8px; border-radius:10px; font-weight:bold; cursor:pointer; font-size:14px; box-shadow: 0 2px 5px rgba(0,0,0,0.2);">➕ Nuevo</button><button onclick="saveCustomTheme()" style="background:#fff; color:#4A90E2; border:none; padding:8px 8px; border-radius:10px; font-weight:bold; cursor:pointer; font-size:14px; box-shadow: 0 2px 5px rgba(0,0,0,0.2);">💾 Guardar</button><input type="color" id="edit-color-picker" oninput="if(isEditMode) applyCustomColor(currentEditType, this.value)" style="width:48px; height:48px; border:3px solid white; border-radius:10px; background:white; cursor:pointer; padding:0;"></div>
+  </div>
+
+  <div class="calculator-display" onclick="handleDisplayClick()">
+    <div class="calculator-expression" id="calc-expression"></div>
+    <div class="calculator-value" id="calc-value">0</div>
+  </div>
+
+  <div class="calc-history-overlay" id="calc-history-overlay">
+    <div class="calc-history-list" id="calc-history-list">
+      <!-- History items will be injected here -->
+    </div>
+    <div class="calc-history-actions">
+      <button onclick="clearHistory()">Borrar historial</button>
+      <button onclick="toggleHistory()">Cerrar</button>
+    </div>
+  </div>
+
+  <div class="calculator-display-actions">
+    <button class="calc-mini-key calculator-signature-btn" data-calc="elibi"><img class="calculator-signature" src="logo_elibi.jpg" alt="EliBi"></button>
+    <button class="calc-mini-key" data-calc="colors" title="Colores">🎨</button>
+    <button class="calc-mini-key sound" data-calc="sound" id="calc-sound" title="Activar sonido">🔇</button>
+    <button class="calc-mini-key" data-calc="back_top" title="Borrar último número">⌫</button>
+    <button class="calc-mini-key copy" data-calc="copy" title="Copiar número">Copiar</button>
+  </div>
+  
+  <div id="colors-edit-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:1000; align-items:center; justify-content:center;">
+  <div style="background:white; padding:20px; border-radius:16px; width:80%; max-width:320px; box-shadow:0 10px 25px rgba(0,0,0,0.2);">
+    <button onclick="handleColorsEditModal(1)" style="width:100%; padding:14px; margin-bottom:10px; background:#f0f0f0; border:none; border-radius:10px; font-weight:bold; font-size:15px; color:#151515; cursor:pointer;">1. Cambiar color del botón Temas</button>
+    <button onclick="handleColorsEditModal(2)" style="width:100%; padding:14px; margin-bottom:16px; background:#f0f0f0; border:none; border-radius:10px; font-weight:bold; font-size:15px; color:#151515; cursor:pointer;">2. Abrir Temas</button>
+    <button onclick="handleColorsEditModal(0)" style="width:100%; padding:14px; background:#ff4d4d; color:white; border:none; border-radius:10px; font-weight:bold; font-size:15px; cursor:pointer;">Cancelar</button>
+  </div>
+</div>
+  <div class="calc-colors-overlay" id="calc-colors-overlay">
+    <div class="calc-colors-container" id="calculator-palette">
+      <!-- Colors injected here -->
+    </div>
+    <div class="calc-colors-actions">
+      <button onclick="toggleCalculatorPalette()">Cerrar</button>
+      <button onclick="toggleEditMode()" id="edit-mode-btn" style="background:#1ABC9C;">🖌️ Modo Diseño</button>
+    </div>
+  </div>
+  
+  <div class="calc-copy-overlay" id="calc-copy-overlay">
+    <div class="calc-copy-menu">
+      <h3>Formato de copia</h3>
+      <button onclick="executeCopy('')">Solo número</button>
+      <button onclick="executeCopy(' €')">Número + €</button>
+      <button onclick="executeCopy(' $')">Número + $</button>
+      <button onclick="toggleCopyMenu()">Cancelar</button>
+    </div>
+  </div>
+
+  <div class="calculator-percent-tools" id="calc-tool-panel" onclick="if(typeof isEditMode!=='undefined' && isEditMode) handleEditModeSelect('toolpanel')">
+    <button class="calc-tool-button" id="calc-discount-button" onclick="if(typeof isEditMode!=='undefined' && isEditMode) { if(typeof event!=='undefined' && event) event.stopPropagation(); handleEditModeSelect('toolbtn_discount'); } toggleCalcPercentTool('discount')">- % Descuento</button>
+    <button class="calc-tool-button" id="calc-increase-button" onclick="if(typeof isEditMode!=='undefined' && isEditMode) { if(typeof event!=='undefined' && event) event.stopPropagation(); handleEditModeSelect('toolbtn_increase'); } toggleCalcPercentTool('increase')">+ % Aumento</button>
+    <button class="calc-tool-button" id="calc-vat-button" onclick="if(typeof isEditMode!=='undefined' && isEditMode) { if(typeof event!=='undefined' && event) event.stopPropagation(); handleEditModeSelect('toolbtn_vat'); } toggleCalcPercentTool('vat')">Precio sin IVA</button>
+  </div>
+  
+  <div class="calc-tool-panel" id="calc-percent-panel" onclick="if(typeof isEditMode!=='undefined' && isEditMode) { if(typeof event!=='undefined' && event) event.stopPropagation(); handleEditModeSelect('toolpanel_bg'); }">
+    <div style="display:flex; gap:8px; align-items:flex-end; margin-bottom:10px;">
+      <button class="calc-tool-calculate" style="margin-top:0; width:80px; flex-shrink:0; height:42px; margin-bottom:8px; font-size:13px; padding: 0;" onclick="if(typeof isEditMode!=='undefined' && isEditMode) { if(typeof event!=='undefined' && event) event.stopPropagation(); handleEditModeSelect('toolpanel_calc_btn'); } else calculateCalcPercentTool()">Calcular</button>
+      <div class="calc-tool-fields" style="flex-grow:1; display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+        <div class="calc-tool-field"><label for="calc-tool-amount">Importe</label><input type="text" readonly id="calc-tool-amount" placeholder="100,00" onclick="if(typeof isEditMode!=='undefined' && isEditMode) { if(typeof event!=='undefined' && event) event.stopPropagation(); handleEditModeSelect('toolpanel_inputs'); } else { setActiveToolInput('amount'); }"></div>
+        <div class="calc-tool-field"><label for="calc-tool-percent" id="calc-tool-percent-label">Porcentaje %</label><input type="text" readonly id="calc-tool-percent" placeholder="20" onclick="if(typeof isEditMode!=='undefined' && isEditMode) { if(typeof event!=='undefined' && event) event.stopPropagation(); handleEditModeSelect('toolpanel_inputs'); } else { setActiveToolInput('percent'); }"></div>
+      </div>
+    </div>
+    <div class="calc-tool-result" id="calc-tool-result" style="margin-top:0; font-size:11px; padding:6px 11px; line-height:1.2; text-align:center;">Escribe el importe y el porcentaje.</div>
+  </div>
+
+  <div class="calculator-grid" id="calculator-grid">
+    <button class="calc-key clear" data-calc="C">C</button><button class="calc-key top-op" data-calc="%">%</button><button class="calc-key top-op" data-calc="+/-">+/−</button><button class="calc-key op" data-calc="/">÷</button>
+    <button class="calc-key" data-calc="7">7</button><button class="calc-key" data-calc="8">8</button><button class="calc-key" data-calc="9">9</button><button class="calc-key op" data-calc="*">×</button>
+    <button class="calc-key" data-calc="4">4</button><button class="calc-key" data-calc="5">5</button><button class="calc-key" data-calc="6">6</button><button class="calc-key op" data-calc="-">−</button>
+    <button class="calc-key" data-calc="1">1</button><button class="calc-key" data-calc="2">2</button><button class="calc-key" data-calc="3">3</button><button class="calc-key op" data-calc="+">＋</button>
+    <button class="calc-key" data-calc="0">0</button><button class="calc-key" data-calc=".">,</button><button class="calc-key" data-calc="back">⌫</button><button class="calc-key equals" data-calc="=">=</button>
+  </div>
+  <div class="app-version" style="position:absolute; bottom:16px; right:16px; font-size:14px; font-weight:900; color:var(--calc-display-text); opacity:0.35; pointer-events:none;">v61 · PorHacer3</div>
+</div>
+
+<script>
+// LocalStorage helpers
+function lsGet(k){try{return localStorage.getItem(k)}catch(e){return null}}
+function lsSet(k,v){try{localStorage.setItem(k,v)}catch(e){}}
+
+const CALCULATOR_THEMES=[
+  {name:'Como la app (PorHacer3)',app:true,accent:'#e5201c',dark:'#b3170f',shellTop:'#eeeff1',shellBottom:'#e2e3e7',display:'#e9eaee',displayText:'#1c1c1e',numTop:'#ffffff',numBottom:'#e3e4e8',numShadow:'#a3a5ad',opTop:'#ffffff',opBottom:'#d6d7dc',opShadow:'#8e8f97',clearTop:'#ff5a4e',clearBottom:'#e5201c',clearShadow:'#9e130f'},
+  {name:'PorHacer · gris, blanco y rojo',accent:'#e5201c',dark:'#b3170f',shellTop:'#f4f5f7',shellBottom:'#dcdde2',display:'#2c2c2e',displayText:'#ffffff',numTop:'#ffffff',numBottom:'#e6e7eb',numShadow:'#a3a5ad',opTop:'#f1f1f4',opBottom:'#cfd0d6',opShadow:'#8e8f97',clearTop:'#ff6b5e',clearBottom:'#e5201c',clearShadow:'#a3140f',topOpTop:'#ffe3e1',topOpBottom:'#f6b3ad',topOpShadow:'#d2706a'},
+  {name:'Marrón pastel',accent:'#D98463',dark:'#B96546',shellTop:'#F8F3EA',shellBottom:'#E5DED0',display:'#B8DDE6',displayText:'#10222B',numTop:'#F2F1EC',numBottom:'#C9C9BD',numShadow:'#7E8177',opTop:'#EFF4FA',opBottom:'#CAD2DD',opShadow:'#8490A0',clearTop:'#FFE9E5',clearBottom:'#F2C0B7',clearShadow:'#D28D80'},
+  {name:'Rosa luminoso',accent:'#E7A1B3',dark:'#C8758A',shellTop:'#FFF3F7',shellBottom:'#F2DDE6',display:'#FFD7E5',displayText:'#4D2635',numTop:'#FFF8FA',numBottom:'#EFD9E1',numShadow:'#C7A9B4',opTop:'#F7ECFF',opBottom:'#D9C8F0',opShadow:'#A58BC3',clearTop:'#FFF1DD',clearBottom:'#F3C692',clearShadow:'#D59755'},
+  {name:'Azul agua',accent:'#7CB9C8',dark:'#4E8794',shellTop:'#EFFBFC',shellBottom:'#D6ECF0',display:'#BDECF2',displayText:'#173942',numTop:'#F5FBFA',numBottom:'#D5E5E1',numShadow:'#8FA8A3',opTop:'#E7F2FF',opBottom:'#BFD5EA',opShadow:'#799AB6',clearTop:'#FFE1DF',clearBottom:'#F0B1AA',clearShadow:'#C77670'},
+  {name:'Menta',accent:'#94D1B0',dark:'#5EA87E',shellTop:'#F1FFF7',shellBottom:'#DCEFE5',display:'#C9F2DC',displayText:'#153A27',numTop:'#FAFFF8',numBottom:'#DDEADC',numShadow:'#93A98F',opTop:'#EAF6F0',opBottom:'#BED9CA',opShadow:'#79A089',clearTop:'#FFE7CE',clearBottom:'#F1BF82',clearShadow:'#C88744'},
+  {name:'Lavanda',accent:'#B8A7E8',dark:'#8974C9',shellTop:'#F7F3FF',shellBottom:'#E5DDF5',display:'#DED5FF',displayText:'#2E2450',numTop:'#FCFAFF',numBottom:'#DDD7E8',numShadow:'#9A91A8',opTop:'#EEF0FF',opBottom:'#CBD0EE',opShadow:'#858CBD',clearTop:'#FFE0EC',clearBottom:'#EFB0C9',clearShadow:'#C57696'},
+  {name:'Limón claro',accent:'#F3D266',dark:'#C7A326',shellTop:'#FFFBEA',shellBottom:'#EEE4BA',display:'#FFF1A9',displayText:'#493D10',numTop:'#FFFDF2',numBottom:'#E8E1C9',numShadow:'#A89B78',opTop:'#EFF8DD',opBottom:'#D0E2A5',opShadow:'#91A35F',clearTop:'#FFDCD2',clearBottom:'#EEAA95',clearShadow:'#C97860'},
+  {name:'Marrón oscuro',accent:'#76513E',dark:'#3F2A21',shellTop:'#5B4338',shellBottom:'#2E211C',display:'#C9B39F',displayText:'#251811',numTop:'#A9856F',numBottom:'#6D4E3E',numShadow:'#2B1C16',opTop:'#8A6B59',opBottom:'#563C30',opShadow:'#241711',clearTop:'#C78E72',clearBottom:'#8F5943',clearShadow:'#4A2A20'},
+  {name:'Marrón claro',accent:'#C9966B',dark:'#946442',shellTop:'#FFF4E8',shellBottom:'#DEC4AA',display:'#F2D7BC',displayText:'#4A2E1F',numTop:'#FFF9F1',numBottom:'#D9BFA6',numShadow:'#9B785C',opTop:'#F3E3D2',opBottom:'#C9A98A',opShadow:'#87664D',clearTop:'#FFE1CF',clearBottom:'#DCA889',clearShadow:'#A36E50'},
+  {name:'Blanco',accent:'#D8D8D8',dark:'#9B9B9B',shellTop:'#FFFFFF',shellBottom:'#EAEAEA',display:'#F7F7F7',displayText:'#181818',numTop:'#FFFFFF',numBottom:'#E8E8E8',numShadow:'#A6A6A6',opTop:'#F8F8F8',opBottom:'#DADADA',opShadow:'#999999',clearTop:'#FFFFFF',clearBottom:'#E3E3E3',clearShadow:'#A0A0A0'},
+  {name:'Violeta',accent:'#9B59B6',dark:'#8E44AD',shellTop:'#F9F2FB',shellBottom:'#E5D5E8',display:'#F5EEF8',displayText:'#311B38',numTop:'#FFFFFF',numBottom:'#D8C8DB',numShadow:'#938297',opTop:'#F1E7F2',opBottom:'#CBB6CE',opShadow:'#87728A',clearTop:'#FFE1DF',clearBottom:'#F0B1AA',clearShadow:'#C77670'},
+  {name:'Naranja',accent:'#F39C12',dark:'#E67E22',shellTop:'#FFF7EC',shellBottom:'#F5E1C8',display:'#FEF5E7',displayText:'#452A06',numTop:'#FFFFFF',numBottom:'#E3D1B9',numShadow:'#A1927F',opTop:'#FAEBDD',opBottom:'#D5C1AA',opShadow:'#948574',clearTop:'#FFDEE2',clearBottom:'#F2AAB4',clearShadow:'#C46E79'},
+  {name:'Turquesa',accent:'#1ABC9C',dark:'#16A085',shellTop:'#E9F7F5',shellBottom:'#C9E8E1',display:'#E8F8F5',displayText:'#063A2E',numTop:'#F8FCFB',numBottom:'#BBD9D3',numShadow:'#7C9791',opTop:'#E0F0EC',opBottom:'#B1CBC5',opShadow:'#6E8580',clearTop:'#FFE3CD',clearBottom:'#F5BB90',clearShadow:'#CA8B5D'},
+  {name:'Cereza',accent:'#E74C3C',dark:'#C0392B',shellTop:'#FDF0EF',shellBottom:'#F1CDCA',display:'#FDEDEC',displayText:'#380B07',numTop:'#FFFFFF',numBottom:'#DDBFBC',numShadow:'#9C817F',opTop:'#F6E5E3',opBottom:'#D4B8B6',opShadow:'#957B7A',clearTop:'#FDF2E2',clearBottom:'#EFD5AD',clearShadow:'#B9A07D'},
+  {name:'Medianoche',accent:'#34495E',dark:'#2C3E50',shellTop:'#445362',shellBottom:'#1C2732',display:'#BDC3C7',displayText:'#10171D',numTop:'#A0AEB8',numBottom:'#596C7D',numShadow:'#182129',opTop:'#7B8996',opBottom:'#415161',opShadow:'#0D141B',clearTop:'#BAA79B',clearBottom:'#78675C',clearShadow:'#362C25'},
+  {name:'Oro Rosa',accent:'#E5989B',dark:'#B5838D',shellTop:'#FFEDEB',shellBottom:'#E8D5D4',display:'#FFEDEB',displayText:'#4A3537',numTop:'#FFF9F8',numBottom:'#DBBFC2',numShadow:'#9E8387',opTop:'#F8EAE9',opBottom:'#D3BCBE',opShadow:'#917D80',clearTop:'#EAE7ED',clearBottom:'#A8A3B2',clearShadow:'#686373'},
+  {name:'Lima',accent:'#B4D330',dark:'#94AE25',shellTop:'#FAFDED',shellBottom:'#E3ECBE',display:'#FAFDED',displayText:'#2E3807',numTop:'#FFFFFF',numBottom:'#D1DBAC',numShadow:'#8E996B',opTop:'#F0F6D5',opBottom:'#C9D3A0',opShadow:'#848F5D',clearTop:'#FEEAE5',clearBottom:'#F2BBAE',clearShadow:'#C1887B'},
+  {name:'Cielo Nocturno',accent:'#2980B9',dark:'#2471A3',shellTop:'#EAF2F8',shellBottom:'#B3D0E5',display:'#EAF2F8',displayText:'#0B2135',numTop:'#F8FAFC',numBottom:'#A1B8CA',numShadow:'#60778C',opTop:'#D9E6F0',opBottom:'#9CAEC0',opShadow:'#5B6F82',clearTop:'#FEEAE5',clearBottom:'#F2BBAE',clearShadow:'#C1887B'},
+  {name:'Frambuesa',accent:'#C71585',dark:'#9E106A',shellTop:'#FDF0F7',shellBottom:'#F1C2DF',display:'#FDF0F7',displayText:'#360423',numTop:'#FFFFFF',numBottom:'#DCACC8',numShadow:'#9D738A',opTop:'#F6DFED',opBottom:'#D5AED0',opShadow:'#977793',clearTop:'#FEEAE5',clearBottom:'#F2BBAE',clearShadow:'#C1887B'},
+  {name:'Gris',accent:'#7F8C8D',dark:'#707B7C',shellTop:'#F2F4F4',shellBottom:'#D4D7D7',display:'#F2F4F4',displayText:'#1F2424',numTop:'#FFFFFF',numBottom:'#C2C7C7',numShadow:'#868E8E',opTop:'#E7EAEB',opBottom:'#B7BCBC',opShadow:'#7A8181',clearTop:'#FEEAE5',clearBottom:'#F2BBAE',clearShadow:'#C1887B'},
+  {name:'Mandarina',accent:'#E67E22',dark:'#D35400',shellTop:'#FDEBD0',shellBottom:'#F5CBA7',display:'#FAE5D3',displayText:'#6E2C00',numTop:'#FEF9E7',numBottom:'#FAD7A1',numShadow:'#D68910',opTop:'#FADBD8',opBottom:'#E6B0AA',opShadow:'#A93226',clearTop:'#FDF2E9',clearBottom:'#EDBB99',clearShadow:'#BA4A00'},
+  {name:'Otoño',accent:'#D35400',dark:'#A04000',shellTop:'#FCF3CF',shellBottom:'#F5B041',display:'#F9E79F',displayText:'#784212',numTop:'#FEF9E7',numBottom:'#F8C471',numShadow:'#B9770E',opTop:'#FDEBD0',opBottom:'#F5CBA7',opShadow:'#BA4A00',clearTop:'#FADBD8',clearBottom:'#E6B0AA',clearShadow:'#922B21'},
+  {name:'Melocotón',accent:'#F5B041',dark:'#E67E22',shellTop:'#FDF2E9',shellBottom:'#FAE5D3',display:'#FDF2E9',displayText:'#512E05',numTop:'#FFFFFF',numBottom:'#F5D9C4',numShadow:'#CD9D7F',opTop:'#FADBD8',opBottom:'#E8AFA7',opShadow:'#B26458',clearTop:'#FCF3CF',clearBottom:'#F4D03F',clearShadow:'#C39F24',topOpTop:'#FADBD8',topOpBottom:'#E8AFA7',topOpShadow:'#B26458'},
+  {name:'Pastel Sorpresa',accent:'#FFB347',dark:'#E69622',shellTop:'#F4F5F7',shellBottom:'#E0E4E8',display:'#FFF1E0',displayText:'#362C22',numTop:'#FFFFE0',numBottom:'#F8EEB2',numShadow:'#C9C289',opTop:'#EBECEF',opBottom:'#C9CED6',opShadow:'#919AA6',clearTop:'#DEDFE3',clearBottom:'#B0B6C2',clearShadow:'#7A8291',topOpTop:'#EBECEF',topOpBottom:'#C9CED6',topOpShadow:'#919AA6'}
+];
+
+try {
+  const modDefs = JSON.parse(localStorage.getItem('ph3_calc_modified_defaults') || '{}');
+  Object.keys(modDefs).forEach(k => {
+    if (CALCULATOR_THEMES[k]) Object.assign(CALCULATOR_THEMES[k], modDefs[k]);
+  });
+} catch(e) {}
+
+let CALC_CURRENT='0', CALC_PREVIOUS=null, CALC_OPERATOR='', CALC_JUST_EVALUATED=false;
+let CALC_SOUND=true, CALC_AUDIO=null;
+let CALC_PERCENT_TOOL='';
+document.addEventListener('visibilitychange', () => { if(document.visibilityState === 'hidden' && CALC_PERCENT_TOOL) toggleCalcPercentTool(CALC_PERCENT_TOOL); });
+let ACTIVE_TOOL_INPUT=null;
+let CALC_HISTORY = [];
+
+function formatCalcValue(value){const n=Number(value);return Number.isFinite(n)?String(Math.round(n*100000000)/100000000).replace('.',','):'Error';}
+
+let showingEasterEgg = false;
+const easterEggQuotes = [
+  "✨ Lo hice porque nadie me dijo que era imposible ✨", "🌟 Quien la sigue la consigue 🌟",
+  "✨ ¡Tú puedes con todo! ✨", "🌟 ¡Hoy es un gran día! 🌟", "💫 ¡Sonríe, estás genial! 💫", 
+  "✨ ¡Eres imparable! ✨", "🌟 ¡Confía en tu magia! 🌟", "✨ ¡Sigue brillando! ✨",
+  "🌟 ¡No te rindas nunca! 🌟", "💫 ¡Cree en ti siempre! 💫", "✨ ¡Todo es posible! ✨",
+  "🌟 ¡Haz que suceda! 🌟", "✨ ¡Atrévete a soñar! ✨", "💫 ¡Eres pura energía! 💫",
+  "🌟 ¡Lo vas a lograr! 🌟", "✨ ¡Supera tus límites! ✨", "💫 ¡Disfruta el momento! 💫",
+  "🌟 ¡Vuela muy alto! 🌟", "✨ ¡Magia en cada paso! ✨", "💫 ¡Eres luz y fuerza! 💫",
+  "🌟 ¡Nunca dejes de reír! 🌟", "✨ ¡Celebra tus éxitos! ✨", "💫 ¡El éxito te espera! 💫",
+  "🌟 ¡Siente tu poder! 🌟", "✨ ¡Eres inspiración! ✨", "💫 ¡Brilla con fuerza! 💫",
+  "🌟 ¡Hazlo con pasión! 🌟", "✨ ¡Sigue tu corazón! ✨", "💫 ¡Despierta tu genio! 💫",
+  "🌟 ¡Tu esfuerzo vale oro! 🌟", "✨ ¡Persigue tus metas! ✨", "💫 ¡Crea tu propio destino! 💫",
+  "✨ ¡El límite es el cielo! ✨", "🌟 ¡Saca tu mejor versión! 🌟", "💫 ¡Toma las riendas! 💫",
+  "✨ ¡Respira y confía! ✨", "🌟 ¡Hoy es tu momento! 🌟", "💫 ¡Deja huella! 💫",
+  "✨ ¡Avanza sin miedo! ✨", "🌟 ¡Tu luz ilumina! 🌟", "💫 ¡Piensa en grande! 💫",
+  "✨ ¡Sueña sin límites! ✨", "🌟 ¡Tus ideas valen! 🌟", "💫 ¡Actitud positiva! 💫",
+  "✨ ¡Hazte escuchar! ✨", "🌟 ¡Rompe los moldes! 🌟", "💫 ¡Vales oro! 💫",
+  "✨ ¡El futuro es tuyo! ✨", "🌟 ¡Paso a paso, siempre! 🌟", "💫 ¡Crea magia! 💫",
+  "✨ ¡Tú eres la chispa! ✨", "🌟 ¡Sorprende al mundo! 🌟", "💫 ¡Sé tu propia musa! 💫",
+  "✨ ¡Levántate y brilla! ✨", "🌟 ¡Escribe tu historia! 🌟", "💫 ¡No hay imposibles! 💫",
+  "✨ ¡Vive tu aventura! ✨", "🌟 ¡Atrévete a ser tú! 🌟", "💫 ¡El éxito te abraza! 💫",
+  "✨ ¡Fluye con la vida! ✨", "🌟 ¡Todo a tu favor! 🌟", "💫 ¡Imagina y crea! 💫"
+];
+function showEasterEgg() {
+  showingEasterEgg = true;
+  const quote = easterEggQuotes[Math.floor(Math.random() * easterEggQuotes.length)];
+  document.getElementById('calc-expression').innerHTML = '';
+  document.getElementById('calc-value').innerHTML = `<span id="easter-egg-text" onclick="if(typeof isEditMode!=='undefined' && isEditMode) { if(typeof event!=='undefined' && event) event.stopPropagation(); handleEditModeSelect('easteregg'); }" style="font-size:clamp(16px,5vw,26px);color:var(--calc-easter-egg, var(--calc-accent));font-weight:900;font-family:ui-rounded,'SF Pro Rounded',Arial,sans-serif;letter-spacing:0;text-align:center;display:block;padding:10px 0;position:relative;">${quote}</span>`;
+}
+function handleDisplayClick() {
+  if (typeof isEditMode!=='undefined' && isEditMode) { handleEditModeSelect('display'); return; }
+  if (showingEasterEgg) {
+    showingEasterEgg = false;
+    updateCalc();
+  } else {
+    toggleHistory();
+  }
+}
+
+function updateCalc(){
+  showingEasterEgg = false;
+  const value=document.getElementById('calc-value'),expression=document.getElementById('calc-expression'),sound=document.getElementById('calc-sound');
+  if(value)value.textContent=CALC_CURRENT.replace('.',',');
+  if(expression)expression.textContent=CALC_PREVIOUS!==null&&CALC_OPERATOR?`${formatCalcValue(CALC_PREVIOUS)} ${CALC_OPERATOR.replace('*','×').replace('/','÷')}`:'';
+  if(sound){sound.textContent=CALC_SOUND?'🔊':'🔇';sound.title=CALC_SOUND?'Desactivar sonido':'Activar sonido';}
+}
+
+function calculateCalcValues(){
+  const a=Number(CALC_PREVIOUS),b=Number(CALC_CURRENT);let result=b;
+  let opSymbol = CALC_OPERATOR;
+  if(CALC_OPERATOR==='+')result=a+b;if(CALC_OPERATOR==='-')result=a-b;
+  if(CALC_OPERATOR==='*'){result=a*b; opSymbol = '×';}
+  if(CALC_OPERATOR==='/'){result=b===0?NaN:a/b; opSymbol = '÷';}
+  
+  // Save to history
+  if (CALC_PREVIOUS !== null && CALC_OPERATOR) {
+    saveToHistory(formatCalcValue(a), opSymbol, formatCalcValue(b), formatCalcValue(result));
+  }
+  
+  CALC_CURRENT=formatCalcValue(result).replace(',','.');CALC_PREVIOUS=null;CALC_OPERATOR='';CALC_JUST_EVALUATED=true;
+}
+
+function saveToHistory(a, op, b, res) {
+  const date = new Date().toLocaleDateString('es-ES', {day: 'numeric', month: 'short', hour:'2-digit', minute:'2-digit'}).toUpperCase();
+  CALC_HISTORY.unshift({ a, op, b, res, date });
+  if (CALC_HISTORY.length > 50) CALC_HISTORY.pop();
+  lsSet('ph3_calc_history', JSON.stringify(CALC_HISTORY));
+  renderHistory();
+}
+
+function loadHistory() {
+  try {
+    CALC_HISTORY = JSON.parse(lsGet('ph3_calc_history')) || [];
+  } catch(e) { CALC_HISTORY = []; }
+  renderHistory();
+}
+
+function renderHistory() {
+  const list = document.getElementById('calc-history-list');
+  if (!list) return;
+  if (CALC_HISTORY.length === 0) {
+    list.innerHTML = '<div style="text-align:center; padding: 20px; color:rgba(0,0,0,0.4); font-weight:800; font-size:14px;">No hay operaciones guardadas</div>';
+    return;
+  }
+  list.innerHTML = CALC_HISTORY.map(h => `
+    <div class="calc-history-item">
+      <div class="hist-date">${h.date}</div>
+      <div class="hist-icon">💬</div>
+      <div class="hist-expr">${h.a} ${h.op} ${h.b}</div>
+      <div>= ${h.res}</div>
+    </div>
+  `).join('');
+}
+
+function toggleHistory() {
+  const ov = document.getElementById('calc-history-overlay');
+  ov.classList.toggle('open');
+}
+
+function clearHistory() {
+  CALC_HISTORY = [];
+  lsSet('ph3_calc_history', '[]');
+  renderHistory();
+  toggleHistory();
+}
+
+function calcBeep(){
+  if(!CALC_SOUND)return;
+  try{
+    const Ctx=window.AudioContext||window.webkitAudioContext;
+    CALC_AUDIO=CALC_AUDIO||new Ctx();
+    const osc=CALC_AUDIO.createOscillator(),gain=CALC_AUDIO.createGain(),now=CALC_AUDIO.currentTime;
+    osc.type='sine';osc.frequency.setValueAtTime(520,now);osc.frequency.exponentialRampToValueAtTime(230,now+.045);
+    gain.gain.setValueAtTime(.035,now);gain.gain.exponentialRampToValueAtTime(.001,now+.05);
+    osc.connect(gain);gain.connect(CALC_AUDIO.destination);
+    osc.start(now);osc.stop(now+.055);
+  }catch(e){}
+}
+function toggleCalculatorSound(){CALC_SOUND=!CALC_SOUND;lsSet('ph3_calc_sound',CALC_SOUND?'1':'0');updateCalc();calcBeep();}
+
+function handleColorsEditModal(action) {
+  document.getElementById('colors-edit-modal').style.display = 'none';
+  if (action === 1) {
+    handleEditModeSelect('key', 'colors');
+  } else if (action === 2) {
+    toggleCalculatorPalette();
+  }
+}
+function handleCalcKey(v){
+  if (v === 'colors' && typeof isEditMode !== 'undefined' && isEditMode) {
+     document.getElementById('colors-edit-modal').style.display = 'flex';
+     return;
+  }
+  if (typeof isEditMode!=='undefined' && isEditMode) { handleEditModeSelect('key', v); return; }
+  if(v==='colors'){toggleCalculatorPalette();return;}
+  if(v==='sound'){toggleCalculatorSound();return;}
+  if(v==='elibi'){showEasterEgg();return;}
+  calcBeep();
+  if(v==='copy'){toggleCopyMenu();return;}
+  if(ACTIVE_TOOL_INPUT) {
+    const el = document.getElementById(`calc-tool-${ACTIVE_TOOL_INPUT}`);
+    if(el) {
+      let val = el.value || '';
+      if(v==='C') { 
+        val = '';
+        CALC_CURRENT='0'; CALC_PREVIOUS=null; CALC_OPERATOR=''; CALC_JUST_EVALUATED=false;
+        const resEl = document.getElementById('calc-tool-result');
+        if(resEl) {
+          if(CALC_PERCENT_TOOL==='vat') resEl.textContent='Escribe el precio con IVA y el porcentaje de IVA.';
+          else if(CALC_PERCENT_TOOL==='increase') resEl.textContent='Escribe el importe y el porcentaje que quieres sumar.';
+          else resEl.textContent='Escribe el importe y el porcentaje que quieres quitar.';
+        }
+        updateCalc();
+      }
+      else if(v==='back' || v==='back_top') val = val.length > 1 ? val.slice(0,-1) : '';
+      else if(/^\d$/.test(v)) val += v;
+      else if(v==='.' || v===',') { if(!val.includes(',') && !val.includes('.')) val += ','; }
+      el.value = val;
+    }
+    calcBeep();
+    return;
+  }
+  if(/^\d$/.test(v)){CALC_CURRENT=CALC_CURRENT==='0'||CALC_JUST_EVALUATED?v:CALC_CURRENT+v;CALC_JUST_EVALUATED=false;}
+  else if(v==='.' || v===','){if(CALC_JUST_EVALUATED)CALC_CURRENT='0';if(!CALC_CURRENT.includes('.'))CALC_CURRENT+='.';CALC_JUST_EVALUATED=false;}
+  else if(v==='C'){CALC_CURRENT='0';CALC_PREVIOUS=null;CALC_OPERATOR='';CALC_JUST_EVALUATED=false;}
+  else if(v==='back' || v==='back_top')CALC_CURRENT=CALC_CURRENT.length>1?CALC_CURRENT.slice(0,-1):'0';
+  else if(v==='+/-')CALC_CURRENT=String((Number(CALC_CURRENT)||0)*-1);
+  else if(v==='%'){const p=(Number(CALC_CURRENT)||0)/100;CALC_CURRENT=String(CALC_PREVIOUS!==null&&['+','-'].includes(CALC_OPERATOR)?Number(CALC_PREVIOUS)*p:p);}
+  else if(['+','-','*','/'].includes(v)){if(CALC_PREVIOUS!==null&&CALC_OPERATOR&&!CALC_JUST_EVALUATED)calculateCalcValues();CALC_PREVIOUS=Number(CALC_CURRENT);CALC_OPERATOR=v;CALC_JUST_EVALUATED=true;}
+  else if(v==='='&&CALC_PREVIOUS!==null&&CALC_OPERATOR)calculateCalcValues();
+  updateCalc();
+}
+
+function toggleCalculatorPalette(){
+  const p=document.getElementById('calc-colors-overlay');
+  if(p){p.classList.toggle('open');}
+}
+function toggleCopyMenu() {
+  document.getElementById('calc-copy-overlay').classList.toggle('open');
+}
+function executeCopy(suffix) {
+  const num = CALC_CURRENT.replace('.', ',');
+  navigator.clipboard?.writeText(num + suffix);
+  toggleCopyMenu();
+}
+function setCalculatorTheme(theme){
+  const root=document.getElementById('calculator-shell');if(!root||!theme)return;
+  if(theme.app){ const t=temaDeLaApp(); if(t) theme=Object.assign({},theme,t,{app:true,name:theme.name}); }
+  try{ if(parent && parent.Calc && parent.Calc.alCambiar) parent.Calc.alCambiar(theme); }catch(e){}
+  [['accent','--calc-accent'],['dark','--calc-accent-dark'],['shellTop','--calc-shell-top'],['shellBottom','--calc-shell-bottom'],['display','--calc-display'],['displayText','--calc-display-text'],['numTop','--calc-num-top'],['numBottom','--calc-num-bottom'],['numShadow','--calc-num-shadow'],['opTop','--calc-op-top'],['opBottom','--calc-op-bottom'],['opShadow','--calc-op-shadow'],['clearTop','--calc-clear-top'],['clearBottom','--calc-clear-bottom'],['clearShadow','--calc-clear-shadow']].forEach(([key,prop])=>{
+    if(theme[key]) root.style.setProperty(prop,theme[key]);
+    else root.style.removeProperty(prop);
+  });
+  if(theme.topOpTop){
+    root.style.setProperty('--calc-top-op-top',theme.topOpTop);
+    root.style.setProperty('--calc-top-op-bottom',theme.topOpBottom);
+    root.style.setProperty('--calc-top-op-shadow',theme.topOpShadow);
+  } else {
+    root.style.setProperty('--calc-top-op-top',theme.clearTop);
+    root.style.setProperty('--calc-top-op-bottom',theme.clearBottom);
+    root.style.setProperty('--calc-top-op-shadow',theme.clearShadow);
+  }
+
+  if (theme.toolPanel) root.style.setProperty('--calc-tool-panel', theme.toolPanel);
+  else root.style.removeProperty('--calc-tool-panel');
+  if (theme.toolPanelBg) root.style.setProperty('--calc-percent-panel-bg', theme.toolPanelBg);
+  else root.style.removeProperty('--calc-percent-panel-bg');
+  if (theme.toolInputs) root.style.setProperty('--calc-tool-inputs', theme.toolInputs);
+  else root.style.removeProperty('--calc-tool-inputs');
+  if (theme.toolCalcBtn) root.style.setProperty('--calc-tool-calc-btn', theme.toolCalcBtn);
+  else root.style.removeProperty('--calc-tool-calc-btn');
+
+  if (theme.toolBtnDiscount) root.style.setProperty('--calc-tool-btn-discount', theme.toolBtnDiscount); else root.style.removeProperty('--calc-tool-btn-discount');
+  if (theme.toolBtnIncrease) root.style.setProperty('--calc-tool-btn-increase', theme.toolBtnIncrease); else root.style.removeProperty('--calc-tool-btn-increase');
+  if (theme.toolBtnVat) root.style.setProperty('--calc-tool-btn-vat', theme.toolBtnVat); else root.style.removeProperty('--calc-tool-btn-vat');
+
+  if (theme.easterEgg) root.style.setProperty('--calc-easter-egg', theme.easterEgg);
+  else root.style.removeProperty('--calc-easter-egg');
+
+  document.querySelectorAll('.calc-key, .calc-mini-key').forEach(btn => {
+    btn.style.removeProperty('--calc-num-top');
+    btn.style.removeProperty('--calc-num-bottom');
+    btn.style.removeProperty('--calc-num-shadow');
+    btn.style.removeProperty('--calc-op-top');
+    btn.style.removeProperty('--calc-op-bottom');
+    btn.style.removeProperty('--calc-op-shadow');
+    btn.style.removeProperty('--calc-clear-top');
+    btn.style.removeProperty('--calc-clear-bottom');
+    btn.style.removeProperty('--calc-clear-shadow');
+    btn.style.removeProperty('--calc-top-op-top');
+    btn.style.removeProperty('--calc-top-op-bottom');
+    btn.style.removeProperty('--calc-top-op-shadow');
+    btn.style.removeProperty('--calc-accent');
+    btn.style.removeProperty('--calc-accent-dark');
+  });
+
+  if (theme.keys) {
+    for (let key in theme.keys) {
+      let btn = document.querySelector(`[data-calc="${key}"]`);
+      if (btn) {
+         let colors = theme.keys[key];
+         if (btn.classList.contains('op') || btn.classList.contains('calc-mini-key')) {
+           btn.style.setProperty('--calc-op-top', colors.top);
+           btn.style.setProperty('--calc-op-bottom', colors.bottom);
+           btn.style.setProperty('--calc-op-shadow', colors.shadow);
+         } else if (btn.classList.contains('clear')) {
+           btn.style.setProperty('--calc-clear-top', colors.top);
+           btn.style.setProperty('--calc-clear-bottom', colors.bottom);
+           btn.style.setProperty('--calc-clear-shadow', colors.shadow);
+         } else if (btn.classList.contains('top-op')) {
+           btn.style.setProperty('--calc-top-op-top', colors.top);
+           btn.style.setProperty('--calc-top-op-bottom', colors.bottom);
+           btn.style.setProperty('--calc-top-op-shadow', colors.shadow);
+         } else if (btn.classList.contains('equals')) {
+           btn.style.setProperty('--calc-accent-top', colors.top);
+           btn.style.setProperty('--calc-accent-bottom', colors.bottom);
+           btn.style.setProperty('--calc-accent-dark', colors.shadow);
+         } else {
+           btn.style.setProperty('--calc-num-top', colors.top);
+           btn.style.setProperty('--calc-num-bottom', colors.bottom);
+           btn.style.setProperty('--calc-num-shadow', colors.shadow);
+         }
+      }
+    }
+  }
+  
+  lsSet('ph3_calc_theme', JSON.stringify(theme));
+  document.querySelector('meta[name="theme-color"]').setAttribute('content', theme.shellBottom);
+}
+
+function toggleCalcPercentTool(tool){
+  const panel=document.getElementById('calc-percent-panel'),result=document.getElementById('calc-tool-result'),label=document.getElementById('calc-tool-percent-label');
+  CALC_PERCENT_TOOL=panel.classList.contains('open')&&CALC_PERCENT_TOOL===tool?'':tool;panel.classList.toggle('open',Boolean(CALC_PERCENT_TOOL));
+  ['discount','increase','vat'].forEach(k=>document.getElementById(`calc-${k}-button`)?.classList.toggle('active',CALC_PERCENT_TOOL===k));
+  if(label)label.textContent=CALC_PERCENT_TOOL==='vat'?'IVA %':'Porcentaje %';
+  if(result)result.textContent=CALC_PERCENT_TOOL==='vat'?'Escribe el precio con IVA y el porcentaje de IVA.':CALC_PERCENT_TOOL==='increase'?'Escribe el importe y el porcentaje que quieres sumar.':'Escribe el importe y el porcentaje que quieres quitar.';
+  if(CALC_PERCENT_TOOL) setActiveToolInput('amount');
+  else setActiveToolInput(null);
+}
+function setActiveToolInput(inputId) {
+  ACTIVE_TOOL_INPUT = inputId;
+  const amt = document.getElementById('calc-tool-amount');
+  const pct = document.getElementById('calc-tool-percent');
+  if(amt) amt.style.boxShadow = inputId === 'amount' ? '0 0 0 3px #4A90E2' : 'none';
+  if(pct) pct.style.boxShadow = inputId === 'percent' ? '0 0 0 3px #4A90E2' : 'none';
+}
+function calcToolNumber(value){const n=Number(String(value||'').trim().replace(/\s/g,'').replace(',','.'));return Number.isFinite(n)?n:NaN;}
+function calcMoney(value){return Number(value).toLocaleString('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2});}
+function calculateCalcPercentTool(){
+  const amount=calcToolNumber(document.getElementById('calc-tool-amount')?.value),percent=calcToolNumber(document.getElementById('calc-tool-percent')?.value),result=document.getElementById('calc-tool-result');
+  if(!result||!CALC_PERCENT_TOOL)return;if(!Number.isFinite(amount)||!Number.isFinite(percent)||amount<0||percent<0){result.textContent='Introduce un importe y un porcentaje válidos.';return;}calcBeep();
+  let finalAmount = 0; let explanation = ''; let historyExpr = '';
+  if(CALC_PERCENT_TOOL==='discount'){
+    const removed=amount*percent/100; finalAmount=amount-removed;
+    explanation=`Se han quitado ${calcMoney(removed)} € (${formatCalcValue(percent)} %).`;
+    historyExpr = `${formatCalcValue(amount)} - ${formatCalcValue(percent)}%`;
+  }
+  else if(CALC_PERCENT_TOOL==='increase'){
+    const added=amount*percent/100; finalAmount=amount+added;
+    explanation=`Se han sumado ${calcMoney(added)} € (${formatCalcValue(percent)} %).`;
+    historyExpr = `${formatCalcValue(amount)} + ${formatCalcValue(percent)}%`;
+  }
+  else {
+    finalAmount=amount/(1+percent/100);
+    explanation=`IVA incluido extraído: ${calcMoney(amount-finalAmount)} € (${formatCalcValue(percent)} %).`;
+    historyExpr = `Sin IVA (${formatCalcValue(percent)}%) de ${formatCalcValue(amount)}`;
+  }
+  result.innerHTML = explanation;
+  CALC_CURRENT = String(finalAmount); CALC_PREVIOUS = null; CALC_OPERATOR = ''; CALC_JUST_EVALUATED = true;
+  updateCalc();
+  if (typeof saveToHistory === 'function') saveToHistory(historyExpr, '', '', calcMoney(finalAmount));
+}
+
+
+function getCustomThemes() { try { return JSON.parse(localStorage.getItem('ph3_calc_custom_themes') || '[]'); } catch(e) { return []; } }
+function setCustomThemes(themes) { localStorage.setItem('ph3_calc_custom_themes', JSON.stringify(themes)); }
+function saveCustomTheme() {
+  if (!currentCustomTheme) return;
+  
+  if (typeof currentCustomTheme.defaultIndex === 'number') {
+    if (confirm('¿Quieres SOBREESCRIBIR el tema de fábrica "' + currentCustomTheme.name + '" con tus cambios?')) {
+       let modified = {};
+       try { modified = JSON.parse(localStorage.getItem('ph3_calc_modified_defaults') || '{}'); } catch(e){}
+       modified[currentCustomTheme.defaultIndex] = JSON.parse(JSON.stringify(currentCustomTheme));
+       localStorage.setItem('ph3_calc_modified_defaults', JSON.stringify(modified));
+       Object.assign(CALCULATOR_THEMES[currentCustomTheme.defaultIndex], currentCustomTheme);
+       renderThemes();
+       setCalculatorTheme(currentCustomTheme);
+       alert('Tema de fábrica actualizado correctamente.');
+    }
+    return;
+  }
+  
+  const themes = getCustomThemes();
+  
+  if (currentCustomTheme.id) {
+    if (confirm('¿Estás seguro de que quieres SOBREESCRIBIR el diseño "' + currentCustomTheme.name + '"?')) {
+      const idx = themes.findIndex(t => t.id === currentCustomTheme.id);
+      if (idx !== -1) {
+        themes[idx] = JSON.parse(JSON.stringify(currentCustomTheme));
+        setCustomThemes(themes);
+        renderThemes();
+        setCalculatorTheme(currentCustomTheme);
+        alert('Diseño actualizado correctamente.');
+        return;
+      }
+    }
+  } else {
+    saveAsNewTheme();
+  }
+}
+
+function saveAsNewTheme() {
+  if (!currentCustomTheme) return;
+  const themes = getCustomThemes();
+  
+  const name = prompt('Nombre para tu NUEVO diseño:', currentCustomTheme.name ? currentCustomTheme.name : 'Mi Diseño');
+  if (!name) return;
+  
+  const existingIdx = themes.findIndex(t => t.name === name);
+  if (existingIdx !== -1) {
+    if (confirm(`Ya existe un diseño con el nombre "${name}". ¿Quieres SOBREESCRIBIRLO?`)) {
+      currentCustomTheme.id = themes[existingIdx].id;
+      currentCustomTheme.name = name;
+      themes[existingIdx] = JSON.parse(JSON.stringify(currentCustomTheme));
+      setCustomThemes(themes);
+      renderThemes();
+      setCalculatorTheme(currentCustomTheme);
+      alert('Diseño actualizado correctamente.');
+      return;
+    } else {
+      return;
+    }
+  }
+  
+  currentCustomTheme.name = name;
+  currentCustomTheme.id = Date.now().toString();
+  themes.push(JSON.parse(JSON.stringify(currentCustomTheme)));
+  setCustomThemes(themes);
+  renderThemes();
+  setCalculatorTheme(currentCustomTheme);
+  alert('Diseño "' + name + '" guardado correctamente.');
+}
+
+function renameCurrentCustomTheme() {
+  if (!currentCustomTheme) return;
+  const newName = prompt('Nombre para tu diseño:', currentCustomTheme.name || 'Mi Diseño');
+  if (!newName || newName === currentCustomTheme.name) return;
+  
+  const themes = getCustomThemes();
+  if (themes.some(t => t.name === newName)) {
+     alert('Ya existe un diseño con ese nombre.');
+     return;
+  }
+  
+  currentCustomTheme.name = newName;
+  if (currentCustomTheme.id) {
+     const idx = themes.findIndex(t => t.id === currentCustomTheme.id);
+     if (idx !== -1) {
+        themes[idx].name = newName;
+        setCustomThemes(themes);
+        renderThemes();
+     }
+  }
+  
+  // Show the new name in the edit bar immediately
+  document.getElementById('edit-mode-target').innerText = newName;
+  
+  if (currentCustomTheme.id) {
+      alert('Diseño renombrado a: ' + newName);
+  } else {
+      alert('Nombre establecido. Recuerda Guardar para no perder los cambios.');
+  }
+}
+
+function deleteCurrentCustomTheme() {
+  if (!currentCustomTheme || !currentCustomTheme.id) {
+    alert('Este diseño aún no está guardado, no se puede borrar.');
+    return;
+  }
+  if(confirm('¿Estás seguro de que quieres borrar este diseño guardado?')) {
+    const themes = getCustomThemes();
+    const idx = themes.findIndex(t => t.id === currentCustomTheme.id);
+    if (idx !== -1) {
+      themes.splice(idx, 1);
+      setCustomThemes(themes);
+      renderThemes();
+      toggleEditMode();
+    }
+  }
+}
+function deleteCustomTheme(index) {
+  if(confirm('¿Estás seguro de que quieres borrar este diseño guardado?')) {
+    const themes = getCustomThemes();
+    themes.splice(index, 1);
+    setCustomThemes(themes);
+    renderThemes();
+  }
+}
+function renderThemes() {
+  const palette=document.getElementById('calculator-palette');
+  if(!palette) return;
+  let html = CALCULATOR_THEMES.map((theme,index)=>`<div class="calc-color-custom" style="position:relative; display:inline-block;"><button class="calc-color" title="${theme.name}" style="background:linear-gradient(135deg,${theme.accent},${theme.display},${theme.opBottom})" onclick="setCalculatorTheme(CALCULATOR_THEMES[${index}]); toggleCalculatorPalette()"></button><span class="calc-color-tooltip">${theme.name}</span></div>`).join('');
+  const custom = getCustomThemes();
+  if (custom.length > 0) {
+    html += '<div style="width:100%; height:1px; background:rgba(0,0,0,0.1); margin:4px 0;"></div>';
+    html += custom.map((theme,index)=>`<div class="calc-color-custom" style="position:relative; display:inline-block;"><button class="calc-color" style="background:linear-gradient(135deg,${theme.accent||'#ccc'},${theme.display||'#eee'},${theme.opBottom||'#ddd'})" onclick="setCalculatorTheme(getCustomThemes()[${index}]); toggleCalculatorPalette()"></button><span class="calc-color-tooltip">${theme.name}</span></div>`).join('');
+  }
+  palette.innerHTML = html;
+}
+
+
+// ---------- PorHacer3: la calculadora vive dentro de la app ----------
+window.CALCULATOR_THEMES = CALCULATOR_THEMES;   // para Configuración → Calculadora
+function appPadre(){ try{ return (parent && parent !== window && parent.App) ? parent : null; }catch(e){ return null; } }
+function irPortada(){ const p=appPadre(); if(p && p.irA) p.irA('portada'); else location.href='index.html'; }
+// colores del tema de la app → tema de la calculadora
+function temaDeLaApp(){
+  const p=appPadre(); if(!p || !p.App.ajustes) return null;
+  const c=p.App.ajustes.colores, m=(a,b,t)=>p.mezcla(a,b,t);
+  return { accent:c.accent, dark:m(c.accent,'#000000',.25), shellTop:c.bg, shellBottom:c.bg2,
+    display:m(c.colbg,c.dark,.10), displayText:c.ink, numTop:c.card, numBottom:m(c.card,c.dark,.12), numShadow:m(c.card,c.dark,.42),
+    opTop:c.tile1, opBottom:m(c.tile2,c.dark,.14), opShadow:m(c.tile2,c.dark,.48),
+    clearTop:c.accent2, clearBottom:c.accent, clearShadow:m(c.accent,'#000000',.38),
+    topOpTop:m(c.accent,'#ffffff',.84), topOpBottom:m(c.accent,'#ffffff',.6), topOpShadow:m(c.accent,'#000000',.08) };
+}
+// el botón de la portada con los colores de la app
+function pintarDeLaApp(){
+  const p=appPadre(), b=document.getElementById('calc-portada'); if(!b) return;
+  if(p){ const c=p.App.ajustes.colores, r=document.documentElement.style; ['dark','accent','tile1','tile2'].forEach(k=>r.setProperty('--'+k,c[k])); b.innerHTML=p.icono('portada'); }
+  else b.textContent='‹';
+}
+// lo llama la app cuando cambias de tema
+function alCambiarTemaApp(){ pintarDeLaApp(); try{ const saved=JSON.parse(lsGet('ph3_calc_theme')||'null'); if(!saved||saved.app) setCalculatorTheme(CALCULATOR_THEMES[0]); }catch(e){} }
+
+// Init
+window.onload = () => {
+  CALC_SOUND=lsGet('ph3_calc_sound')==='1';
+  const palette=document.getElementById('calculator-palette');
+  renderThemes();
+  try{const saved=JSON.parse(lsGet('ph3_calc_theme')||'null');setCalculatorTheme(saved||CALCULATOR_THEMES[0]);}catch(e){setCalculatorTheme(CALCULATOR_THEMES[0]);}
+  pintarDeLaApp();
+  document.querySelectorAll('#calculator-grid .calc-key,.calculator-display-actions .calc-mini-key[data-calc]').forEach(button=>button.onclick=()=>handleCalcKey(button.dataset.calc));
+  loadHistory();
+  updateCalc();
+};
+
+let isEditMode = false;
+let currentCustomTheme = null;
+let currentEditType = 'shell';
+
+function toggleEditMode() {
+  isEditMode = !isEditMode;
+  const btn = document.getElementById('edit-mode-btn');
+  const topBar = document.querySelector('.calc-top-bar');
+  const editBar = document.getElementById('edit-top-bar');
+  
+  if (isEditMode) {
+    document.body.classList.add('edit-mode');
+    btn.innerHTML = '🛑 Salir Diseño';
+    btn.style.background = '#4A90E2';
+    topBar.style.display = 'none';
+    editBar.style.display = 'flex';
+    
+    currentEditType = 'shell';
+    document.getElementById('edit-mode-target').innerText = 'Fondo';
+    document.getElementById('edit-color-picker').value = '#ffffff';
+
+    if (!currentCustomTheme) {
+      let active = JSON.parse(localStorage.getItem('ph3_calc_theme'));
+      currentCustomTheme = { name: 'Mi Diseño' };
+      if (typeof active === 'object' && active !== null) {
+         Object.assign(currentCustomTheme, active);
+      } else if (typeof active === 'number' && CALCULATOR_THEMES[active]) {
+         Object.assign(currentCustomTheme, CALCULATOR_THEMES[active]);
+         currentCustomTheme.defaultIndex = active;
+      }
+    }
+    setTimeout(() => {
+      alert('🎨 MODO DISEÑO INICIADO\n\n1. Toca cualquier botón o parte de la calculadora para seleccionarlo.\n2. Arriba verás lo que has seleccionado debajo de EDITANDO:\n3. Toca el cuadradito de color de arriba para elegir el color.');
+    }, 150);
+  } else {
+    document.body.classList.remove('edit-mode');
+    btn.innerHTML = '🖌️ Modo Diseño';
+    btn.style.background = '#1ABC9C';
+    topBar.style.display = 'flex';
+    editBar.style.display = 'none';
+  }
+}
+
+function handleEditModeSelect(type, val) {
+  if (typeof event !== 'undefined' && event) {
+    if (event.target.closest('.calc-colors-actions') || event.target.closest('#calc-colors-overlay') || event.target.closest('#edit-top-bar')) return;
+    event.stopPropagation();
+  }
+
+  let editType = '';
+  let name = '';
+  if (type === 'display') { editType = 'display'; name = 'Pantalla'; }
+  else if (type === 'shell') { editType = 'shell'; name = 'Fondo'; }
+  else if (type === 'toolpanel') { editType = 'toolpanel'; name = 'Fondo Panel Descuento'; }
+  else if (type === 'toolpanel_inputs') { editType = 'toolpanel_inputs'; name = 'Cajas de Texto'; }
+  else if (type === 'toolpanel_calc_btn') { editType = 'toolpanel_calc_btn'; name = 'Botón Calcular'; }
+  else if (type === 'toolbtn_discount') { editType = 'toolbtn_discount'; name = 'Botón Descuento'; }
+  else if (type === 'toolbtn_increase') { editType = 'toolbtn_increase'; name = 'Botón Aumento'; }
+  else if (type === 'toolbtn_vat') { editType = 'toolbtn_vat'; name = 'Botón IVA'; }
+  else if (type === 'easteregg') { editType = 'easteregg'; name = 'Frase Motivadora'; }
+  else if (type === 'key') {
+     editType = 'key_' + val;
+     name = 'Botón ' + val;
+  }
+  
+  if (editType) {
+    currentEditType = editType;
+    document.getElementById('edit-mode-target').innerText = name;
+    
+    let hex = '#ffffff';
+    let defT = typeof CALCULATOR_THEMES !== 'undefined' ? CALCULATOR_THEMES[0] : {};
+    if (currentCustomTheme) {
+      if (editType === 'display') hex = currentCustomTheme.display || defT.display || hex;
+      else if (editType === 'shell') hex = currentCustomTheme.shellTop || defT.shellTop || hex;
+      else if (editType === 'toolpanel') hex = currentCustomTheme.toolPanel || currentCustomTheme.shellTop || defT.shellTop || hex;
+      else if (editType === 'toolpanel_bg') hex = currentCustomTheme.toolPanelBg || '#ffffff';
+      else if (editType === 'toolpanel_inputs') hex = currentCustomTheme.toolInputs || '#ffffff';
+      else if (editType === 'toolpanel_calc_btn') hex = currentCustomTheme.toolCalcBtn || currentCustomTheme.accent || defT.accent || hex;
+      else if (editType === 'toolbtn_discount') hex = currentCustomTheme.toolBtnDiscount || '#ffffff';
+      else if (editType === 'toolbtn_increase') hex = currentCustomTheme.toolBtnIncrease || '#ffffff';
+      else if (editType === 'toolbtn_vat') hex = currentCustomTheme.toolBtnVat || '#ffffff';
+      else if (editType === 'easteregg') hex = currentCustomTheme.easterEgg || '#2ECC71';
+      else if (editType.startsWith('key_')) {
+         let k = editType.substring(4);
+         if (currentCustomTheme.keys && currentCustomTheme.keys[k] && currentCustomTheme.keys[k].top) {
+           hex = currentCustomTheme.keys[k].top;
+         } else {
+           let btn = document.querySelector(`[data-calc="${k}"]`);
+           if (btn) {
+              if (btn.classList.contains('op') || btn.classList.contains('calc-mini-key')) {
+                 hex = currentCustomTheme.opTop || defT.opTop || hex;
+              } else if (btn.classList.contains('top-op')) {
+                 hex = currentCustomTheme.clearTop || defT.clearTop || hex;
+              } else if (btn.classList.contains('equals')) {
+                 let baseAccent = currentCustomTheme.accent || defT.accent || hex;
+                 // Compute a 55% mix of baseAccent and 45% white to match CSS color-mix exactly
+                 hex = mixHexWithWhite(baseAccent, 0.45);
+              } else if (btn.classList.contains('clear')) {
+                 hex = currentCustomTheme.clearTop || defT.clearTop || hex;
+              } else {
+                 hex = currentCustomTheme.numTop || defT.numTop || hex;
+              }
+           }
+         }
+      }
+    }
+    
+    if (/^#[0-9A-F]{6}$/i.test(hex)) {
+      document.getElementById('edit-color-picker').value = hex;
+    } else {
+      document.getElementById('edit-color-picker').value = '#ffffff';
+    }
+  }
+}
+
+function hexToRgb(hex) {
+  let c = hex.substring(1);
+  if(c.length === 3) c = c.split('').map(x=>x+x).join('');
+  return [parseInt(c.substr(0,2),16), parseInt(c.substr(2,2),16), parseInt(c.substr(4,2),16)];
+}
+
+function rgbToHex(r,g,b) {
+  return "#" + ((1<<24)+(r<<16)+(g<<8)+b).toString(16).slice(1);
+}
+
+function adjustBrightness(hex, factor) {
+  let [r,g,b] = hexToRgb(hex);
+  r = Math.max(0, Math.min(255, r * factor));
+  g = Math.max(0, Math.min(255, g * factor));
+  b = Math.max(0, Math.min(255, b * factor));
+  return rgbToHex(Math.round(r), Math.round(g), Math.round(b));
+}
+
+function mixHexWithWhite(hex, whiteRatio) {
+  let [r,g,b] = hexToRgb(hex);
+  r = Math.round(r * (1 - whiteRatio) + 255 * whiteRatio);
+  g = Math.round(g * (1 - whiteRatio) + 255 * whiteRatio);
+  b = Math.round(b * (1 - whiteRatio) + 255 * whiteRatio);
+  return rgbToHex(r, g, b);
+}
+
+function applyCustomColor(type, baseHex) {
+  if(!currentCustomTheme) currentCustomTheme = {name:'Mi Diseño'};
+  
+  if (type === 'display') {
+    currentCustomTheme.display = baseHex;
+    currentCustomTheme.displayText = adjustBrightness(baseHex, 0.2);
+  } else if (type === 'shell') {
+    currentCustomTheme.shellTop = baseHex;
+    currentCustomTheme.shellBottom = adjustBrightness(baseHex, 0.9);
+  } else if (type === 'toolpanel_bg') { currentCustomTheme.toolPanelBg = baseHex; } else if (type === 'toolpanel') {
+    currentCustomTheme.toolPanel = baseHex;
+  } else if (type === 'toolpanel_inputs') {
+    currentCustomTheme.toolInputs = baseHex;
+  } else if (type === 'toolpanel_calc_btn') {
+    currentCustomTheme.toolCalcBtn = baseHex;
+  } else if (type === 'toolbtn_discount') {
+    currentCustomTheme.toolBtnDiscount = baseHex;
+  } else if (type === 'toolbtn_increase') {
+    currentCustomTheme.toolBtnIncrease = baseHex;
+  } else if (type === 'toolbtn_vat') {
+    currentCustomTheme.toolBtnVat = baseHex;
+  } else if (type === 'easteregg') {
+    currentCustomTheme.easterEgg = baseHex;
+  } else if (type.startsWith('key_')) {
+    let keyVal = type.substring(4);
+    if (!currentCustomTheme.keys) currentCustomTheme.keys = {};
+    currentCustomTheme.keys[keyVal] = {
+      top: baseHex,
+      bottom: adjustBrightness(baseHex, 0.85),
+      shadow: adjustBrightness(baseHex, 0.65)
+    };
+  }
+  
+  setCalculatorTheme(currentCustomTheme);
+  lsSet('ph3_calc_theme', JSON.stringify(currentCustomTheme));
+}
+</script>
+
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./sw.js')
+        .then(reg => console.log('Service Worker registrado', reg))
+        .catch(err => console.error('Error registrando Service Worker', err));
+    });
+  }
+</script>
+
+
+<div id="copyrightModal" class="modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:99999; justify-content:center; align-items:center; opacity:0; transition:opacity 0.2s;">
+  <div class="modal-content" style="background:var(--bg, #fdfbf7); padding:30px; border-radius:12px; max-width:600px; width:90%; max-height:85vh; overflow-y:auto; color:var(--text, #5d4037); font-family:inherit; box-shadow:0 10px 30px rgba(0,0,0,0.2); position:relative; transform:translateY(20px); transition:transform 0.2s;">
+    <div style="font-size:22px; font-weight:bold; margin-bottom:20px; text-align:center; color:var(--bark, #5d4037);">Copyright y Licencia de Uso</div>
+    <div style="font-size:14px; line-height:1.6;">
+      <p style="text-align:center; font-weight:bold; margin-bottom:25px; font-size:16px;">© 2025–Present Elisabeth Altarriba<br>Todos los derechos reservados.</p>
+      
+      <p>Esta aplicación, incluyendo su código fuente, diseño, estructura, interfaz de usuario, imágenes, iconos, animaciones, documentación y cualquier otro elemento que forme parte de ella, es propiedad intelectual de Elisabeth Altarriba y está protegida por la legislación vigente sobre derechos de autor y propiedad intelectual.</p>
+
+      <div style="font-weight:bold; margin-top:25px; margin-bottom:12px; font-size:16px; border-bottom:1px solid rgba(0,0,0,0.1); padding-bottom:5px;">LICENCIA DE USO</div>
+      
+      <p style="font-weight:bold; margin-bottom:8px;">✅ Se permite:</p>
+      <ul style="margin-top:0; margin-bottom:20px; padding-left:25px;">
+        <li style="margin-bottom:4px;">Utilizar la aplicación para uso personal.</li>
+        <li style="margin-bottom:4px;">Utilizarla con fines educativos.</li>
+        <li style="margin-bottom:4px;">Compartir únicamente el enlace oficial de la aplicación.</li>
+      </ul>
+
+      <p style="font-weight:bold; margin-bottom:8px;">❌ No se permite:</p>
+      <ul style="margin-top:0; margin-bottom:20px; padding-left:25px;">
+        <li style="margin-bottom:4px;">Utilizar la aplicación con fines comerciales.</li>
+        <li style="margin-bottom:4px;">Venderla.</li>
+        <li style="margin-bottom:4px;">Redistribuirla como propia.</li>
+        <li style="margin-bottom:4px;">Copiar total o parcialmente su código fuente.</li>
+        <li style="margin-bottom:4px;">Reutilizar total o parcialmente su diseño, interfaz, imágenes, iconos, animaciones o documentación sin autorización expresa.</li>
+        <li style="margin-bottom:4px;">Eliminar o modificar este aviso de copyright.</li>
+      </ul>
+
+      <p>Si esta aplicación, o cualquier parte de ella, es utilizada, modificada o incorporada en otro proyecto, tanto total como parcialmente, deberá citarse expresamente la autoría de Elisabeth Altarriba.</p>
+
+      <p>Para cualquier uso distinto del permitido anteriormente, será necesaria autorización previa por escrito.</p>
+
+      <div style="margin-top:30px; text-align:center; background:rgba(0,0,0,0.03); padding:15px; border-radius:8px;">
+        <p style="font-weight:bold; margin-bottom:5px;">Autora</p>
+        <p style="margin-top:0; margin-bottom:15px; font-size:16px;">Elisabeth Altarriba</p>
+        <p style="font-weight:bold; margin-bottom:5px;">Contacto:</p>
+        <p style="margin-top:0;">lisaltarriba@gmail.com</p>
+      </div>
+    </div>
+    <div style="text-align:center; margin-top:25px;">
+      <button onclick="document.getElementById('copyrightModal').style.opacity='0'; document.getElementById('copyrightModal').firstElementChild.style.transform='translateY(20px)'; setTimeout(function(){document.getElementById('copyrightModal').style.display='none'}, 200);" style="background:var(--btn, #e0d4c3); color:var(--btn-text, #5d4037); border:none; padding:10px 24px; border-radius:20px; font-weight:bold; font-size:15px; cursor:pointer; font-family:inherit;">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<div style="text-align:center; padding: 20px 10px; font-size:12px; opacity:0.6; cursor:pointer; color:inherit; font-family:inherit; clear:both; margin-top:auto;" onclick="openCopyright(event)">
+  © 2025–Present Elisabeth Altarriba
+</div>
+
+<script>
+function openCopyright(e) {
+  if (e) e.stopPropagation();
+  var m = document.getElementById('copyrightModal');
+  m.style.display = 'flex';
+  m.offsetWidth;
+  m.style.opacity = '1';
+  m.firstElementChild.style.transform = 'translateY(0)';
+}
+</script>
+</body>
+</html>
