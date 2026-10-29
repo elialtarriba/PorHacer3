@@ -30,18 +30,21 @@ const Listas = {
   ORDEN: [['manual', 'Como yo las ponga'], ['imp', 'Importancia ⭐'], ['alfa', 'Alfabético'], ['fecha', 'Fecha de creación']],
 
   /* ---------------- Guardar y cargar ---------------- */
-  lsGuardar(){ try{ localStorage.setItem('ph3-listas', JSON.stringify({ datos:this.datos, fondos:this.fondos })); }catch(e){ toast('⚠️ No caben más imágenes de fondo en este aparato'); } },
-  lsCargar(){ try{ const x = JSON.parse(localStorage.getItem('ph3-listas') || 'null'); if(x){ this.datos = x.datos || []; this.fondos = x.fondos || {}; } }catch(e){} },
+  donde(){ return lsGet('ph3-donde-listas') === 'aparato' ? 'aparato' : 'nube'; },
+  claveLs(){ return this.donde() === 'aparato' ? 'ph3-listas-aparato' : 'ph3-listas'; },
+  lsGuardar(){ try{ localStorage.setItem(this.claveLs(), JSON.stringify({ datos:this.datos, fondos:this.fondos })); }catch(e){ toast('⚠️ No caben más imágenes de fondo en este aparato'); } },
+  lsCargar(){ this.datos = []; this.fondos = {}; try{ const x = JSON.parse(localStorage.getItem(this.claveLs()) || 'null'); if(x){ this.datos = x.datos || []; this.fondos = x.fondos || {}; } }catch(e){} },
   ref(n){ return Nube.db.collection('usuarios').doc(this.uid).collection(n); },
   vigilar(){
-    const u = (typeof Nube !== 'undefined' && Nube.user) ? Nube.user.uid : null;
-    if(this._iniciado && u === this.uid) return;
+    const u = (this.donde() !== 'aparato' && typeof Nube !== 'undefined' && Nube.user) ? Nube.user.uid : null;
+    if(this._iniciado && u === this.uid && this._donde === this.donde()) return;
+    this._donde = this.donde();
     this._iniciado = true;
     this._subs.forEach(f => { try{ f(); }catch(e){} }); this._subs = [];
     this.uid = u;
     if(!u){ this.modo = 'local'; this.lsCargar(); this.asegurar(); this.pintar(); return; }
     this.modo = 'nube';
-    const subir = JSON.parse(localStorage.getItem('ph3-listas') || 'null');   // lo que hubiera en el aparato, se sube una vez
+    const subir = JSON.parse(localStorage.getItem('ph3-listas') || 'null');   // lo de sin sesión (no lo de «solo en este aparato»)   // lo que hubiera en el aparato, se sube una vez
     let primera = true;
     this._subs.push(this.ref('listas').onSnapshot(async snap => {
       this.datos = snap.docs.map(d => d.data()).sort((a, b) => (a.orden || 0) - (b.orden || 0));

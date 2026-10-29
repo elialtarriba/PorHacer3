@@ -141,7 +141,7 @@ const Sitios = {
       <button class="sh-btn" data-a="x">Cancelar</button>`);
     hj.onclick = async e => { const b = e.target.closest('[data-a]'); if(!b) return; const a = b.dataset.a; cerrarHojaMio();
       if(a === 'editar') this.editor('casa', id);
-      else if(a === 'foto'){ const [f] = await elegirFotos(false, false); if(!f) return; const fid = await Mio.ponerFoto(await aligerarImg(f, 900, .78)); if(h.fotoCasa) await Mio.quitarFotos([h.fotoCasa]); await this.guardar({ ...h, fotoCasa:fid }); toast('📷 Foto puesta'); }
+      else if(a === 'foto'){ const [f] = await elegirFotos(false, false); if(!f) return; const fid = await Mio.ponerFoto(await aligerarImg(f, 900, .78), null, 'sitios'); if(h.fotoCasa) await Mio.quitarFotos([h.fotoCasa]); await this.guardar({ ...h, fotoCasa:fid }); toast('📷 Foto puesta'); }
       else if(a === 'quitarfoto'){ await Mio.quitarFotos([h.fotoCasa]); const n = { ...h }; delete n.fotoCasa; await this.guardar(n); }
       else if(a === 'subir' || a === 'bajar'){ const j = a === 'subir' ? i - 1 : i + 1; const o = cs[j]; const oi = o.orden || j, hi = h.orden || i;
         await this.guardar({ ...h, orden:oi === hi ? (a === 'subir' ? oi - 1 : oi + 1) : oi }); await this.guardar({ ...o, orden:hi }); }
@@ -207,13 +207,13 @@ const Sitios = {
     i.onkeydown = e => { if(e.key === 'Enter'){ e.preventDefault(); add(); } };
     hj.onclick = async e => { const b = e.target.closest('[data-a]'); if(!b) return;
       if(b.dataset.a === 'add') add();
-      else if(b.dataset.a === 'foto'){ const fs = await elegirFotos(false, true); if(!fs.length) return; toast('📷 Guardando…'); const ids = []; for(const f of fs) ids.push(await Mio.ponerFoto(await aligerarImg(f, 1280, .72))); await add(ids); }
+      else if(b.dataset.a === 'foto'){ const fs = await elegirFotos(false, true); if(!fs.length) return; toast('📷 Guardando…'); const ids = []; for(const f of fs) ids.push(await Mio.ponerFoto(await aligerarImg(f, 1280, .72), null, 'sitios')); await add(ids); }
       else cerrarHojaMio(); };
     setTimeout(() => i.focus(), 120);
   },
-  async fotoCosa(rid, cid){ const fs = await elegirFotos(false, true); if(!fs.length) return; toast('📷 Guardando…'); const ids = []; for(const f of fs) ids.push(await Mio.ponerFoto(await aligerarImg(f, 1280, .72)));
+  async fotoCosa(rid, cid){ const fs = await elegirFotos(false, true); if(!fs.length) return; toast('📷 Guardando…'); const ids = []; for(const f of fs) ids.push(await Mio.ponerFoto(await aligerarImg(f, 1280, .72), null, 'sitios'));
     const n = this.copia(rid); if(!n.cosas[cid]) return; n.cosas[cid].fotos = [...(n.cosas[cid].fotos || []), ...ids]; await this.guardar(n); toast('📷 Foto añadida'); },
-  async fotoSitio(id){ const fs = await elegirFotos(false, true); if(!fs.length) return; toast('📷 Guardando…'); const ids = []; for(const f of fs) ids.push(await Mio.ponerFoto(await aligerarImg(f, 1280, .72)));
+  async fotoSitio(id){ const fs = await elegirFotos(false, true); if(!fs.length) return; toast('📷 Guardando…'); const ids = []; for(const f of fs) ids.push(await Mio.ponerFoto(await aligerarImg(f, 1280, .72), null, 'sitios'));
     const n = this.copia(id); n.fotos = [...(n.fotos || []), ...ids]; await this.guardar(n); this.abrirSitio(id); toast('📷 Foto del sitio añadida'); },
   renombrarCosa(rid, cid){
     const c = this.s(rid).cosas[cid];

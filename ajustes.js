@@ -1,43 +1,155 @@
-/* PorHacer · configuración: temas, colores, columnas, personas y más */
+/* PorHacer3 · Configuración, ordenada:
+   - «Para toda la app»: General · Tema y colores · Cuenta y nube · Copias de seguridad
+   - «Cada apartado»: PorHacer · Calendario · Listas · Agenda · Tickets · Sitios · Calculadora · Notas secretas
+   En el móvil: primero el menú y al tocar, su página (con ‹ para volver). En pantalla ancha: menú a la izquierda y página a la derecha. */
 
 const Ajustes = {
+  pagina: null,
+  PAGS: [
+    { grupo:'Para toda la app' },
+    { k:'general', ico:'portada',    t:'General',              s:'Qué se ve al abrir · micrófono' },
+    { k:'tema',    ico:'paleta',     t:'Tema y colores',       s:'Los colores de toda la app' },
+    { k:'cuenta',  ico:'ajustes',    t:'Cuenta y nube',        s:'Tu cuenta, tus tableros y dónde se guarda cada cosa' },
+    { k:'copias',  ico:'copia',      t:'Copias de seguridad',  s:'Guardar y recuperar tus datos' },
+    { grupo:'Cada apartado' },
+    { k:'porhacer', ico:'tablero',    t:'PorHacer (tareas)',   s:'Columnas, personas, al acabar, fotos y emails' },
+    { k:'cal',      ico:'calendario', t:'Calendario',          s:'Cómo se ve al abrirlo' },
+    { k:'listas',   ico:'listas',     t:'Listas',              s:'El color de cada lista · sonidos' },
+    { k:'agenda',   ico:'agenda',     t:'Agenda',              s:'Cómo se ve al abrirla' },
+    { k:'tickets',  ico:'tickets',    t:'Tickets',             s:'Colores de los tickets' },
+    { k:'sitios',   ico:'sitios',     t:'Sitios',              s:'El color de cada casa' },
+    { k:'calc',     ico:'calculadora',t:'Calculadora',         s:'Temas de la calculadora' },
+    { k:'bloc',     ico:'bloc',       t:'Notas secretas',      s:'Contraseña y copia' }
+  ],
+  // nombres de antes → página y apartado a abrir
+  ANTES: { general:['general'], temas:['tema'], colores:['tema','colores'], tableros:['cuenta'], columnas:['porhacer','columnas'], personas:['porhacer','personas'],
+    fiesta:['porhacer','fiesta'], mas:['porhacer'], bloc:['bloc'], calc:['calc'], copias:['copias'] },
+
+  ancho(){ return matchMedia('(min-width: 760px)').matches; },
   abrir(t){
-    $$('#ajTabs button').forEach(b => b.onclick = () => this.tab(b.dataset.t));
-    this.tab(t || 'general');
+    this.pintarMenu();
     abrir('ajustes');
+    if(t) this.tab(t); else if(this.ancho()) this.ir(this.pagina || 'general'); else this.alMenu();
   },
-  tab(t){
-    $$('#ajTabs button').forEach(b => b.classList.toggle('on', b.dataset.t === t));
-    $$('#ajustes .tab-pan').forEach(p => p.classList.toggle('on', p.dataset.p === t));
-    $('#ajustes .hoja-scroll').scrollTop = 0;
-    ({ general:()=>this.general(), temas:()=>this.temas(), colores:()=>this.colores(), columnas:()=>this.columnas(), personas:()=>this.personas(), copias:()=>Copias.pintar(), tableros:()=>Nube.pintarTableros($('#ajNube')), fiesta:()=>this.fiesta(), bloc:()=>Bloc.pintarAjustes($('#ajBloc')), calc:()=>Calc.pintarAjustes($('#ajCalc')), mas:()=>this.mas() })[t]();
+  tab(t){ const [p, ac] = this.ANTES[t] || [t]; this.ir(p, ac); },
+  refrescar(){ if($('#ajustes').classList.contains('abierto') && this.pagina) this.ir(this.pagina, null, true); },
+  pintarMenu(){
+    $('#ajMenu').innerHTML = this.PAGS.map(p => p.grupo ? `<div class="aj-grupo">${p.grupo}</div>` :
+      `<button class="aj-m ${p.k === this.pagina ? 'on' : ''}" data-p="${p.k}"><span class="aj-m-ico">${icono(p.ico)}</span><span class="aj-m-tx"><b>${p.t}</b><small>${p.s}</small></span><em>›</em></button>`).join('')
+      + `<div class="pie-copy">PorHacer3 ${VERSION} · © Elisabeth Altarriba</div>`;
+    $$('#ajMenu [data-p]').forEach(b => b.onclick = () => this.ir(b.dataset.p));
+    $('#ajAtras').onclick = () => this.alMenu();
+  },
+  alMenu(){
+    this.pagina = null; $('#ajustes').classList.remove('en-pagina'); $('#ajTit').textContent = 'Configuración';
+    $$('#ajMenu .aj-m').forEach(b => b.classList.remove('on')); $('#ajMenu').scrollTop = 0;
+  },
+  ir(p, ac, quieto){
+    const P = this.PAGS.find(x => x.k === p); if(!P) return;
+    const sc = $('#ajPagina').scrollTop;
+    this.pagina = p; $('#ajustes').classList.add('en-pagina'); $('#ajTit').textContent = P.t;
+    $$('#ajMenu .aj-m').forEach(b => b.classList.toggle('on', b.dataset.p === p));
+    const cont = $('#ajPagina');
+    cont.innerHTML = `<div class="aj-pcab"><span class="aj-m-ico">${icono(P.ico)}</span><div><h3>${P.t}</h3><small>${P.s}</small></div></div>` + this['p_' + p]();
+    // los apartados que se despliegan: se abre uno cada vez
+    $$('.aj-acord', cont).forEach(d => d.addEventListener('toggle', () => { if(d.open){ $$('.aj-acord', cont).forEach(o => { if(o !== d) o.open = false; }); this._ac = d.dataset.ac; } }));
+    if(ac){ const d = $(`.aj-acord[data-ac="${ac}"]`, cont); if(d){ d.open = true; setTimeout(() => d.scrollIntoView({ block:'start', behavior:'smooth' }), 80); } }
+    (this['e_' + p] || (() => {})).call(this, cont);
+    cont.scrollTop = quieto ? sc : 0;
   },
   async guardar(){ await guardarAjustes(); },
 
-  /* Configuración general: apartado al abrir, todos los botones de configuración y copias de lo tuyo */
-  general(){
-    const a = App.ajustes, cont = $('#ajGeneral'), ini = a.inicio === 'tablero' ? 'tareas' : (a.inicio || 'portada');
+  /* ---------- Piezas ---------- */
+  tarjeta(tit, html, ayuda){ return `<div class="aj-tarj"><h4>${tit}</h4>${ayuda ? `<p class="aj-ayuda">${ayuda}</p>` : ''}${html}</div>`; },
+  acord(k, ico, tit, sub, html){ return `<details class="aj-acord" data-ac="${k}"><summary><span class="aj-ac-ico">${ico}</span><span class="aj-ac-tx"><b>${tit}</b><small>${sub}</small></span><em>›</em></summary><div class="aj-ac-c">${html}</div></details>`; },
+  seg(id, ops, val){ return `<div class="seg aj-seg" id="${id}">${ops.map(([v, t]) => `<button data-v="${v}" class="${String(v) === String(val) ? 'on' : ''}">${t}</button>`).join('')}</div>`; },
+  enlazarSeg(id, fn){ $$('#' + id + ' button').forEach(b => b.onclick = async () => { $$('#' + id + ' button').forEach(x => x.classList.toggle('on', x === b)); await fn(b.dataset.v); }); },
+  nota(txt){ return `<div class="aj-nota">${txt}</div>`; },
+  enlace(p, txt){ return `<button class="aj-enlace" data-irp="${p}">${txt} ›</button>`; },
+  enlazarEnlaces(cont){ $$('[data-irp]', cont).forEach(b => b.onclick = () => { const [p, ac] = b.dataset.irp.split(':'); this.ir(p, ac); }); },
+
+  /* ---------- GENERAL ---------- */
+  p_general(){
+    const a = App.ajustes, ini = a.inicio === 'tablero' ? 'tareas' : (a.inicio || 'portada');
     const ops = [['portada','portada','Portada'],['tareas','tablero','PorHacer'],['cal','calendario','Calendario'],['listas','listas','Listas'],['agenda','agenda','Agenda'],['tickets','tickets','Tickets'],['sitios','sitios','Sitios'],['calc','calculadora','Calculadora']];
-    const atajos = [['temas','🎨','Temas'],['colores','🖌️','Colores'],['tableros','📋','Tableros'],['columnas','🗂️','Columnas'],['personas','👥','Personas'],['fiesta','🎉','Al acabar'],['bloc','🔒','Notas secretas'],['calc','🧮','Calculadora'],['copias','💾','Copia de tareas'],['mas','⚙️','Más']];
-    const tm = TEMAS[a.tema];
-    cont.innerHTML = `
-      <div class="aj-sec"><h4>Al abrir la app, ver…</h4>
-        <div class="gen-inicio">${ops.map(([k, ic, t]) => `<button data-ini="${k}" class="${k === ini ? 'on' : ''}"><span>${icono(ic)}</span>${t}</button>`).join('')}</div>
-        <p class="aj-ayuda">Lo primero que se ve al entrar en la app, en este aparato.</p></div>
-      <div class="aj-sec"><h4>Tema</h4>
-        <button class="gen-tema" data-ir="temas"><span class="gen-tema-m" style="background:linear-gradient(135deg,${a.colores.bg},${a.colores.card});border-color:${a.colores.accent}"><i style="background:${a.colores.accent}"></i><i style="background:${a.colores.dark}"></i></span><span><b>${esc(tm ? tm.nombre : 'Mis colores')}</b><small>Toca para cambiarlo · hay temas como en HOME 🏠</small></span><em>›</em></button></div>
-      <div class="aj-sec"><h4>Toda la configuración</h4>
-        <div class="gen-atajos">${atajos.map(([t, e, n]) => `<button data-ir="${t}"><span>${e}</span>${n}</button>`).join('')}</div></div>
-      <div class="aj-sec"><h4>💾 Copia de Agenda, Tickets, Sitios y Listas</h4>
-        <p class="aj-ayuda" style="margin-bottom:8px">Son tuyos: ${Mio.modo === 'nube' ? '☁️ se guardan en la nube, en tu cuenta (solo los ves tú)' : '📱 ahora se guardan en este aparato (entra con tu cuenta para tenerlos en la nube)'}. Aquí puedes sacar una copia en un archivo y volver a ponerla. No subas este archivo a GitHub: tiene tus datos.</p>
-        <div class="gen-que">${[['agenda','📒 Agenda', Mio.todos('agenda').reduce((n, d) => n + (d.items || []).length, 0) + ' notas'],['tickets','🧾 Tickets', Mio.todos('tickets').length + ''],['sitios','🏡 Sitios', Mio.todos('sitios').filter(x => x.tipo === 'casa').length + ' casas'],['listas','📝 Listas', Listas.datos.length + '']].map(([k, t, n]) =>
-          `<label class="check" style="margin-top:0"><input type="checkbox" data-que="${k}" checked><span class="caja"></span><span>${t}<small>${n}</small></span></label>`).join('')}</div>
-        <div class="gen-btns"><button class="btn-pri" id="genExp">⬇️ Exportar copia</button><button class="btn-sec" id="genImp">⬆️ Importar copia</button></div>
-        <input type="file" id="genImpIn" accept=".json,application/json" hidden></div>
-      <div class="pie-copy">PorHacer3 ${VERSION} · © Elisabeth Altarriba</div>`;
-    $$('#ajGeneral [data-ini]').forEach(b => b.onclick = async () => { a.inicio = b.dataset.ini; await this.guardar(); this.general(); toast('🚪 Al abrir: ' + b.textContent.trim()); });
-    $$('#ajGeneral [data-ir]').forEach(b => b.onclick = () => this.tab(b.dataset.ir));
-    const que = () => { const q = {}; $$('#ajGeneral [data-que]').forEach(c => q[c.dataset.que] = c.checked); return q; };
+    return this.tarjeta('🚪 Al abrir la app, ver…', `<div class="gen-inicio">${ops.map(([k, ic, t]) => `<button data-ini="${k}" class="${k === ini ? 'on' : ''}"><span>${icono(ic)}</span>${t}</button>`).join('')}</div>`, 'Lo primero que se ve al entrar en la app, en este aparato.')
+      + this.tarjeta('🎤 Idioma del micrófono', this.seg('ajVoz', [['es-ES','Castellano'],['ca-ES','Català'],['en-GB','English']], a.idiomaVoz),
+        'Para dictar en las tareas, la agenda y las notas. Puedes decir «coma», «punto», «punto y aparte», «nueva línea».')
+      + this.nota('Los <b>colores</b> de toda la app están en ' + this.enlace('tema', '🎨 Tema y colores') + ' · Tu <b>cuenta</b> y <b>dónde se guarda</b> cada cosa, en ' + this.enlace('cuenta', '☁️ Cuenta y nube'));
+  },
+  e_general(cont){
+    const a = App.ajustes;
+    $$('[data-ini]', cont).forEach(b => b.onclick = async () => { a.inicio = b.dataset.ini; await this.guardar(); $$('[data-ini]', cont).forEach(x => x.classList.toggle('on', x === b)); toast('🚪 Al abrir: ' + b.textContent.trim()); });
+    this.enlazarSeg('ajVoz', async v => { a.idiomaVoz = v; await this.guardar(); });
+    this.enlazarEnlaces(cont);
+  },
+
+  /* ---------- TEMA Y COLORES ---------- */
+  p_tema(){
+    const tk = Tickets.tema(), calc = Calc.actual || 'Como la app (PorHacer3)';
+    const fila = (ico, t, v, p) => `<button class="aj-propio" data-irp="${p}"><span class="aj-ac-ico">${icono(ico)}</span><span class="aj-ac-tx"><b>${t}</b><small>${v}</small></span><em>›</em></button>`;
+    return this.tarjeta('🎨 Tema de toda la app', '<div class="temas" id="ajTemas"></div>',
+        'Cambia los colores de <b>toda la app</b>: la portada, las tareas, el calendario, la agenda, los botones y las ventanas.')
+      + this.acord('colores', '🖌️', 'Cambiar cada color, uno a uno', 'Si quieres afinar el tema: el fondo, los botones, la letra…', '<div id="ajColores"></div>')
+      + this.tarjeta('🧩 Apartados que pueden tener sus propios colores',
+        fila('listas', 'Listas', 'Cada lista tiene su color (o «Como la app»)', 'listas')
+        + fila('tickets', 'Tickets', 'Ahora: ' + tk.name, 'tickets')
+        + fila('sitios', 'Sitios', 'Cada casa tiene su color', 'sitios')
+        + fila('calculadora', 'Calculadora', 'Ahora: ' + calc, 'calc'),
+        'Estos colores <b>solo cambian su apartado</b>. Si eliges «Como la app», siguen el tema de arriba.');
+  },
+  e_tema(cont){ this.temas(); this.colores(); this.enlazarEnlaces(cont); },
+
+  /* ---------- CUENTA Y NUBE ---------- */
+  p_cuenta(){
+    return this.tarjeta('👤 Tu cuenta y tus tableros', '<div id="ajNube"></div>')
+      + this.tarjeta('☁️ ¿Dónde se guarda cada cosa?', `<div class="gen-donde">${[['agenda','📒 Agenda'],['tickets','🧾 Tickets'],['sitios','🏡 Sitios'],['listas','📝 Listas']].map(([k, t]) => { const d = k === 'listas' ? Listas.donde() : Mio.donde(k);
+          return `<div class="gen-donde-f"><b>${t}</b><div class="seg" data-donde="${k}"><button data-v="nube" class="${d === 'nube' ? 'on' : ''}">☁️ Nube</button><button data-v="aparato" class="${d === 'aparato' ? 'on' : ''}">📱 Este aparato</button></div></div>`; }).join('')}</div>`,
+        `<b>Nube</b>: en tu cuenta de Firebase; solo lo ves tú y lo tienes en todos tus aparatos. <b>Este aparato</b>: no sale de este móvil u ordenador (para pasarlo a otro, haz una copia en ${this.enlace('copias', '💾 Copias')}).${Mio.uid ? '' : ' <b>Ahora no has entrado con tu cuenta</b>: lo de «nube» se guarda en el aparato y se sube al entrar.'} Las tareas siempre van con su tablero.`);
+  },
+  e_cuenta(cont){
+    Nube.pintarTableros($('#ajNube'));
+    this.enlazarEnlaces(cont);
+    $$('[data-donde] button', cont).forEach(b => b.onclick = async () => {
+      const sec = b.parentNode.dataset.donde, a = b.dataset.v, nom = { agenda:'la Agenda', tickets:'los Tickets', sitios:'los Sitios', listas:'las Listas' }[sec], n = sec === 'agenda' ? '' : 'n';
+      const ahora = sec === 'listas' ? Listas.donde() : Mio.donde(sec); if(ahora === a) return;
+      let borrar = false;
+      if(a === 'aparato'){
+        const enNube = sec === 'listas' ? Listas.modo === 'nube' : Mio.enNube(sec);
+        if(enNube){
+          const v = await popup({ tit:'📱 Guardar ' + nom + ' en este aparato', html:`<p>Desde ahora ${nom} se guardará${n} solo en este aparato. ¿Qué hago con lo que hay en la nube?</p>
+            <button class="opcion" data-v="dejar">☁️ Dejar también una copia en la nube</button><button class="opcion" data-v="borrar">🗑 Quitarlo de la nube</button>
+            <p class="aj-ayuda" style="margin-top:10px">En tus otros aparatos ya no se verán los cambios que hagas aquí.</p>`,
+            botones:[{ txt:'Cancelar', val:null }], alAbrir:(c, fin) => $$('[data-v]', c).forEach(x => x.onclick = () => fin(x.dataset.v)) });
+          if(!v) return; borrar = v === 'borrar';
+        }
+      } else if(!Mio.uid){
+        if(!await popConfirmar('☁️ Guardar ' + nom + ' en la nube', 'Ahora no has entrado con tu cuenta. Se guardará' + n + ' en el aparato y se subirá' + n + ' a la nube cuando entres.', 'De acuerdo')) return;
+      }
+      toast('⏳ Pasando ' + nom + '…', null, null, 20000);
+      try{ await Mio.cambiarDonde(sec, a, borrar); toast(a === 'nube' ? '☁️ ' + capital(nom) + ' se guarda' + n + ' en la nube' : '📱 ' + capital(nom) + ' se guarda' + n + ' en este aparato'); }
+      catch(e){ console.warn(e); popAviso('No se ha podido cambiar', e.message || 'Inténtalo otra vez.'); }
+      this.ir('cuenta', null, true); Portada.pintar();
+    });
+  },
+
+  /* ---------- COPIAS DE SEGURIDAD ---------- */
+  p_copias(){
+    const nNotas = Mio.todos('agenda').reduce((n, d) => n + (d.items || []).length, 0), nCasas = Mio.todos('sitios').filter(x => x.tipo === 'casa').length;
+    const mia = `<div class="gen-que">${[['agenda','📒 Agenda', nNotas + (nNotas === 1 ? ' nota' : ' notas')],['tickets','🧾 Tickets', Mio.todos('tickets').length + ''],['sitios','🏡 Sitios', nCasas + (nCasas === 1 ? ' casa' : ' casas')],['listas','📝 Listas', Listas.datos.length + '']].map(([k, t, n]) =>
+        `<label class="check" style="margin-top:0"><input type="checkbox" data-que="${k}" checked><span class="caja"></span><span>${t}<small>${n}</small></span></label>`).join('')}</div>
+      <div class="gen-btns"><button class="btn-pri" id="genExp">⬇️ Exportar copia</button><button class="btn-sec" id="genImp">⬆️ Importar copia</button></div>
+      <input type="file" id="genImpIn" accept=".json,application/json" hidden>`;
+    return this.nota('💡 Haz copias de vez en cuando y guárdalas en un sitio seguro (iCloud, un pendrive…). <b>No subas nunca estos archivos a GitHub</b>: tienen tus datos.')
+      + this.acord('tareas', '✅', 'Tareas de PorHacer', 'Las tareas, personas, fotos, vídeos y audios · espacio usado', '<div id="ajCopias"></div>')
+      + this.acord('mio', '📒', 'Agenda, Tickets, Sitios y Listas', 'En un solo archivo, con sus fotos', mia)
+      + this.acord('bloc', '🔒', 'Notas secretas', 'Van cifradas, con tu contraseña', `<p class="aj-ayuda">La copia del bloc se hace desde su página, porque va cifrada.</p>${this.enlace('bloc', '🔒 Ir a Notas secretas')}`);
+  },
+  e_copias(cont){
+    this.enlazarEnlaces(cont);
+    // la copia de las tareas se pinta al abrir su apartado
+    const dT = $('.aj-acord[data-ac="tareas"]', cont); dT.addEventListener('toggle', () => { if(dT.open) Copias.pintar(); });
+    const que = () => { const q = {}; $$('[data-que]', cont).forEach(c => q[c.dataset.que] = c.checked); return q; };
     $('#genExp').onclick = async () => {
       const q = que(); if(!Object.values(q).some(Boolean)){ toast('Marca al menos una cosa'); return; }
       const obj = await Mio.exportar(q), txt = JSON.stringify(obj);
@@ -48,17 +160,104 @@ const Ajustes = {
     $('#genImpIn').onchange = async e => {
       const f = e.target.files[0]; e.target.value = ''; if(!f) return;
       let obj; try{ obj = JSON.parse(await f.text()); }catch(err){ popAviso('Importar', 'Este archivo no es una copia válida.'); return; }
-      if(!obj || obj.tipo !== 'copia-mia'){ popAviso('Importar', 'Este archivo no es una copia de Agenda, Tickets, Sitios y Listas de PorHacer3.'); return; }
+      if(!obj || obj.tipo !== 'copia-mia'){ popAviso('Importar', 'Este archivo no es una copia de Agenda, Tickets, Sitios y Listas de PorHacer3. (Si es una copia de las tareas, impórtala en «Tareas de PorHacer»).'); return; }
       const modo = await popup({ tit:'⬆️ Importar copia', html:`<p>Copia del ${new Date(obj.fecha).toLocaleDateString('es-ES')}: ${['agenda','tickets','sitios','listas'].filter(k => obj[k]).map(k => ({ agenda:'📒 Agenda', tickets:'🧾 Tickets', sitios:'🏡 Sitios', listas:'📝 Listas' })[k]).join(', ')}.</p>
         <button class="opcion" data-v="juntar">➕ Juntar con lo que ya tengo</button><button class="opcion" data-v="cambiar">♻️ Cambiar lo que tengo por la copia</button>`,
         botones:[{ txt:'Cancelar', val:null }], alAbrir:(c, fin) => $$('[data-v]', c).forEach(b => b.onclick = () => fin(b.dataset.v)) });
       if(!modo) return;
       if(modo === 'cambiar' && !await popConfirmar('¿Cambiar lo que tienes?', 'Se borrará la Agenda, los Tickets y los Sitios que tienes ahora y se pondrá lo de la copia.', 'Cambiar')) return;
       toast('⬆️ Importando…', null, null, 20000);
-      try{ const r = await Mio.importar(obj, modo); toast('✅ Importado: ' + r.agenda + ' días, ' + r.tickets + ' tickets, ' + r.sitios + ' sitios, ' + r.listas + ' listas'); this.general(); }
+      try{ const r = await Mio.importar(obj, modo); toast('✅ Importado: ' + r.agenda + ' días, ' + r.tickets + ' tickets, ' + r.sitios + ' sitios, ' + r.listas + ' listas'); this.ir('copias', 'mio', true); }
       catch(err){ console.warn(err); popAviso('Importar', 'No se ha podido importar: ' + err.message); }
     };
   },
+
+  /* ---------- PORHACER (TAREAS) ---------- */
+  p_porhacer(){
+    const a = App.ajustes;
+    return this.nota('Los <b>tableros</b> (crear, compartir, cambiar) están en ' + this.enlace('cuenta', '☁️ Cuenta y nube'))
+      + this.acord('columnas', '🗂️', 'Columnas', 'Nombre, color, orden, mostrar u ocultar', '<div id="ajColumnas"></div>')
+      + this.acord('personas', '👥', 'Personas', 'A quién se le pueden asignar tareas', '<div id="ajPersonas"></div>')
+      + this.acord('fiesta', '🎉', 'Al acabar una tarea', 'Confeti, mensaje, música y email', '<div id="ajFiesta"></div>')
+      + this.acord('fotos', '📷', 'Fotos y vídeos', 'Cuánto se aligeran al guardarlos',
+        `<h5 class="aj-sub">Calidad de las fotos</h5>${this.seg('ajFoto', [['ligera','Ligera'],['normal','Normal'],['alta','Alta']], a.calidadFoto)}
+         <p class="aj-ayuda">Ligera ≈ 150 KB · Normal ≈ 300 KB · Alta ≈ 700 KB por foto (una foto del móvil sin aligerar suele pesar 3-5 MB).</p>
+         <h5 class="aj-sub">Calidad de los vídeos</h5>${this.seg('ajVid', [['ligera','Ligera'],['normal','Normal'],['alta','Alta']], a.calidadVideo)}
+         <p class="aj-ayuda">Ligera ≈ 5 MB/min · Normal ≈ 10 MB/min · Alta ≈ 19 MB/min.</p>`)
+      + this.acord('emails', '✉️', 'Emails', 'La firma de los emails que envía la app',
+        `<input id="ajFirma" class="aj-input" placeholder="Por ejemplo: Elisabeth" value="${esc(a.firma || '')}"><p class="aj-ayuda">Sale al final de los emails de tareas y recordatorios.</p>`);
+  },
+  e_porhacer(cont){
+    const a = App.ajustes;
+    this.enlazarEnlaces(cont);
+    this.columnas(); this.personas(); this.fiesta();
+    this.enlazarSeg('ajFoto', async v => { a.calidadFoto = v; await this.guardar(); });
+    this.enlazarSeg('ajVid', async v => { a.calidadVideo = v; await this.guardar(); });
+    $('#ajFirma').onchange = async e => { a.firma = e.target.value.trim(); await this.guardar(); toast('✉️ Firma guardada'); };
+  },
+
+  /* ---------- CALENDARIO ---------- */
+  p_cal(){
+    return this.tarjeta('📅 Al abrir el calendario, ver…', this.seg('ajCalModo', [['dia','Día'],['mes','Mes'],['anio','Año']], App.ajustes.calModo || 'mes'),
+        'El calendario muestra las tareas que tienen fecha. Si cambias de vista dentro del calendario, se recuerda.')
+      + this.nota('Sus colores son los de toda la app: ' + this.enlace('tema', '🎨 Tema y colores'));
+  },
+  e_cal(cont){ this.enlazarEnlaces(cont); this.enlazarSeg('ajCalModo', async v => { App.ajustes.calModo = v; Cal.modo = v; await this.guardar(); }); },
+
+  /* ---------- LISTAS ---------- */
+  p_listas(){
+    const a = App.ajustes;
+    const filas = Listas.datos.map(l => { const act = Listas.colorDe(l), img = !!Listas.fondos[l.id];
+      return `<div class="aj-lista"><b>📝 ${esc(l.nombre)}${img ? ' <small>(con imagen de fondo)</small>' : ''}</b>
+        <div class="aj-muestras">${Listas.TEMAS.map(([k, n, g]) => `<button data-lista="${l.id}" data-t="${k}" class="${k === act && !img ? 'on' : ''}" title="${n}" style="background:${g || 'linear-gradient(180deg,var(--bg),var(--card))'}">${k === 'app' ? 'App' : ''}</button>`).join('')}</div></div>`; }).join('');
+    return this.tarjeta('🎨 El color de cada lista', filas || '<p class="aj-ayuda">Aún no tienes listas.</p>',
+        'Cada lista puede tener su color. «App» = como el tema de toda la app. La imagen de fondo se pone dentro de la lista, en ⚙️.')
+      + this.tarjeta('🔊 Sonidos', this.seg('ajSonL', [['si','🔊 Con sonido'],['no','🔇 Sin sonido']], a.sonidoListas || 'si'), 'El «tilín» al marcar un punto como hecho y al ponerle la estrella ⭐.')
+      + this.tarjeta('📨 Aviso al pasar un punto al PorHacer', this.seg('ajPopL', [['4','4 s'],['8','8 s'],['15','15 s'],['0','Hasta cerrarlo']], String(a.popupLista || '8')), 'Cuánto rato se ve la ventanita «¡Pasado al PorHacer!».');
+  },
+  e_listas(cont){
+    const a = App.ajustes;
+    $$('[data-lista]', cont).forEach(b => b.onclick = async () => {
+      const l = Listas.datos.find(x => x.id === b.dataset.lista); if(!l) return;
+      l.tema = { color:b.dataset.t, elegido:b.dataset.t !== 'app' }; if(Listas.fondos[l.id]) await Listas.ponerFondo(l, null);
+      await Listas.guardar(l); this.ir('listas', null, true); toast('🎨 «' + l.nombre + '»: ' + (Listas.TEMAS.find(t => t[0] === b.dataset.t) || [])[1]);
+    });
+    this.enlazarSeg('ajSonL', async v => { a.sonidoListas = v; await this.guardar(); });
+    this.enlazarSeg('ajPopL', async v => { a.popupLista = v; await this.guardar(); });
+  },
+
+  /* ---------- AGENDA ---------- */
+  p_agenda(){
+    return this.tarjeta('📒 Al abrir la agenda, ver…', this.seg('ajAgModo', [['dia','Día'],['mes','Mes'],['anio','Año']], Agenda.modo || 'mes'),
+        'Si cambias de vista dentro de la agenda, se recuerda.')
+      + this.nota('Los colores de cada nota y de cada día se eligen en la misma agenda. Los colores de la agenda son los de toda la app: ' + this.enlace('tema', '🎨 Tema y colores'));
+  },
+  e_agenda(cont){ this.enlazarEnlaces(cont); this.enlazarSeg('ajAgModo', async v => { Agenda.modo = v; lsSet('ph3-ag-modo', v); Agenda.pintar(); }); },
+
+  /* ---------- TICKETS ---------- */
+  p_tickets(){
+    const act = Tickets.tema().k;
+    return this.tarjeta('🎨 Colores de los tickets', `<div class="tk-temas">${Tickets.TEMAS.map(t => `<button data-tkt="${t.k}" class="${t.k === act ? 'on' : ''}"><span class="tk-tm" style="${t.k === 'app' ? 'background:linear-gradient(135deg,var(--bg),var(--card));border-color:var(--accent)' : `background:linear-gradient(135deg,${t.bg},${t.soft});border-color:${t.acc}`}"><i style="background:${t.k === 'app' ? 'var(--accent)' : t.acc}"></i></span>${t.name}</button>`).join('')}</div>`,
+      'Solo cambian la pantalla de los tickets y su PDF. «Como la app» = el tema de toda la app.');
+  },
+  e_tickets(cont){ $$('[data-tkt]', cont).forEach(b => b.onclick = () => { lsSet('ph3-tk-tema', b.dataset.tkt); Tickets.ponerTema(); this.ir('tickets', null, true); }); },
+
+  /* ---------- SITIOS ---------- */
+  p_sitios(){
+    const cs = Sitios.casas();
+    const filas = cs.map(h => { const p = Sitios.pal(h.color);
+      return `<details class="aj-casa"><summary><span class="aj-casa-m" style="background:${p.shades[1]};border-color:${p.ac}">${Sitios.icoHtml(h, '🏠')}</span><span class="aj-ac-tx"><b>${esc(h.nombre)}</b><small>${esc(p.name || '')} · toca para cambiar</small></span><em>›</em></summary>
+        <div class="st-pals">${PAL_KEYS.map(k => `<button data-casa="${h.id}" data-pal="${k}" class="${k === h.color ? 'on' : ''}" title="${esc(PALETTES[k].name)}" style="background:${PALETTES[k].shades[1]};border-color:${PALETTES[k].ac}"></button>`).join('')}</div></details>`; }).join('');
+    return this.tarjeta('🎨 El color de cada casa', filas || '<p class="aj-ayuda">Aún no tienes casas. Créalas en Sitios.</p>',
+      'Cada casa tiene su color: se ve en su tarjeta y dentro de la casa. También se cambia desde el ⋯ de cada casa.');
+  },
+  e_sitios(cont){ $$('[data-casa]', cont).forEach(b => b.onclick = async () => { const h = Sitios.s(b.dataset.casa); if(!h) return; await Sitios.guardar({ ...h, color:b.dataset.pal }); this.ir('sitios', null, true); toast('🎨 ' + h.nombre + ': ' + PALETTES[b.dataset.pal].name); }); },
+
+  /* ---------- CALCULADORA y NOTAS SECRETAS ---------- */
+  p_calc(){ return '<div id="ajCalc"></div>'; },
+  e_calc(){ Calc.pintarAjustes($('#ajCalc')); },
+  p_bloc(){ return '<div id="ajBloc"></div>'; },
+  e_bloc(){ Bloc.pintarAjustes($('#ajBloc')); },
 
   /* Temas rápidos */
   temas(){
@@ -72,8 +271,8 @@ const Ajustes = {
           <i style="background:${c.card};border-color:#e5484d"></i><i style="background:${c.card};border-color:#3b82f6"></i><i style="background:${c.card};border-color:#22a55a"></i>
           <em style="background:linear-gradient(180deg,${c.accent2},${c.accent});box-shadow:0 0 0 3px ${c.dark}"></em>
         </div><b>${esc(t.nombre)}</b></button>`;
-    }).join('') + (a.tema === 'propio' ? '<p class="aj-ayuda" style="grid-column:1/-1">Ahora usas tus propios colores (cambiados en «Colores»). Elige un tema para volver a empezar desde él.</p>' : '')
-      + '<p class="aj-ayuda" style="grid-column:1/-1">Después puedes cambiar cada color por separado en la pestaña 🖌️ Colores.</p>';
+    }).join('') + (a.tema === 'propio' ? '<p class="aj-ayuda" style="grid-column:1/-1">Ahora usas tus propios colores (cambiados uno a uno). Elige un tema para volver a empezar desde él.</p>' : '')
+      + '<p class="aj-ayuda" style="grid-column:1/-1">Si quieres, más abajo puedes cambiar cada color uno a uno.</p>';
     $$('#ajTemas .tema').forEach(b => b.onclick = async () => {
       a.tema = b.dataset.k; a.colores = { ...TEMAS[a.tema].c };
       aplicarTema(a.colores); await this.guardar(); this.temas(); pintarTodo();
@@ -202,27 +401,5 @@ const Ajustes = {
     $$('#fsSeg button').forEach(b => b.onclick = () => { f.segundos = +b.dataset.v; g(); this.fiesta(); });
     $$('#fsMail button').forEach(b => b.onclick = () => { f.email = b.dataset.v; g(); this.fiesta(); });
     $('#fsProbar').onclick = () => { f.mensaje = $('#fsMsg').value.trim(); g(); cerrar('ajustes'); Fiesta.despertar(); if(f.activa) Fiesta.confeti(f.segundos); else Fiesta.soloMensaje(); if(f.musica) Fiesta.musica(); };
-  },
-
-  /* Más opciones */
-  mas(){
-    const a = App.ajustes, cont = $('#ajMas');
-    const seg = (id, ops, val) => `<div class="seg" id="${id}">${ops.map(([v,t]) => `<button data-v="${v}" class="${v===val?'on':''}">${t}</button>`).join('')}</div>`;
-    cont.innerHTML = `
-      <div class="aj-sec"><h4>Sonidos de las listas</h4>${seg('ajSonL', [['si','🔊 Con sonido'],['no','🔇 Sin sonido']], a.sonidoListas || 'si')}
-        <p class="aj-ayuda">El «tilín» al marcar un punto como hecho y al ponerle la estrella ⭐.</p></div>
-      <div class="aj-sec"><h4>Aviso al pasar un punto al PorHacer</h4>${seg('ajPopL', [['4','4 s'],['8','8 s'],['15','15 s'],['0','Hasta cerrarlo']], String(a.popupLista || '8'))}
-        <p class="aj-ayuda">Cuánto rato se ve la ventanita «¡Pasado al PorHacer!» con el botón para ir al tablero.</p></div>
-      <div class="aj-sec"><h4>Idioma del micrófono</h4>${seg('ajVoz', [['es-ES','Castellano'],['ca-ES','Català'],['en-GB','English']], a.idiomaVoz)}
-        <p class="aj-ayuda">Puedes decir «coma», «punto», «punto y aparte», «nueva línea».</p></div>
-      <div class="aj-sec"><h4>Calidad de las fotos</h4>${seg('ajFoto', [['ligera','Ligera'],['normal','Normal'],['alta','Alta']], a.calidadFoto)}
-        <p class="aj-ayuda">Ligera ≈ 150 KB · Normal ≈ 300 KB · Alta ≈ 700 KB por foto (una foto del móvil sin aligerar suele pesar 3-5 MB).</p></div>
-      <div class="aj-sec"><h4>Calidad de los vídeos</h4>${seg('ajVid', [['ligera','Ligera'],['normal','Normal'],['alta','Alta']], a.calidadVideo)}
-        <p class="aj-ayuda">Ligera ≈ 5 MB/min · Normal ≈ 10 MB/min · Alta ≈ 19 MB/min (un vídeo del iPhone sin aligerar pesa 60-170 MB/min).</p></div>
-      <div class="aj-sec"><h4>Firma de los emails</h4><input id="ajFirma" class="nom" style="width:100%;height:46px;border-radius:13px;border:2px solid var(--line);background:var(--colbg);padding:0 12px;font-size:16px;font-weight:700" placeholder="Por ejemplo: Elisabeth" value="${esc(a.firma||'')}"></div>
-      <div class="pie-copy">PorHacer3 ${VERSION} · © Copy</div>`;
-    const enlazar = (id, k) => $$('#'+id+' button').forEach(b => b.onclick = async () => { a[k] = b.dataset.v; await this.guardar(); this.mas(); });
-    enlazar('ajSonL','sonidoListas'); enlazar('ajPopL','popupLista'); enlazar('ajVoz','idiomaVoz'); enlazar('ajFoto','calidadFoto'); enlazar('ajVid','calidadVideo');
-    $('#ajFirma').onchange = async e => { a.firma = e.target.value.trim(); await this.guardar(); };
   }
 };

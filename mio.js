@@ -1,15 +1,25 @@
-/* PorHacer3 · «Lo mío»: Agenda, Tickets y Sitios
+/* PorHacer3 · «Lo mío»: Agenda, Tickets y Sitios (y dónde se guardan las Listas)
    Son tuyos, como las listas sencillas: no pertenecen a ningún tablero.
-   - Con sesión: se guardan en la nube, en tu cuenta (usuarios/{uid}/agenda, tickets, sitios, fotos)
-     y se ven en todos tus aparatos. Solo los ves tú.
-   - Sin sesión (o si la nube no deja): se guardan en este aparato.
-   Además hay una copia en el aparato (IndexedDB) para que todo funcione sin internet.
-   Las fotos van aparte (colección «fotos»), ya aligeradas, para no pasar del límite de 1 MB por documento. */
+   En Configuración → General eliges, para cada apartado, DÓNDE se guarda:
+   - ☁️ En la nube (Firebase, en tu cuenta: usuarios/{uid}/agenda, tickets, sitios, fotos). Lo ves en todos tus aparatos.
+       Sin sesión se guarda en el aparato y se sube a tu cuenta al entrar.
+   - 📱 Solo en este aparato (IndexedDB). No sale del móvil u ordenador; para pasarlo a otro, exportar/importar.
+   Siempre hay copia en el aparato para que funcione sin internet.
+   Las fotos van aparte (colección «fotos»), aligeradas, y cada una sabe de qué apartado es (campo «de»). */
 
 const Mio = {
+  SECC: ['agenda', 'tickets', 'sitios'],
   COLS: ['agenda', 'tickets', 'sitios', 'fotos'],
   datos: { agenda:{}, tickets:{}, sitios:{}, fotos:{} },
-  uid: null, dueno: 'local', modo: 'local', _subs: [], _oyentes: {}, _listo: false,
+  uid: null, falla: false, _subs: [], _oyentes: {}, _listo: false, _clave: null,
+
+  /* ---------- ¿Dónde se guarda cada apartado? ---------- */
+  donde(sec){ return lsGet('ph3-donde-' + sec) === 'aparato' ? 'aparato' : 'nube'; },
+  enNube(sec){ return this.donde(sec) === 'nube' && !!this.uid && !this.falla; },
+  // dueño de los datos en el almacén del aparato: «aparato» (elegido), el uid (copia de la nube) o «local» (sin sesión, se subirá)
+  duenoDe(sec){ return this.donde(sec) === 'aparato' ? 'aparato' : (this.uid || 'local'); },
+  secDeFoto(f){ return (f && this.SECC.includes(f.de)) ? f.de : 'agenda'; },
+  get modo(){ return this.SECC.some(s => this.enNube(s)) ? 'nube' : 'local'; },
 
   /* ---------- Almacén del aparato (IndexedDB) ---------- */
   _db: null,
@@ -30,63 +40,71 @@ const Mio = {
       t.oncomplete = () => ok(out); t.onerror = () => mal(t.error); t.onabort = () => mal(t.error);
     });
   },
-  clave(col, id){ return this.dueno + '|' + col + '|' + id; },
-  async cargarAparato(){
-    const pre = this.dueno + '|';
-    const todo = await this.tx('d', 'readonly', st => st.getAll(IDBKeyRange.bound(pre, pre + '￿'))).catch(() => []);
-    const claves = await this.tx('d', 'readonly', st => st.getAllKeys(IDBKeyRange.bound(pre, pre + '￿'))).catch(() => []);
-    this.COLS.forEach(c => this.datos[c] = {});
-    (claves || []).forEach((k, i) => { const [, col, id] = k.split('|'); if(this.datos[col]) this.datos[col][id] = todo[i]; });
+  async leerRango(pre){
+    const r = IDBKeyRange.bound(pre, pre + '￿');
+    const vals = await this.tx('d', 'readonly', st => st.getAll(r)).catch(() => []);
+    const ks = await this.tx('d', 'readonly', st => st.getAllKeys(r)).catch(() => []);
+    return (ks || []).map((k, i) => ({ k, id:k.split('|')[2], v:vals[i] }));
   },
-  guardarAparato(col, id, obj){ return this.tx('d', 'readwrite', st => obj == null ? st.delete(this.clave(col, id)) : st.put(obj, this.clave(col, id))).catch(e => console.warn('mio idb', e)); },
+  async cargarAparato(){
+    this.COLS.forEach(c => this.datos[c] = {});
+    for(const sec of this.SECC) for(const x of await this.leerRango(this.duenoDe(sec) + '|' + sec + '|')) this.datos[sec][x.id] = x.v;
+    // fotos de todos los dueños que tocan; cada una se queda si su apartado se guarda en ese dueño
+    const duenos = [...new Set(this.SECC.map(s => this.duenoDe(s)))];
+    for(const d of duenos) for(const x of await this.leerRango(d + '|fotos|')) if(this.duenoDe(this.secDeFoto(x.v)) === d) this.datos.fotos[x.id] = x.v;
+  },
+  guardarAparato(dueno, col, id, obj){ const k = dueno + '|' + col + '|' + id; return this.tx('d', 'readwrite', st => obj == null ? st.delete(k) : st.put(obj, k)).catch(e => console.warn('mio idb', e)); },
   async vaciarDueno(d){
     const pre = d + '|';
     await this.tx('d', 'readwrite', st => st.delete(IDBKeyRange.bound(pre, pre + '￿'))).catch(() => {});
-    await this.tx('pend', 'readwrite', st => st.delete(IDBKeyRange.bound(pre, pre + '￿'))).catch(() => {});
   },
 
   /* ---------- Nube ---------- */
   ref(col){ return Nube.db.collection('usuarios').doc(this.uid).collection(col); },
-  async vigilar(){
-    const u = (typeof Nube !== 'undefined' && Nube.user && Nube.user.emailVerified !== false) ? Nube.user.uid : null;
-    if(this._listo && u === this.uid) return;
-    const antes = this.uid;
-    this._listo = true;
-    this._subs.forEach(f => { try{ f(); }catch(e){} }); this._subs = [];
-    if(antes && !u) await this.vaciarDueno(antes);        // al salir de la cuenta no queda nada tuyo en el aparato
-    this.uid = u; this.dueno = u || 'local';
-    await this.cargarAparato(); this.avisar();
-    if(!u){ this.modo = 'local'; return; }
-    this.modo = 'nube';
-    // lo que hubiera en el aparato sin cuenta se sube una sola vez a tu cuenta
-    if(!lsGet('ph3-mio-subido-' + u)){
-      const pre = 'local|';
-      const vals = await this.tx('d', 'readonly', st => st.getAll(IDBKeyRange.bound(pre, pre + '￿'))).catch(() => []);
-      const ks = await this.tx('d', 'readonly', st => st.getAllKeys(IDBKeyRange.bound(pre, pre + '￿'))).catch(() => []);
-      try{
-        for(let i = 0; i < (ks || []).length; i++){ const [, col, id] = ks[i].split('|'); await this.ref(col).doc(id).set(limpioFS(vals[i])); }
-        if(ks && ks.length) await this.vaciarDueno('local');
-        lsSet('ph3-mio-subido-' + u, '1');
-      }catch(e){ console.warn('mio subir', e); }
-    }
-    this.COLS.forEach(col => {
-      this._subs.push(this.ref(col).onSnapshot(snap => {
-        snap.docChanges().forEach(ch => {
-          const id = ch.doc.id;
-          if(ch.type === 'removed'){ delete this.datos[col][id]; this.guardarAparato(col, id, null); }
-          else { const v = ch.doc.data(); this.datos[col][id] = v; this.guardarAparato(col, id, v); }
-        });
-        // lo que ya no está en la nube, fuera también del aparato
-        if(!(snap.metadata && snap.metadata.fromCache)){ const ids = new Set(snap.docs.map(d => d.id));
-          Object.keys(this.datos[col]).forEach(id => { if(!ids.has(id)){ delete this.datos[col][id]; this.guardarAparato(col, id, null); } }); }
-        this.avisar(col);
-      }, e => this.falloNube(e)));
-    });
+  usuario(){ return (typeof Nube !== 'undefined' && Nube.user && Nube.user.emailVerified !== false) ? Nube.user.uid : null; },
+  async vigilar(forzar){
+    const u = this.usuario(), clave = u + '|' + this.SECC.map(s => this.donde(s)).join(',');
+    if(this._listo && clave === this._clave && !forzar) return;
+    if(this._ocupado) return; this._ocupado = true;
+    try{
+      const antes = this.uid;
+      this._listo = true; this._clave = clave;
+      this._subs.forEach(f => { try{ f(); }catch(e){} }); this._subs = [];
+      if(antes && antes !== u) await this.vaciarDueno(antes);      // al salir de la cuenta no queda nada de la nube en el aparato
+      this.uid = u; this.falla = false;
+      await this.cargarAparato(); this.avisar();
+      if(!u) return;
+      // lo que hubiera en el aparato sin cuenta (de los apartados «en la nube») se sube una sola vez a tu cuenta
+      const nube = this.SECC.filter(s => this.donde(s) === 'nube');
+      if(nube.length && !lsGet('ph3-mio-subido-' + u)){
+        try{
+          for(const sec of nube) for(const x of await this.leerRango('local|' + sec + '|')){ await this.ref(sec).doc(x.id).set(limpioFS(x.v)); }
+          for(const x of await this.leerRango('local|fotos|')) if(nube.includes(this.secDeFoto(x.v))) await this.ref('fotos').doc(x.id).set(limpioFS(x.v));
+          await this.vaciarDueno('local');
+          lsSet('ph3-mio-subido-' + u, '1');
+        }catch(e){ console.warn('mio subir', e); }
+      }
+      if(!nube.length) return;
+      [...nube, 'fotos'].forEach(col => {
+        const mia = col === 'fotos' ? (v => nube.includes(this.secDeFoto(v))) : (() => true);
+        this._subs.push(this.ref(col).onSnapshot(snap => {
+          snap.docChanges().forEach(ch => {
+            const id = ch.doc.id;
+            if(ch.type === 'removed'){ if(this.datos[col][id] && mia(this.datos[col][id])){ delete this.datos[col][id]; this.guardarAparato(u, col, id, null); } }
+            else { const v = ch.doc.data(); if(!mia(v)) return; this.datos[col][id] = v; this.guardarAparato(u, col, id, v); }
+          });
+          // lo que ya no está en la nube, fuera también del aparato
+          if(!(snap.metadata && snap.metadata.fromCache)){ const ids = new Set(snap.docs.map(d => d.id));
+            Object.keys(this.datos[col]).forEach(id => { const v = this.datos[col][id]; if(!ids.has(id) && mia(v)){ delete this.datos[col][id]; this.guardarAparato(u, col, id, null); } }); }
+          this.avisar(col);
+        }, e => this.falloNube(e)));
+      });
+    } finally { this._ocupado = false; }
   },
   falloNube(e){
     console.warn('mio', e);
-    if(this.modo === 'local') return;
-    this.modo = 'local';
+    if(this.falla) return;
+    this.falla = true;
     this._subs.forEach(f => { try{ f(); }catch(_){} }); this._subs = [];
     if(e && e.code === 'permission-denied' && !this._avisado){ this._avisado = true;
       popAviso('Guardado en este aparato', 'La nube no deja guardar la Agenda, los Tickets y los Sitios en tu cuenta (falta la regla de «usuarios» en Firebase). Mientras tanto se guardan en este aparato.'); }
@@ -95,21 +113,24 @@ const Mio = {
   /* ---------- Leer y escribir ---------- */
   todos(col){ return Object.values(this.datos[col] || {}); },
   uno(col, id){ return (this.datos[col] || {})[id] || null; },
+  secDe(col, obj){ return col === 'fotos' ? this.secDeFoto(obj) : col; },
   async poner(col, id, obj){
     obj = limpioFS(obj);
+    const sec = this.secDe(col, obj);
     this.datos[col][id] = obj; this.avisar(col);
-    await this.guardarAparato(col, id, obj);
-    if(this.modo === 'nube') this.ref(col).doc(id).set(obj).catch(e => { console.warn(e); if(e && /exceeds|too large|size/i.test(e.message || '')) toast('⚠️ Es demasiado grande para la nube'); });
+    await this.guardarAparato(this.duenoDe(sec), col, id, obj);
+    if(this.enNube(sec)) this.ref(col).doc(id).set(obj).catch(e => { console.warn(e); if(e && /exceeds|too large|size/i.test(e.message || '')) toast('⚠️ Es demasiado grande para la nube'); });
   },
   async quitar(col, id){
+    const viejo = this.datos[col][id], sec = this.secDe(col, viejo);
     delete this.datos[col][id]; this.avisar(col);
-    await this.guardarAparato(col, id, null);
-    if(this.modo === 'nube') this.ref(col).doc(id).delete().catch(e => console.warn(e));
+    await this.guardarAparato(this.duenoDe(sec), col, id, null);
+    if(this.enNube(sec)) this.ref(col).doc(id).delete().catch(e => console.warn(e));
   },
-  // fotos: se guardan aparte; devuelve el id
-  async ponerFoto(img, id){ id = id || nuevoId('f'); await this.poner('fotos', id, { img, t:Date.now() }); return id; },
+  // fotos: se guardan aparte, con el apartado al que pertenecen; devuelve el id
+  async ponerFoto(img, id, de){ id = id || nuevoId('f'); await this.poner('fotos', id, { img, t:Date.now(), de:de || 'agenda' }); return id; },
   foto(id){ const f = this.uno('fotos', id); return f ? f.img : ''; },
-  async quitarFotos(ids){ for(const id of (ids || [])) if(id) await this.quitar('fotos', id); },
+  async quitarFotos(ids){ for(const id of (ids || [])) if(id && this.datos.fotos[id]) await this.quitar('fotos', id); },
 
   // quién quiere enterarse de cambios (para volver a pintar)
   al(col, fn){ (this._oyentes[col] = this._oyentes[col] || []).push(fn); },
@@ -117,6 +138,51 @@ const Mio = {
     clearTimeout(this._tAv); const cols = col ? [col] : this.COLS;
     this._pendAv = [...new Set([...(this._pendAv || []), ...cols])];
     this._tAv = setTimeout(() => { const c = this._pendAv; this._pendAv = []; c.forEach(k => (this._oyentes[k] || []).forEach(f => { try{ f(); }catch(e){ console.warn(e); } })); }, 30);
+  },
+
+  /* ---------- Cambiar dónde se guarda un apartado ---------- */
+  // sec: agenda | tickets | sitios | listas · a: 'nube' | 'aparato' · borrarNube: al pasar al aparato, quitarlo también de la nube
+  async cambiarDonde(sec, a, borrarNube){
+    if(sec === 'listas') return this.cambiarDondeListas(a, borrarNube);
+    if(this.donde(sec) === a) return;
+    const docs = this.todos(sec), fotos = this.todos('fotos').filter(f => this.secDeFoto(f) === sec);
+    const idsF = Object.keys(this.datos.fotos).filter(id => this.secDeFoto(this.datos.fotos[id]) === sec);
+    const viejoDueno = this.duenoDe(sec), estabaEnNube = this.enNube(sec);
+    if(a === 'aparato'){
+      for(const d of docs) await this.guardarAparato('aparato', sec, d.id, d);
+      for(const id of idsF) await this.guardarAparato('aparato', 'fotos', id, this.datos.fotos[id]);
+      if(viejoDueno !== 'aparato'){ for(const d of docs) await this.guardarAparato(viejoDueno, sec, d.id, null); for(const id of idsF) await this.guardarAparato(viejoDueno, 'fotos', id, null); }
+      if(estabaEnNube && borrarNube){ for(const d of docs) await this.ref(sec).doc(d.id).delete().catch(() => {}); for(const id of idsF) await this.ref('fotos').doc(id).delete().catch(() => {}); }
+      lsSet('ph3-donde-' + sec, 'aparato');
+    } else {
+      lsSet('ph3-donde-' + sec, null);
+      const nuevo = this.duenoDe(sec), subir = !!this.uid && !this.falla;
+      for(const d of docs){ await this.guardarAparato(nuevo, sec, d.id, d); if(subir) await this.ref(sec).doc(d.id).set(limpioFS(d)); }
+      for(const id of idsF){ const f = this.datos.fotos[id]; await this.guardarAparato(nuevo, 'fotos', id, f); if(subir) await this.ref('fotos').doc(id).set(limpioFS(f)); }
+      for(const d of docs) await this.guardarAparato('aparato', sec, d.id, null);
+      for(const id of idsF) await this.guardarAparato('aparato', 'fotos', id, null);
+    }
+    await this.vigilar(true);
+    return { docs:docs.length, fotos:fotos.length };
+  },
+  async cambiarDondeListas(a, borrarNube){
+    if(typeof Listas === 'undefined') return;
+    if(Listas.donde() === a) return;
+    const datos = JSON.parse(JSON.stringify(Listas.datos)), fondos = { ...Listas.fondos }, estabaNube = Listas.modo === 'nube';
+    const R = n => Nube.db.collection('usuarios').doc(this.uid).collection(n);
+    if(a === 'aparato'){
+      try{ localStorage.setItem('ph3-listas-aparato', JSON.stringify({ datos, fondos })); }catch(e){ throw new Error('No caben las imágenes de fondo de las listas en este aparato'); }
+      if(estabaNube && borrarNube){ for(const l of datos) await R('listas').doc(l.id).delete().catch(() => {}); for(const id of Object.keys(fondos)) await R('fondos').doc(id).delete().catch(() => {}); }
+      lsSet('ph3-donde-listas', 'aparato');
+    } else {
+      lsSet('ph3-donde-listas', null);
+      if(this.uid){ for(const l of datos) await R('listas').doc(l.id).set(limpioFS(l)).catch(() => {});
+        for(const [id, img] of Object.entries(fondos)) await R('fondos').doc(id).set({ img }).catch(() => {}); lsSet('ph3-listas-subidas-' + this.uid, '1'); }
+      else { try{ localStorage.setItem('ph3-listas', JSON.stringify({ datos, fondos })); }catch(e){} }
+      lsSet('ph3-listas-aparato', null);
+    }
+    Listas._iniciado = false; Listas.vigilar();
+    return { docs:datos.length };
   },
 
   /* ---------- Copia: exportar e importar ---------- */
@@ -138,7 +204,11 @@ const Mio = {
       if(modo === 'cambiar') for(const id of Object.keys(this.datos[col])) await this.quitar(col, id);
       for(const d of obj[col]) if(d && d.id) await this.poner(col, d.id, d);
     }
-    for(const [id, f] of Object.entries(obj.fotos || {})) await this.poner('fotos', id, f);
+    const deFoto = {};
+    (obj.agenda || []).forEach(d => (d.items || []).forEach(it => (it.fotos || []).forEach(f => deFoto[f] = 'agenda')));
+    (obj.tickets || []).forEach(t => [t.foto, t.fotoProd].forEach(f => { if(f) deFoto[f] = 'tickets'; }));
+    (obj.sitios || []).forEach(x => [...(x.fotos || []), x.fotoCasa, ...Object.values(x.cosas || {}).flatMap(c => c.fotos || [])].forEach(f => { if(f) deFoto[f] = 'sitios'; }));
+    for(const [id, f] of Object.entries(obj.fotos || {})) await this.poner('fotos', id, { ...f, de:f.de || deFoto[id] || 'agenda' });
     let nl = 0;
     if(obj.listas && typeof Listas !== 'undefined'){
       for(const l of obj.listas){ if(!l || !l.id) continue; nl++;

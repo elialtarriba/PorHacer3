@@ -1,6 +1,14 @@
 /* PorHacer · iconos dibujados al estilo de las imágenes de la app
    (marco oscuro redondeado + detalles en rojo). Usan los colores del tema. */
 const ICO = {
+  // Copia de seguridad: caja con flecha roja
+  copia: `<svg viewBox="0 0 64 64" aria-hidden="true">
+    <path d="M10 30h44v20a6 6 0 0 1-6 6H16a6 6 0 0 1-6-6z" fill="#fff" stroke="var(--dark)" stroke-width="4.5" stroke-linejoin="round"/>
+    <path d="M10 30l7-12h30l7 12" fill="none" stroke="var(--dark)" stroke-width="4.5" stroke-linejoin="round"/>
+    <path d="M24 40h16" stroke="var(--dark)" stroke-width="4" stroke-linecap="round"/>
+    <path d="M32 4v20M24 16l8 8 8-8" fill="none" stroke="var(--accent)" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>`,
+
   // Calculadora: marco oscuro, pantalla gris y teclas, la del «=» en rojo
   calculadora: `<svg viewBox="0 0 64 64" aria-hidden="true">
     <rect x="12" y="5" width="40" height="54" rx="9" fill="#fff" stroke="var(--dark)" stroke-width="4.5"/>

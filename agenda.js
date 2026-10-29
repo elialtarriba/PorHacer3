@@ -191,7 +191,7 @@ const Agenda = {
     this.leerEd();
     const fs = await elegirFotos(false, true); if(!fs.length || !this.NE) return;
     toast('📷 Guardando foto…');
-    for(const f of fs){ try{ const id = await Mio.ponerFoto(await aligerarImg(f, 1280, .72)); this.NE.fotos.push(id); this.NE.nuevas.push(id); }catch(e){ toast('⚠️ No se ha podido añadir esa imagen'); } }
+    for(const f of fs){ try{ const id = await Mio.ponerFoto(await aligerarImg(f, 1280, .72), null, 'agenda'); this.NE.fotos.push(id); this.NE.nuevas.push(id); }catch(e){ toast('⚠️ No se ha podido añadir esa imagen'); } }
     this.pintarEditor(false);
   },
   cancelar(yaCerrado){

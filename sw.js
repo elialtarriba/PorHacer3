@@ -1,12 +1,12 @@
 // PorHacer3 · service worker: la app funciona sin conexión
-const CACHE = 'porhacer3-v91';
+const CACHE = 'porhacer3-v94';
 const ARCHIVOS = [
-  './', './index.html', './manifest.json', './estilos.css?v=91', './estilos3.css?v=91',
-  './iconos.js?v=91', './iconos-home.js?v=91', './mio.js?v=91', './agenda.js?v=91', './tickets.js?v=91', './sitios.js?v=91', './portada.js?v=91', './temas.js?v=91', './db.js?v=91', './firebase-config.js?v=91', './email-config.js?v=91', './nube.js?v=91',
-  './correo.js?v=91', './audio.js?v=91', './fiesta.js?v=91', './avisos.js?v=91', './bloc.js?v=91', './listas.js?v=91', './listas.png', './lame.min.js', './html2canvas.min.js', './jspdf.min.js',
-  './fotos.js?v=91', './videos.js?v=91', './voz.js?v=91', './calendario.js?v=91', './ajustes.js?v=91',
-  './copias.js?v=91', './app.js?v=91',
-  './logo.png', './calculadora.html?v=91', './logo_elibi.jpg', './icon-192.png', './icon-512.png', './apple-touch-icon.png'
+  './', './index.html', './manifest.json', './estilos.css?v=93', './estilos3.css?v=93',
+  './iconos.js?v=93', './iconos-home.js?v=93', './mio.js?v=93', './agenda.js?v=93', './tickets.js?v=93', './sitios.js?v=93', './portada.js?v=93', './temas.js?v=93', './db.js?v=93', './firebase-config.js?v=93', './email-config.js?v=93', './nube.js?v=93',
+  './correo.js?v=93', './audio.js?v=93', './fiesta.js?v=93', './avisos.js?v=93', './bloc.js?v=93', './listas.js?v=93', './listas.png', './lame.min.js', './html2canvas.min.js', './jspdf.min.js',
+  './fotos.js?v=93', './videos.js?v=93', './voz.js?v=93', './calendario.js?v=93', './ajustes.js?v=93',
+  './copias.js?v=93', './app.js?v=93',
+  './logo.png', './calculadora.html?v=94', './logo_elibi.jpg', './icon-192.png', './icon-512.png', './apple-touch-icon.png'
 ];
 // Librería de Firebase: también se guarda para poder abrir la app sin internet
 const SDK = ['app','auth','firestore'].map(n => `https://www.gstatic.com/firebasejs/10.14.1/firebase-${n}-compat.js`);

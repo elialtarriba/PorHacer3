@@ -10,7 +10,7 @@ function datosABlob(d){
 
 const Copias = {
   async pintar(){
-    const cont = $('#ajCopias');
+    const cont = $('#ajCopias'); if(!cont) return;
     const [rf, rv] = await Promise.all([DB.resumen('fotos'), DB.resumen('videos')]);
     const tf = rf.reduce((s,x)=>s+x.size,0), tv = rv.reduce((s,x)=>s+x.size,0);
     const est = await espacioUsado();

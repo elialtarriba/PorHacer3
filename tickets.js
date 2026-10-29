@@ -141,8 +141,8 @@ const Tickets = {
     const viejo = A.editar ? Mio.uno('tickets', A.editar) : null;
     const id = viejo ? viejo.id : nuevoId('tk');
     // fotos grandes aparte (si han cambiado)
-    const fotoId = A.foto ? (viejo && viejo.foto && Mio.foto(viejo.foto) === A.foto ? viejo.foto : await Mio.ponerFoto(A.foto)) : null;
-    const prodId = A.fotoProd ? (viejo && viejo.fotoProd && Mio.foto(viejo.fotoProd) === A.fotoProd ? viejo.fotoProd : await Mio.ponerFoto(A.fotoProd)) : null;
+    const fotoId = A.foto ? (viejo && viejo.foto && Mio.foto(viejo.foto) === A.foto ? viejo.foto : await Mio.ponerFoto(A.foto, null, 'tickets')) : null;
+    const prodId = A.fotoProd ? (viejo && viejo.fotoProd && Mio.foto(viejo.fotoProd) === A.fotoProd ? viejo.fotoProd : await Mio.ponerFoto(A.fotoProd, null, 'tickets')) : null;
     if(viejo){ const q = []; if(viejo.foto && viejo.foto !== fotoId) q.push(viejo.foto); if(viejo.fotoProd && viejo.fotoProd !== prodId) q.push(viejo.fotoProd); await Mio.quitarFotos(q); }
     const t = { id, fecha:A.fecha, titulo:A.titulo.trim(), importe:this.importe(A.importe), foto:fotoId, mini:A.mini || null, fotoProd:prodId, miniProd:A.miniProd || null,
       creado:viejo ? viejo.creado : Date.now(), cambiado:Date.now() };

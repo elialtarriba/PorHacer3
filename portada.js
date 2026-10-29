@@ -66,14 +66,26 @@ const Portada = {
     $('#poSaludo').textContent = this.saludo();
     const agHoy = Mio.uno('agenda', hoyIso()), nNotas = agHoy ? (agHoy.items || []).filter(i => !i.hecha).length : 0;
     const tHoy = App.tareas.filter(t => { if(colDe(t.colId).hecha) return false; const r = rango(t); return r && r[0] <= hoyIso() && hoyIso() <= r[1]; }).length;
+    const marcas = Array.from({ length:60 }, (_, k) => `<line x1="100" y1="${k % 5 ? 12 : 10}" x2="100" y2="${k % 5 ? 17 : 22}" transform="rotate(${k * 6} 100 100)" class="${k % 5 ? 'rm' : 'rM'}"/>`).join('');
+    const nums = Array.from({ length:12 }, (_, k) => { const n = k + 1, ang = n * 30 * Math.PI / 180; return `<text x="${(100 + 67 * Math.sin(ang)).toFixed(1)}" y="${(100 - 67 * Math.cos(ang) + 7).toFixed(1)}" class="${n % 3 ? 'rn' : 'rn rn3'}">${n}</text>`; }).join('');
     $('#poHoy').innerHTML = `
-      <div class="po-dia"><b>${d.getDate()}</b><span>${MESES_C[d.getMonth()].slice(0, 3)}</span></div>
-      <div class="po-hoy-tx"><b>${capital(DIAS[d.getDay()])}</b><small>${d.getDate()} de ${MESES[d.getMonth()]} de ${d.getFullYear()}</small>
-        <div class="po-hoy-chips">
-          <button data-ir="tareas">✅ ${tHoy ? tHoy + (tHoy === 1 ? ' tarea' : ' tareas') + ' hoy' : 'Sin tareas hoy'}</button>
-          <button data-ir="agenda">📒 ${nNotas ? nNotas + (nNotas === 1 ? ' nota' : ' notas') : 'Agenda libre'}</button>
-        </div></div>
-      <div class="po-reloj" id="poReloj" aria-hidden="true"><i class="h"></i><i class="m"></i><i class="s"></i><em></em></div>`;
+      <div class="po-reloj" aria-label="Reloj">
+        <svg viewBox="0 0 200 200" id="poReloj" aria-hidden="true">
+          <circle cx="100" cy="100" r="96" class="r-aro"/><circle cx="100" cy="100" r="88" class="r-cara"/>
+          ${marcas}${nums}
+          <rect x="76" y="128" width="48" height="20" rx="10" class="r-digf"/><text x="100" y="143" class="r-dig" id="poDig"></text>
+          <line x1="100" y1="112" x2="100" y2="54" class="r-h" id="poH"/>
+          <line x1="100" y1="116" x2="100" y2="34" class="r-m" id="poM"/>
+          <g id="poS"><line x1="100" y1="124" x2="100" y2="26" class="r-s"/><circle cx="100" cy="26" r="4" class="r-sp"/></g>
+          <circle cx="100" cy="100" r="7" class="r-c"/><circle cx="100" cy="100" r="2.6" fill="#fff"/>
+        </svg>
+      </div>
+      <div class="po-fecha"><span class="po-dia"><b>${d.getDate()}</b><span>${MESES_C[d.getMonth()].slice(0, 3)}</span></span>
+        <span class="po-hoy-tx"><b>${capital(DIAS[d.getDay()])}</b><small>${d.getDate()} de ${MESES[d.getMonth()]} de ${d.getFullYear()}</small></span></div>
+      <div class="po-hoy-chips">
+        <button data-ir="tareas">✅ ${tHoy ? tHoy + (tHoy === 1 ? ' tarea' : ' tareas') + ' hoy' : 'Sin tareas hoy'}</button>
+        <button data-ir="agenda">📒 ${nNotas ? nNotas + (nNotas === 1 ? ' nota' : ' notas') : 'Agenda libre'}</button>
+      </div>`;
     this.reloj();
     const g = $('#poRejilla');
     g.innerHTML = this.SECC.map((s, i) => `
@@ -103,7 +115,7 @@ const Portada = {
         <span class="po-candado"><svg viewBox="0 0 40 48" aria-hidden="true"><path class="c-arco" d="M11 22v-7a9 9 0 0 1 18 0v7" fill="none" stroke-width="5" stroke-linecap="round"/><rect x="5" y="21" width="30" height="24" rx="7" class="c-cuerpo"/><circle cx="20" cy="31" r="3.4" class="c-ojo"/><rect x="18.4" y="32" width="3.2" height="7" rx="1.6" class="c-ojo"/></svg></span>
       </button>`;
     $$('#vPortada [data-ir]').forEach(b => b.onclick = e => this.entrarEn(b.dataset.ir, b));
-    $('#vPortada [data-conf]').onclick = e => { const b = e.currentTarget; b.classList.add('girando'); setTimeout(() => { b.classList.remove('girando'); Ajustes.abrir('general'); }, 420); };
+    $('#vPortada [data-conf]').onclick = e => { const b = e.currentTarget; b.classList.add('girando'); setTimeout(() => { b.classList.remove('girando'); Ajustes.abrir(); }, 420); };
     $('#poCaja').onclick = () => this.abrirCaja();
     if(entrar){ const v = $('#vPortada'); v.classList.remove('entra'); void v.offsetWidth; v.classList.add('entra'); }
   },
@@ -112,7 +124,8 @@ const Portada = {
     clearInterval(this._r);
     const pon = () => { const r = $('#poReloj'); if(!r || !$('#vPortada').classList.contains('activa')){ clearInterval(this._r); return; }
       const d = new Date(), s = d.getSeconds(), m = d.getMinutes() + s / 60, h = (d.getHours() % 12) + m / 60;
-      r.querySelector('.h').style.transform = `rotate(${h * 30}deg)`; r.querySelector('.m').style.transform = `rotate(${m * 6}deg)`; r.querySelector('.s').style.transform = `rotate(${s * 6}deg)`; };
+      $('#poH').setAttribute('transform', `rotate(${h * 30} 100 100)`); $('#poM').setAttribute('transform', `rotate(${m * 6} 100 100)`); $('#poS').setAttribute('transform', `rotate(${s * 6} 100 100)`);
+      $('#poDig').textContent = String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); };
     pon(); this._r = setInterval(pon, 1000);
   },
   // Al tocar una baldosa: se hunde y un círculo de su color llena la pantalla
@@ -161,7 +174,7 @@ const Calc = {
     this._carga = new Promise(ok => {
       const f = $('#calcFrame');
       f.addEventListener('load', () => setTimeout(() => ok(this.win()), 60), { once:true });
-      f.src = 'calculadora.html?v=91';
+      f.src = 'calculadora.html?v=94';
     });
     return this._carga;
   },

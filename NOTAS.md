@@ -4,6 +4,32 @@ Aquí se apunta lo que Elisabeth pide sobre la app, para no perder el hilo. Leer
 
 
 
+
+
+## 2026-10-29 · PorHacer3 · V9.3
+
+Lo que pidió:
+- La **configuración** era liosa: rehacerla desde cero. **Cada apartado con su pestaña** y sus configuraciones dentro; lo que es **para todos los apartados, en otra**. Sobre todo que quede **muy claro a qué pertenecen los temas y los colores**. Las **copias de seguridad, en una pestaña aparte**. Si algo merece su pestaña, adelante. «Tener las configuraciones en un sitio pero ordenado y que no te pierdas con tantos datos».
+- En la portada, el **reloj más grande, centrado y con números**.
+
+Hecho:
+- Configuración nueva: un **menú** con dos grupos. En el móvil, al tocar se abre su página (con ‹ para volver); en pantalla ancha (Mac), el menú a la izquierda y la página a la derecha.
+  - **Para toda la app**: 🏠 General (al abrir, micrófono) · 🎨 Tema y colores (tema de toda la app, cambiar cada color, y la lista de los apartados que tienen colores propios) · ☁️ Cuenta y nube (cuenta, tableros y dónde se guarda cada cosa) · 💾 Copias de seguridad (tareas · Agenda/Tickets/Sitios/Listas · notas secretas).
+  - **Cada apartado**: PorHacer (columnas, personas, al acabar, fotos y vídeos, emails) · Calendario (vista al abrir) · Listas (color de cada lista, sonidos, aviso) · Agenda (vista al abrir) · Tickets (colores) · Sitios (color de cada casa) · Calculadora (temas) · Notas secretas.
+  - Dentro de cada página, las partes largas se despliegan de una en una, para no ver tantos datos a la vez.
+- Reloj de la portada: grande, centrado, con los números del 1 al 12 (12, 3, 6 y 9 en rojo), rayitas de minutos y la hora en números abajo.
+
+## 2026-10-29 · PorHacer3 · V9.2
+
+Lo que pidió:
+- Poder escoger en **Configuración** si la **Agenda, los Tickets, los Sitios y las Listas** se guardan en **Firebase (nube)** o **en local (este aparato)**, «así cada uno hace lo que le convenga».
+
+Hecho:
+- Configuración → 🏠 General → **«¿Dónde se guarda?»**: para cada apartado, ☁️ Nube o 📱 Este aparato. Por defecto, nube.
+- Al pasar algo al aparato pregunta qué hacer con lo de la nube: **dejar también una copia** o **quitarlo de la nube**. Al volver a la nube, lo del aparato se sube a tu cuenta.
+- Es una elección **de cada aparato** (el móvil de cada uno puede tenerlo distinto). Lo de «este aparato» no se borra al cerrar sesión.
+- Las fotos van con su apartado (si los Tickets están en el aparato, sus fotos también).
+
 ## 2026-10-29 · PorHacer3 · V9.1
 
 Lo que pidió:

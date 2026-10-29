@@ -10,10 +10,10 @@
 <meta name="theme-color" content="#eeeff1">
 <title>PorHacer3</title>
 <link rel="icon" href="logo.png" type="image/png">
-<link rel="apple-touch-icon" href="apple-touch-icon.png?v=91">
+<link rel="apple-touch-icon" href="apple-touch-icon.png?v=93">
 <link rel="manifest" href="manifest.json">
-<link rel="stylesheet" href="estilos.css?v=91">
-<link rel="stylesheet" href="estilos3.css?v=91">
+<link rel="stylesheet" href="estilos.css?v=93">
+<link rel="stylesheet" href="estilos3.css?v=93">
 </head>
 <body>
 
@@ -46,7 +46,7 @@
         <button class="ibtn ibtn-portada" data-portada title="Portada" aria-label="Ir a la portada"></button>
       </div>
       <div class="insignias">
-            <span class="ver" id="verTxt">V9.1</span>
+            <span class="ver" id="verTxt">V9.3</span>
             <button class="nube-estado off" id="nubeEstado" hidden title="Nube" aria-label="Nube"></button>
           </div>
     </div>
@@ -120,7 +120,7 @@
     <header class="po-cab">
       <img src="logo.png" alt="" class="po-logo">
       <div class="po-tit"><h1>Por<span>Hacer</span><sup>3</sup></h1><small id="poSaludo"></small></div>
-      <span class="ver" id="verTxt2">V9.1</span>
+      <span class="ver" id="verTxt2">V9.3</span>
     </header>
     <div class="po-hoy" id="poHoy"></div>
     <div class="po-rejilla" id="poRejilla"></div>
@@ -317,35 +317,14 @@
 <div class="velo" id="ajustes">
   <div class="hoja hoja-ajustes">
     <div class="hoja-cab">
+      <button class="aj-atras" id="ajAtras" aria-label="Volver al menú de configuración">‹</button>
       <span class="cab-ico" id="icoAjCab"></span>
-      <b>Configuración general</b>
+      <b id="ajTit">Configuración</b>
       <button class="cerrar" data-cerrar="ajustes" aria-label="Cerrar">✕</button>
     </div>
-    <div class="tabs tabs-scroll" id="ajTabs">
-      <button data-t="general" class="on">🏠 General</button>
-      <button data-t="tableros">📋 Tableros</button>
-      <button data-t="temas">🎨 Temas</button>
-      <button data-t="colores">🖌️ Colores</button>
-      <button data-t="columnas">🗂️ Columnas</button>
-      <button data-t="personas">👥 Personas</button>
-      <button data-t="fiesta">🎉 Al acabar</button>
-      <button data-t="bloc">🔒 Bloc</button>
-      <button data-t="calc">🧮 Calculadora</button>
-      <button data-t="copias">💾 Copias</button>
-      <button data-t="mas">⚙️ Más</button>
-    </div>
-    <div class="hoja-scroll">
-      <div class="tab-pan on" data-p="general"><div id="ajGeneral"></div></div>
-      <div class="tab-pan" data-p="temas"><div class="temas" id="ajTemas"></div></div>
-      <div class="tab-pan" data-p="colores"><div id="ajColores"></div></div>
-      <div class="tab-pan" data-p="columnas"><div id="ajColumnas"></div></div>
-      <div class="tab-pan" data-p="personas"><div id="ajPersonas"></div></div>
-      <div class="tab-pan" data-p="copias"><div id="ajCopias"></div></div>
-      <div class="tab-pan" data-p="tableros"><div id="ajNube"></div></div>
-      <div class="tab-pan" data-p="fiesta"><div id="ajFiesta"></div></div>
-      <div class="tab-pan" data-p="mas"><div id="ajMas"></div></div>
-      <div class="tab-pan" data-p="bloc"><div id="ajBloc"></div></div>
-      <div class="tab-pan" data-p="calc"><div id="ajCalc"></div></div>
+    <div class="aj-cuerpo">
+      <nav class="aj-menu" id="ajMenu" aria-label="Apartados de la configuración"></nav>
+      <div class="hoja-scroll aj-pagina" id="ajPagina"></div>
     </div>
   </div>
 </div>
@@ -410,30 +389,30 @@
 
 <div class="toast" id="toast"></div>
 
-<script src="iconos.js?v=91"></script>
-<script src="iconos-home.js?v=91"></script>
-<script src="temas.js?v=91"></script>
-<script src="db.js?v=91"></script>
-<script src="firebase-config.js?v=91"></script>
-<script src="email-config.js?v=91"></script>
-<script src="correo.js?v=91"></script>
-<script src="audio.js?v=91"></script>
-<script src="listas.js?v=91"></script>
-<script src="bloc.js?v=91"></script>
-<script src="avisos.js?v=91"></script>
-<script src="fiesta.js?v=91"></script>
-<script src="nube.js?v=91"></script>
-<script src="fotos.js?v=91"></script>
-<script src="videos.js?v=91"></script>
-<script src="voz.js?v=91"></script>
-<script src="calendario.js?v=91"></script>
-<script src="ajustes.js?v=91"></script>
-<script src="copias.js?v=91"></script>
-<script src="mio.js?v=91"></script>
-<script src="agenda.js?v=91"></script>
-<script src="tickets.js?v=91"></script>
-<script src="sitios.js?v=91"></script>
-<script src="portada.js?v=91"></script>
-<script src="app.js?v=91"></script>
+<script src="iconos.js?v=93"></script>
+<script src="iconos-home.js?v=93"></script>
+<script src="temas.js?v=93"></script>
+<script src="db.js?v=93"></script>
+<script src="firebase-config.js?v=93"></script>
+<script src="email-config.js?v=93"></script>
+<script src="correo.js?v=93"></script>
+<script src="audio.js?v=93"></script>
+<script src="listas.js?v=93"></script>
+<script src="bloc.js?v=93"></script>
+<script src="avisos.js?v=93"></script>
+<script src="fiesta.js?v=93"></script>
+<script src="nube.js?v=93"></script>
+<script src="fotos.js?v=93"></script>
+<script src="videos.js?v=93"></script>
+<script src="voz.js?v=93"></script>
+<script src="calendario.js?v=93"></script>
+<script src="ajustes.js?v=93"></script>
+<script src="copias.js?v=93"></script>
+<script src="mio.js?v=93"></script>
+<script src="agenda.js?v=93"></script>
+<script src="tickets.js?v=93"></script>
+<script src="sitios.js?v=93"></script>
+<script src="portada.js?v=93"></script>
+<script src="app.js?v=93"></script>
 </body>
 </html>

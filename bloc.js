@@ -386,7 +386,7 @@ const Bloc = {
     const hay = this.existe();
     el.innerHTML = `<div class="aj-caja">
       <h4>🔒 Bloc de notas secreto</h4>
-      <p class="aj-ayuda">Se abre desde el calendario con el botón 📒. Las notas se guardan <b>solo en este aparato</b> y <b>cifradas</b>: sin la contraseña nadie las puede leer.</p>
+      <p class="aj-ayuda">Se abre desde la portada, con la caja fuerte de las <b>Notas secretas</b>. Las notas se guardan <b>solo en este aparato</b> y <b>cifradas</b>: sin la contraseña nadie las puede leer.</p>
       <p class="aj-ayuda" style="color:#c4170f"><b>Importante:</b> si olvidas la contraseña, las notas no se pueden recuperar.</p>
       ${hay ? `<button class="btn-pri btn-ancho" id="bjCambiar" style="margin-top:12px">🔑 Cambiar la contraseña</button>
         <button class="btn-sec btn-ancho" id="bjExp" style="margin-top:8px">💾 Exportar una copia</button>

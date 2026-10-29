@@ -137,7 +137,7 @@ const Nube = {
     }
     this.mirarInvitaciones();
     pintarCabecera();
-    if($('#ajustes').classList.contains('abierto') && $('#ajTabs .on')?.dataset.t === 'tableros') this.pintarTableros($('#ajNube'));
+    if($('#ajustes').classList.contains('abierto') && Ajustes.pagina === 'cuenta' && $('#ajNube')) this.pintarTableros($('#ajNube'));
   },
   mirarInvitaciones(){
     const inv = this.invitaciones();
@@ -414,7 +414,7 @@ const Nube = {
     if(!v) return;
     try{ await this.invitar(v.tid, v); toast('📬 Invitación enviada'); }
     catch(e){ console.warn(e); popAviso('No se pudo compartir', this.textoError(e)); }
-    if($('#ajustes').classList.contains('abierto')) Ajustes.tab($('#ajTabs .on').dataset.t);
+    Ajustes.refrescar();
   },
 
   /* ---------- Fotos, vídeos y audios ----------
