@@ -12,8 +12,8 @@ const Ajustes = {
     { k:'cuenta',  ico:'ajustes',    t:'Cuenta y nube',        s:'Tu cuenta, tus tableros y dónde se guarda cada cosa' },
     { k:'copias',  ico:'copia',      t:'Copias de seguridad',  s:'Guardar y recuperar tus datos' },
     { grupo:'Cada apartado' },
-    { k:'porhacer', ico:'tablero',    t:'PorHacer (tareas)',   s:'Columnas, personas, al acabar, fotos y emails' },
-    { k:'cal',      ico:'calendario', t:'Calendario',          s:'Cómo se ve al abrirlo' },
+    { k:'porhacer', ico:'tablero',    t:'Tareas',   s:'Columnas, personas, al acabar, fotos y emails' },
+    { k:'cal',      ico:'calendario', t:'Calendario Tareas',          s:'Cómo se ve al abrirlo' },
     { k:'listas',   ico:'listas',     t:'Listas',              s:'El color de cada lista · sonidos' },
     { k:'agenda',   ico:'agenda',     t:'Agenda',              s:'Cómo se ve al abrirla' },
     { k:'tickets',  ico:'tickets',    t:'Tickets',             s:'Colores de los tickets' },
@@ -72,7 +72,7 @@ const Ajustes = {
   /* ---------- GENERAL ---------- */
   p_general(){
     const a = App.ajustes, ini = a.inicio === 'tablero' ? 'tareas' : (a.inicio || 'portada');
-    const ops = [['portada','portada','Portada'],['tareas','tablero','PorHacer'],['cal','calendario','Calendario'],['listas','listas','Listas'],['agenda','agenda','Agenda'],['tickets','tickets','Tickets'],['sitios','sitios','Sitios'],['calc','calculadora','Calculadora'],['grabar','grabar','Grabar']];
+    const ops = [['portada','portada','Portada'],['tareas','tablero','Tareas'],['cal','calendario','Calendario Tareas'],['listas','listas','Listas'],['agenda','agenda','Agenda'],['tickets','tickets','Tickets'],['sitios','sitios','Sitios'],['calc','calculadora','Calculadora'],['grabar','grabar','Grabar']];
     return this.tarjeta('🚪 Al abrir la app, ver…', `<div class="gen-inicio">${ops.map(([k, ic, t]) => `<button data-ini="${k}" class="${k === ini ? 'on' : ''}"><span>${icono(ic)}</span>${t}</button>`).join('')}</div>`, 'Lo primero que se ve al entrar en la app, en este aparato.')
       + this.tarjeta('↕️ Orden de la portada', '<button class="btn-sec btn-ancho" id="ajOrden">↺ Volver al orden de siempre</button>', 'Para cambiar de sitio un botón de la portada, <b>mantenlo pulsado</b> un momento y <b>arrástralo</b> donde quieras.')
       + this.tarjeta('🎤 Idioma del micrófono', this.seg('ajVoz', [['es-ES','Castellano'],['ca-ES','Català'],['en-GB','English']], a.idiomaVoz),

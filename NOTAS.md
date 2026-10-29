@@ -7,6 +7,16 @@ Aquí se apunta lo que Elisabeth pide sobre la app, para no perder el hilo. Leer
 
 
 
+
+
+## 2026-10-29 · PorHacer3 · V9.6
+
+- Pidió cambiar los nombres de los botones: **PorHacer → Tareas** y **Calendario → Calendario Tareas** (en la portada, en Configuración y en «Al abrir la app, ver…»). La app sigue llamándose PorHacer3.
+
+## 2026-10-29 · PorHacer3 · V9.5
+
+- Pidió que **Notas secretas tenga un botón como los demás**: ahora es una baldosa más de la portada (se puede mover como las otras). Su icono es una ruedecita de caja fuerte con candado; al tocarla, la rueda gira, el candado se abre, suena el clic-clic y se abre el bloc. Ya no está la caja fuerte grande de abajo.
+
 ## 2026-10-29 · PorHacer3 · V9.4
 
 Lo que pidió:

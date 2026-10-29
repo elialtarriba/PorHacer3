@@ -29,8 +29,8 @@ function irA(sec){
 const Portada = {
   actual: 'portada',
   SECC: [
-    { k:'tareas',  t:'PorHacer',   ico:'tablero',    c:'var(--accent)' },
-    { k:'cal',     t:'Calendario', ico:'calendario', c:'var(--dark)' },
+    { k:'tareas',  t:'Tareas',   ico:'tablero',    c:'var(--accent)' },
+    { k:'cal',     t:'Calendario Tareas', ico:'calendario', c:'var(--dark)' },
     { k:'listas',  t:'Listas',     ico:'listas',     c:'var(--dark)' },
     { k:'agenda',  t:'Agenda',     ico:'agenda',     c:'var(--accent)' },
     { k:'tickets', t:'Tickets',    ico:'tickets',    c:'var(--accent)' },
@@ -92,7 +92,18 @@ const Portada = {
       </div>`;
     this.reloj();
     const g = $('#poRejilla');
-    const baldosa = (k, i) => k === 'conf' ? `
+    const dial = `<svg viewBox="0 0 100 100" aria-hidden="true" class="po-dialito">
+          <circle cx="50" cy="50" r="46" class="d-aro"/>
+          <g class="d-giro"><circle cx="50" cy="50" r="36" class="d-cara"/>
+            ${Array.from({ length:24 }, (_, j) => `<line x1="50" y1="${j % 6 ? 17 : 15}" x2="50" y2="22" transform="rotate(${j * 15} 50 50)" class="d-marca"/>`).join('')}
+            <circle cx="50" cy="50" r="13" class="d-pomo"/><rect x="47.5" y="26" width="5" height="16" rx="2.5" class="d-aguja"/></g></svg>
+        <svg viewBox="0 0 40 48" aria-hidden="true" class="po-candadito"><path class="c-arco" d="M11 22v-7a9 9 0 0 1 18 0v7" fill="none" stroke-width="5" stroke-linecap="round"/><rect x="5" y="21" width="30" height="24" rx="7" class="c-cuerpo"/><circle cx="20" cy="31" r="3.4" class="c-ojo"/></svg>`;
+    const baldosa = (k, i) => k === 'bloc' ? `
+      <button class="po-b po-bloc" data-k="bloc" data-bloc style="--c:var(--dark);--i:${i}" aria-label="Notas secretas">
+        <span class="po-ico">${dial}</span>
+        <b>Notas secretas</b><small>${(typeof Bloc !== 'undefined' && Bloc.existe && Bloc.existe()) ? 'Cifradas, con contraseña' : 'Escribe en secreto'}</small>
+        <span class="po-flecha">›</span>
+      </button>` : k === 'conf' ? `
       <button class="po-b po-conf" data-k="conf" data-conf style="--c:var(--accent);--i:${i}">
         <span class="po-ico po-engranaje">${icono('ajustes')}</span>
         <b>Configuración</b><small>Al abrir · temas · copias</small>
@@ -104,31 +115,17 @@ const Portada = {
         <span class="po-flecha">›</span>
       </button>`)(this.SECC.find(x => x.k === k));
     g.innerHTML = this.orden().map(baldosa).join('');
-    $('#poCajaSitio').innerHTML = `
-      <button class="po-caja" id="poCaja" style="--i:10" aria-label="Notas secretas">
-        <span class="po-brillo"></span>
-        <span class="po-dial"><svg viewBox="0 0 100 100" aria-hidden="true">
-          <circle cx="50" cy="50" r="46" class="d-aro"/>
-          <g class="d-giro">
-            <circle cx="50" cy="50" r="36" class="d-cara"/>
-            ${Array.from({ length:24 }, (_, j) => `<line x1="50" y1="${j % 6 ? 17 : 15}" x2="50" y2="22" transform="rotate(${j * 15} 50 50)" class="d-marca"/>`).join('')}
-            <circle cx="50" cy="50" r="13" class="d-pomo"/>
-            <rect x="47.5" y="26" width="5" height="16" rx="2.5" class="d-aguja"/>
-          </g>
-        </svg></span>
-        <span class="po-caja-tx"><b>Notas secretas</b><small>${(typeof Bloc !== 'undefined' && Bloc.existe && Bloc.existe()) ? 'Cifradas · solo se abren con tu contraseña' : 'Pon una contraseña y escribe en secreto'}</small></span>
-        <span class="po-candado"><svg viewBox="0 0 40 48" aria-hidden="true"><path class="c-arco" d="M11 22v-7a9 9 0 0 1 18 0v7" fill="none" stroke-width="5" stroke-linecap="round"/><rect x="5" y="21" width="30" height="24" rx="7" class="c-cuerpo"/><circle cx="20" cy="31" r="3.4" class="c-ojo"/><rect x="18.4" y="32" width="3.2" height="7" rx="1.6" class="c-ojo"/></svg></span>
-      </button>`;
+    $('#poCajaSitio').innerHTML = '';
     $$('#vPortada [data-ir]').forEach(b => b.onclick = e => { if(Date.now() - (this._soltado || 0) < 600) return; this.entrarEn(b.dataset.ir, b); });
     $('#vPortada [data-conf]').onclick = e => { if(Date.now() - (this._soltado || 0) < 600) return; const b = e.currentTarget; b.classList.add('girando'); setTimeout(() => { b.classList.remove('girando'); Ajustes.abrir(); }, 420); };
-    $('#poCaja').onclick = () => this.abrirCaja();
+    const bc = $('#vPortada [data-bloc]'); if(bc) bc.onclick = () => { if(Date.now() - (this._soltado || 0) < 600) return; this.abrirCaja(bc); };
     if(entrar){ const v = $('#vPortada'); v.classList.remove('entra'); void v.offsetWidth; v.classList.add('entra'); }
   },
   /* ---------- Orden de las baldosas (mantener pulsado y arrastrar) ---------- */
   orden(){
-    const def = [...this.SECC.map(s => s.k), 'conf'];
+    const def = [...this.SECC.map(s => s.k), 'bloc', 'conf'];
     let o = []; try{ o = JSON.parse(lsGet('ph3-po-orden') || '[]'); }catch(e){}
-    o = o.filter(k => def.includes(k)); def.forEach(k => { if(!o.includes(k)) o.splice(k === 'conf' ? o.length : Math.min(o.length, def.indexOf(k)), 0, k); });
+    o = o.filter(k => def.includes(k)); def.forEach(k => { if(!o.includes(k)) o.splice(k === 'conf' ? o.length : k === 'bloc' ? (o.includes('conf') ? o.indexOf('conf') : o.length) : Math.min(o.length, def.indexOf(k)), 0, k); });
     return o;
   },
   ordenDeSiempre(){ lsSet('ph3-po-orden', null); this.pintar(); },
@@ -191,8 +188,8 @@ const Portada = {
     setTimeout(() => { o.remove(); boton.classList.remove('pulsado'); this._yendo = false; }, 800);
   },
   // La caja fuerte: gira la rueda, se abre el candado y aparece el bloc
-  abrirCaja(){
-    const b = $('#poCaja'); if(!b || b.classList.contains('abriendo')) return;
+  abrirCaja(b){
+    b = b || $('#vPortada [data-bloc]'); if(!b || b.classList.contains('abriendo')) return;
     b.classList.add('abriendo');
     try{ Fiesta.despertar(); const ac = Fiesta._ac; if(ac){ const t0 = ac.currentTime + .02;
       [0, .11, .22, .33, .5].forEach((dt, i) => { const o = ac.createOscillator(), g = ac.createGain(); o.type = 'square'; o.frequency.value = i === 4 ? 880 : 1900 - i * 140;
@@ -224,7 +221,7 @@ const Calc = {
     this._carga = new Promise(ok => {
       const f = $('#calcFrame');
       f.addEventListener('load', () => setTimeout(() => ok(this.win()), 60), { once:true });
-      f.src = 'calculadora.html?v=96';
+      f.src = 'calculadora.html?v=98';
     });
     return this._carga;
   },

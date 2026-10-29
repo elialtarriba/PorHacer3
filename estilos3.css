@@ -641,3 +641,11 @@
 .grb-barra{flex:1;height:10px;border-radius:5px;background:var(--colbg);border:1px solid var(--line);overflow:hidden;cursor:pointer}
 .grb-barra i{display:block;height:100%;background:var(--accent);border-radius:5px}
 .grb-dur{font-size:14px;font-weight:900;color:var(--dark);font-variant-numeric:tabular-nums}
+
+/* Notas secretas: baldosa como las demás, con su ruedecita de caja fuerte */
+.po-bloc .po-ico{position:relative;background:radial-gradient(120% 140% at 0% 0%,color-mix(in srgb,var(--dark) 70%,#fff 8%),color-mix(in srgb,var(--dark) 85%,#000));border-color:#000}
+.po-dialito{width:44px!important;height:44px!important}
+.po-candadito{position:absolute;right:-6px;bottom:-6px;width:20px!important;height:24px!important;overflow:visible;filter:drop-shadow(0 2px 2px rgba(0,0,0,.3))}
+.po-b.abriendo .d-giro{transform:rotate(560deg)}
+.po-b.abriendo .c-arco{transform:translateY(-7px) rotate(28deg)}
+.po-b.abriendo{box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 55%,transparent),0 12px 30px color-mix(in srgb,var(--accent) 40%,transparent)}
