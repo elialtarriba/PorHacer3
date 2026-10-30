@@ -143,8 +143,8 @@ const Completa = {
     if(!c || c.tipo !== 'copia-completa'){ popAviso('Importar', 'Este archivo no es una <b>copia completa</b> de PorHacer3 (PorHacer3-TODO-….json). Las otras copias se importan en su apartado, más abajo.'); return; }
     const lista = this.resumen(c).map(([t, n]) => `<li>${t}${n === 'sí' ? '' : ' · <b>' + n + '</b>'}</li>`).join('');
     const modo = await popup({ tit:'📦 Restaurar copia completa', html:`<p>Copia del <b>${new Date(c.fecha).toLocaleString('es-ES', { dateStyle:'long', timeStyle:'short' })}</b>:</p><ul class="cc-lista">${lista || '<li>(vacía)</li>'}</ul>
-        <button class="opcion" data-v="cambiar">♻️ Dejarlo todo como en la copia<small>Lo que tienes ahora se cambia por lo de la copia</small></button>
-        <button class="opcion" data-v="juntar">➕ Juntarla con lo que ya tengo<small>No se borra nada; se añade lo que falta</small></button>`,
+        <button class="opcion opc2" data-v="cambiar">♻️ Dejarlo todo como en la copia<small>Lo que tienes ahora se cambia por lo de la copia</small></button>
+        <button class="opcion opc2" data-v="juntar">➕ Juntarla con lo que ya tengo<small>No se borra nada; se añade lo que falta</small></button>`,
       botones:[{ txt:'Cancelar', val:null }], alAbrir:(cx, fin) => $$('[data-v]', cx).forEach(b => b.onclick = () => fin(b.dataset.v)) });
     if(!modo) return;
     if(modo === 'cambiar' && !await popConfirmar('¿Dejarlo todo como en la copia?', 'Las tareas de tus tableros, la agenda, los tickets, los sitios, las grabaciones y los escritos que tienes ahora se cambiarán por los de la copia. (En los tableros que te han compartido solo se añade, no se borra nada.) Si no estás segura, haz antes una copia completa de lo que tienes ahora.', 'Sí, restaurar')) return;

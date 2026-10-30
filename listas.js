@@ -45,16 +45,19 @@ const Listas = {
     if(!u){ this.modo = 'local'; this.lsCargar(); this.asegurar(); this.pintar(); return; }
     this.modo = 'nube';
     const subir = JSON.parse(localStorage.getItem('ph3-listas') || 'null');   // lo de sin sesión (no lo de «solo en este aparato»)   // lo que hubiera en el aparato, se sube una vez
-    let primera = true;
-    this._subs.push(this.ref('listas').onSnapshot(async snap => {
+    // Ojo: la primera respuesta puede venir de la memoria del aparato (vacía) antes que de la nube.
+    // Solo cuando contesta la nube se mira si hay que crear «Mis cosas» (si no, cada aparato creaba la suya).
+    let revisado = false;
+    this._subs.push(this.ref('listas').onSnapshot({ includeMetadataChanges:true }, async snap => {
       this.datos = snap.docs.map(d => d.data()).sort((a, b) => (a.orden || 0) - (b.orden || 0));
-      if(primera){ primera = false;
+      if(!revisado && !snap.metadata.fromCache){ revisado = true;
         if(subir && subir.datos && subir.datos.length && !localStorage.getItem('ph3-listas-subidas-' + u)){
-          for(const l of subir.datos) if(!this.datos.some(x => x.id === l.id)) await this.ref('listas').doc(l.id).set(limpioFS(l));
+          for(const l of subir.datos) if(!this.datos.some(x => x.id === l.id) && !this.datos.some(x => this.mismoNombre(x.nombre, l.nombre))) await this.ref('listas').doc(l.id).set(limpioFS(l));
           for(const [id, img] of Object.entries(subir.fondos || {})) await this.ref('fondos').doc(id).set({ img });
           localStorage.setItem('ph3-listas-subidas-' + u, '1'); return;
         }
         if(!this.datos.length){ await this.crear('Mis cosas', true); return; }
+        if(await this.quitarRepetidas()) return;
       }
       this.pintar();
     }, e => this.falloNube(e)));
@@ -66,7 +69,27 @@ const Listas = {
     if(e && e.code === 'permission-denied' && !this._avisado){ this._avisado = true;
       popAviso('Listas en este aparato', 'Para que las listas se guarden en la nube (y las veas en todos tus aparatos) hay que añadir una regla nueva en Firebase. Mientras tanto, se guardan en este aparato.'); }
   },
-  asegurar(){ if(!this.datos.length){ this.datos.push(this.nueva('Mis cosas')); this.lsGuardar(); } },
+  asegurar(){ if(!this.datos.length){ this.datos.push(this.nueva('Mis cosas')); this.lsGuardar(); } else if(this.modo !== 'nube') this.quitarRepetidas(); },
+  norm(n){ return String(n || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' '); },
+  mismoNombre(a, b){ return this.norm(a) === this.norm(b); },
+  // Listas con el mismo nombre: las vacías sobran y se quitan; si tienen puntos, se les pone un número
+  async quitarRepetidas(){
+    const grupos = {}; this.datos.forEach(l => (grupos[this.norm(l.nombre)] = grupos[this.norm(l.nombre)] || []).push(l));
+    let cambios = 0;
+    for(const g of Object.values(grupos)){
+      if(g.length < 2) continue;
+      g.sort((a, b) => (b.items || []).length - (a.items || []).length || (!!this.fondos[b.id]) - (!!this.fondos[a.id]) || (a.creada || 0) - (b.creada || 0));
+      let n = 1;
+      for(const l of g.slice(1)){
+        if(!(l.items || []).length && !this.fondos[l.id]){ await this.borrar(l, true); cambios++; }
+        else { n++; while(this.datos.some(x => this.mismoNombre(x.nombre, l.nombre + ' ' + n))) n++; l.nombre = l.nombre + ' ' + n; await this.guardar(l); cambios++; }
+      }
+    }
+    if(cambios) this.pintar();
+    return cambios;
+  },
+  // ¿ya hay otra lista con ese nombre?
+  nombreLibre(nombre, menos){ return !this.datos.some(x => x.id !== menos && this.mismoNombre(x.nombre, nombre)); },
   nueva(nombre){ return { id:nuevoId('l'), nombre, orden:Date.now(), creada:Date.now(), tema:{ color:'app' }, modo:'manual', items:[] }; },
   async guardar(l){
     l.cambiada = Date.now();
@@ -82,11 +105,19 @@ const Listas = {
     if(!silencio) toast('📝 Lista «' + nombre + '» creada');
     return l;
   },
-  async borrar(l){
+  async borrar(l, silencio){
     if(this.modo === 'nube'){ try{ await this.ref('listas').doc(l.id).delete(); await this.ref('fondos').doc(l.id).delete().catch(() => {}); }catch(e){ this.falloNube(e); } }
     this.datos = this.datos.filter(x => x.id !== l.id); delete this.fondos[l.id];
-    if(this.modo !== 'nube'){ this.asegurar(); this.lsGuardar(); }
-    this.actual = null; this.pintar();
+    if(this.modo !== 'nube'){ if(!this.datos.length) this.datos.push(this.nueva('Mis cosas')); this.lsGuardar(); }
+    else if(!this.datos.length && !silencio) await this.crear('Mis cosas', true);     // siempre queda una lista
+    if(this.actual === l.id){ this.actual = null; lsSet('ph3-lista', null); }
+    this.pintar();
+  },
+  async quitarLista(l){
+    const n = (l.items || []).length;
+    if(!await popConfirmar('¿Borrar la lista «' + l.nombre + '»?', n ? 'Se borrarán sus ' + n + ' puntos. No se puede deshacer.' : 'Está vacía.', 'Borrar')) return false;
+    const unica = this.datos.length === 1;
+    await this.borrar(l); toast(unica ? '🗑 Lista borrada (queda una lista vacía, «Mis cosas»)' : '🗑 Lista borrada'); return true;
   },
   async ponerFondo(l, img){
     if(img) this.fondos[l.id] = img; else delete this.fondos[l.id];
@@ -307,7 +338,7 @@ const Listas = {
       <button class="opcion" data-v="nueva">＋ Nueva lista</button>
       <button class="opcion peligro-op" data-v="borrar">🗑 Borrar esta lista</button>`,
       botones:[{ txt:'Listo', cls:'btn-pri', val:null }], alAbrir:(c, fin) => $$('[data-v]', c).forEach(b => b.onclick = () => fin(b.dataset.v)) });
-    if(v === 'renombrar'){ const n = await this.pedirNombre('✏️ Nombre de la lista', l.nombre); if(n){ l.nombre = n; await this.guardar(l); } }
+    if(v === 'renombrar'){ const n = await this.pedirNombre('✏️ Nombre de la lista', l.nombre, l.id); if(n){ l.nombre = n; await this.guardar(l); } }
     if(v === 'ordenar'){ const o = await popup({ tit:'⇅ Ordenar por', html:this.ORDEN.map(([k, t]) => `<button class="opcion ${k === (l.modo || 'manual') ? 'on' : ''}" data-o="${k}">${t}</button>`).join(''), botones:[{ txt:'Cerrar', val:null }], alAbrir:(c, fin) => $$('[data-o]', c).forEach(b => b.onclick = () => fin(b.dataset.o)) }); if(o){ l.modo = o; await this.guardar(l); } }
     if(v === 'reordenar'){ if(l.modo !== 'manual'){ this.ordenados(l, false).forEach((x, k) => x.pos = k); l.modo = 'manual'; await this.guardar(l); } this.reordenar = true; this.pintar(); }
     if(v === 'tema') this.tema();
@@ -316,15 +347,58 @@ const Listas = {
     if(v === 'limpiar'){ const n = l.items.filter(x => x.ok).length; if(n && await popConfirmar('¿Borrar ' + n + ' completado' + (n > 1 ? 's' : '') + '?', 'Se quitarán de la lista los puntos ya hechos.', 'Borrar')){ l.items = l.items.filter(x => !x.ok); await this.guardar(l); } }
     if(v === 'nueva'){ const n = await this.pedirNombre('＋ Nueva lista', ''); if(n) await this.crear(n); }
     if(v === 'borrar'){
-      if(await popConfirmar('¿Borrar la lista «' + l.nombre + '»?', 'Se borrarán sus ' + l.items.length + ' puntos. No se puede deshacer.', 'Borrar')){ await this.borrar(l); toast('🗑 Lista borrada'); }
+      await this.quitarLista(l);
     }
   },
-  pedirNombre(tit, val){ return popup({ tit, html:`<input id="lsNom" value="${esc(val)}" placeholder="Por ejemplo: Compra, Ideas, Viaje…" maxlength="40">`, botones:[{ txt:'Cancelar', val:null }, { txt:'Guardar', cls:'btn-pri', val:c => $('#lsNom', c).value.trim() || null }], alAbrir:c => setTimeout(() => $('#lsNom', c).focus(), 250) }); },
+  pedirNombre(tit, val, menos){ return popup({ tit, html:`<input id="lsNom" value="${esc(val)}" placeholder="Por ejemplo: Compra, Ideas, Viaje…" maxlength="40"><p class="nube-error" id="lsNomErr" style="margin-top:6px"></p>`,
+    botones:[{ txt:'Cancelar', val:null }, { txt:'Guardar', cls:'btn-pri',
+      validar:c => { const n = $('#lsNom', c).value.trim(); if(!n){ $('#lsNom', c).focus(); return false; }
+        if(!this.nombreLibre(n, menos)){ $('#lsNomErr', c).textContent = 'Ya tienes una lista que se llama «' + n + '». Ponle otro nombre.'; $('#lsNom', c).focus(); return false; } return true; },
+      val:c => $('#lsNom', c).value.trim() || null }], alAbrir:c => setTimeout(() => $('#lsNom', c).focus(), 250) }); },
+  // «Mis listas»: toca una para abrirla; deslízala a la IZQUIERDA para eliminarla (con «Deshacer»)
   async elegirLista(){
-    const v = await popup({ tit:'📝 Mis listas', html:this.datos.map(l => `<button class="opcion ${l.id === this.actual ? 'on' : ''}" data-l="${l.id}"><span class="ls-mini" style="background:${(this.TEMAS.find(t => t[0] === this.colorDe(l)) || this.TEMAS[0])[2] || 'linear-gradient(180deg,var(--tile1),var(--tile2))'}"></span>${esc(l.nombre)}<small class="ls-op-sub">${l.items.filter(x => !x.ok).length}</small></button>`).join('')
-      + '<button class="opcion" data-l="+">＋ Nueva lista</button>', botones:[{ txt:'Cerrar', val:null }], alAbrir:(c, fin) => $$('[data-l]', c).forEach(b => b.onclick = () => fin(b.dataset.l)) });
+    const fila = l => `<div class="ls-fila" data-id="${l.id}"><div class="ls-fila-del"><span>🗑 Eliminar</span></div>
+      <button class="opcion ls-fila-cara ${l.id === this.actual ? 'on' : ''}" data-l="${l.id}"><span class="ls-mini" style="background:${(this.TEMAS.find(t => t[0] === this.colorDe(l)) || this.TEMAS[0])[2] || 'linear-gradient(180deg,var(--tile1),var(--tile2))'}"></span>${esc(l.nombre)}<small class="ls-op-sub">${l.items.filter(x => !x.ok).length}</small></button></div>`;
+    const v = await popup({ tit:'📝 Mis listas', html:`<div class="ls-filas">${this.datos.map(fila).join('')}</div><p class="ls-pista">👈 Desliza una lista a la izquierda para eliminarla</p>`
+      + '<button class="opcion" data-l="+">＋ Nueva lista</button>', botones:[{ txt:'Cerrar', val:null }],
+      alAbrir:(c, fin) => {
+        let D = null, sinClick = 0; const UMBRAL = 100;
+        $$('[data-l]', c).forEach(b => b.onclick = () => { if(Date.now() - sinClick < 400) return; fin(b.dataset.l); });
+        const cont = $('.ls-filas', c);
+        cont.addEventListener('pointerdown', e => { const cara = e.target.closest('.ls-fila-cara'); if(!cara || e.button > 0) return; D = { cara, fila:cara.parentNode, x:e.clientX, y:e.clientY, dx:0, mov:false, id:e.pointerId }; });
+        cont.addEventListener('pointermove', e => {
+          if(!D || e.pointerId !== D.id) return;
+          const dx = Math.min(0, e.clientX - D.x), dy = e.clientY - D.y;
+          if(!D.mov){ if(Math.abs(e.clientX - D.x) < 8) return; if(Math.abs(dy) > Math.abs(e.clientX - D.x)){ D = null; return; } D.mov = true; try{ D.cara.setPointerCapture(e.pointerId); }catch(_){} D.fila.classList.add('desliza'); }
+          D.dx = dx; D.cara.style.transform = `translateX(${dx}px)`; D.fila.classList.toggle('listo', dx < -UMBRAL);
+        });
+        const suelta = async e => {
+          if(!D) return; const d = D; D = null; if(!d.mov) return;
+          sinClick = Date.now();
+          if(d.dx < -UMBRAL){
+            d.cara.style.transition = 'transform .2s'; d.cara.style.transform = 'translateX(-110%)';
+            const l = this.datos.find(x => x.id === d.fila.dataset.id);
+            setTimeout(async () => { d.fila.style.transition = 'height .2s, opacity .2s'; d.fila.style.height = d.fila.offsetHeight + 'px'; requestAnimationFrame(() => { d.fila.style.height = '0'; d.fila.style.opacity = '0'; });
+              setTimeout(() => d.fila.remove(), 220); if(l) await this.eliminarConDeshacer(l);
+              if(!$('.ls-fila', c)){ fin(null); } }, 180);
+            return;
+          }
+          d.cara.style.transition = 'transform .25s'; d.cara.style.transform = '';
+          setTimeout(() => { d.fila.classList.remove('desliza', 'listo'); d.cara.style.transition = ''; }, 260);
+        };
+        cont.addEventListener('pointerup', suelta); cont.addEventListener('pointercancel', suelta);
+      } });
     if(v === '+'){ const n = await this.pedirNombre('＋ Nueva lista', ''); if(n) await this.crear(n); }
     else if(v){ this.actual = v; lsSet('ph3-lista', v); this.reordenar = false; this.pintar(); }
+  },
+  async eliminarConDeshacer(l){
+    const copia = JSON.parse(JSON.stringify(l)), fondo = this.fondos[l.id], unica = this.datos.length === 1;
+    await this.borrar(l);
+    toast('🗑 «' + l.nombre + '» eliminada' + (unica ? ' (queda «Mis cosas»)' : ''), 'Deshacer', async () => {
+      if(this.modo === 'nube'){ try{ await this.ref('listas').doc(copia.id).set(limpioFS(copia)); if(fondo) await this.ref('fondos').doc(copia.id).set({ img:fondo }); }catch(e){ this.falloNube(e); } }
+      else { this.datos.push(copia); if(fondo) this.fondos[copia.id] = fondo; this.lsGuardar(); }
+      this.actual = copia.id; lsSet('ph3-lista', copia.id); this.pintar(); toast('↩️ «' + copia.nombre + '» vuelve a estar');
+    }, 7000);
   },
   async tema(){
     const l = this.lista(), act = this.colorDe(l), tieneImg = !!this.fondos[l.id];

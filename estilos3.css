@@ -903,5 +903,18 @@ ul.aj-lista b{display:inline;font-size:inherit;margin:0}
 .cc-que{font-size:13px;line-height:1.5;color:var(--ink);margin:10px 0 2px}
 .cc-o{font-size:12.5px;font-weight:800;color:var(--ink2);margin:14px 4px 4px;text-transform:uppercase;letter-spacing:.03em}
 .cc-lista{margin:6px 0 12px 18px;padding:0;display:grid;gap:3px;font-size:14px}
-.opcion:has(small){flex-direction:column;align-items:flex-start;text-align:left;gap:2px}
-.opcion small{display:block;font-size:12px;font-weight:600;opacity:.75}
+.opcion.opc2{flex-direction:column;align-items:flex-start;text-align:left;gap:2px}
+.opcion.opc2 small{display:block;font-size:12px;font-weight:600;opacity:.75}
+
+/* Mis listas: deslizar a la izquierda para eliminar */
+.ls-filas{display:grid;gap:8px}
+.ls-fila{position:relative;border-radius:14px;overflow:hidden}
+.ls-fila .opcion{margin:0;position:relative;z-index:1;touch-action:pan-y;user-select:none;-webkit-user-select:none}
+.ls-fila-del{position:absolute;inset:0;display:flex;align-items:center;justify-content:flex-end;padding-right:18px;background:#e5201c;color:#fff;font-weight:900;font-size:15px;opacity:0;border-radius:14px}
+.ls-fila.desliza .ls-fila-del{opacity:.75}.ls-fila.listo .ls-fila-del{opacity:1;background:#c4170f}
+.ls-pista{font-size:12px;color:var(--ink2);font-weight:700;text-align:center;margin:8px 0 4px}
+
+/* Las ventanitas (popup) no pasan nunca de la pantalla: lo de dentro se desliza y los botones siempre se ven */
+.hoja-pop{max-height:calc(100dvh - 32px);overflow:hidden}
+.hoja-pop .pop-cuerpo{flex:1 1 auto;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;margin:0 -6px;padding:0 6px 2px}
+.hoja-pop .pop-btns{flex:none}
