@@ -29,14 +29,14 @@ const Escribir = {
     if(!silencio){ this.cargar(); setTimeout(() => $('#esTexto').focus(), 100); toast('📝 Escrito nuevo'); }
   },
   // se guarda solo mientras escribes
-  cambio(){ clearTimeout(this._t); $('#esEstado').textContent = '✏️ Escribiendo…'; this._t = setTimeout(() => this.guardarYa(), 700); this.contar(); },
+  cambio(){ clearTimeout(this._t); if(!Voz.activo) $('#esEstado').textContent = '✏️ Escribiendo…'; this._t = setTimeout(() => this.guardarYa(), 700); this.contar(); },
   guardarYa(){
     clearTimeout(this._t);
     const l = this.lista(), d = l.find(x => x.id === this.id); if(!d || !$('#esTexto')) return;
     const html = $('#esTexto').innerHTML, tit = $('#esTitulo').value.trim();
-    if(d.html === html && (d.titulo || '') === tit) { $('#esEstado').textContent = '✓ Guardado'; return; }
+    if(d.html === html && (d.titulo || '') === tit) { if(!Voz.activo) $('#esEstado').textContent = '✓ Guardado'; return; }
     d.html = html; d.titulo = tit; d.cambiado = Date.now(); this.ponerLista(l);
-    $('#esEstado').textContent = '✓ Guardado';
+    if(!Voz.activo) $('#esEstado').textContent = '✓ Guardado';
   },
   contar(){ const t = ($('#esTexto').innerText || '').trim(); const n = t ? t.split(/\s+/).length : 0; $('#esCuenta').textContent = n + (n === 1 ? ' palabra' : ' palabras'); },
   tituloDe(d){ if(d.titulo) return d.titulo; const t = (new DOMParser().parseFromString(d.html || '', 'text/html').body.textContent || '').trim(); return t ? t.slice(0, 40) + (t.length > 40 ? '…' : '') : 'Sin título'; },
@@ -159,7 +159,9 @@ const Escribir = {
     e.focus();
     const sel = getSelection(); let r = sel.rangeCount ? sel.getRangeAt(0) : null;
     if(!r || !e.contains(r.startContainer)){ r = document.createRange(); r.selectNodeContents(e); r.collapse(false); }
-    Voz.empezar(e, b, $('#esEstado'), { rango:r });
+    Voz.empezar(e, b, $('#esEstado'), { rango:r, idioma:this.idioma() });
+  },
+  idioma(){ return (App.ajustes && (App.ajustes.idiomaEscribir || App.ajustes.idiomaVoz)) || 'es-ES';
   },
 
   /* ---------- Mis escritos ---------- */
@@ -256,12 +258,14 @@ const Escribir = {
     $('#esTitulo').addEventListener('input', () => this.cambio());
     $('#esBarra').addEventListener('mousedown', ev => { if(ev.target.closest('button')) ev.preventDefault(); });   // que no se pierda lo seleccionado
     $('#esBarra').addEventListener('click', ev => { const b = ev.target.closest('button'); if(!b) return;
-      if(b.id === 'esMic') this.dictar(); else if(b.id === 'esFoto'){ this.guardarCursor(); this.fotoBoton(); } else if(b.id === 'esForma') this.figura(null); else if(b.dataset.c) this.cmd(b.dataset.c, b.dataset.v); });
+      if(b.id === 'esFoto'){ this.guardarCursor(); this.fotoBoton(); } else if(b.id === 'esForma') this.figura(null); else if(b.dataset.c) this.cmd(b.dataset.c, b.dataset.v); });
     $('#esTam').onchange = ev => { if(ev.target.value) this.cmd('tam', ev.target.value); ev.target.value = ''; };
     $('#esMis').onclick = () => this.misEscritos();
     $('#esAbrir').onclick = () => this.elegirArchivo();
     $('#esSalir').onclick = () => this.salir();
     $('#esDocx').onclick = () => this.docx();
+    $('#esMic').addEventListener('mousedown', ev => ev.preventDefault());   // que no se pierda el cursor
+    $('#esMic').onclick = () => this.dictar();
     $('#esMic').innerHTML = icIn('mic') + '<b>Dictar</b>';
     deslizarLado($('#esBarra'));
     document.addEventListener('visibilitychange', () => { if(document.hidden) this.guardarYa(); });

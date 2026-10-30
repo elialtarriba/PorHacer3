@@ -232,13 +232,16 @@ const Ajustes = {
   p_escribir(){
     return this.tarjeta('✏️ Nombre del botón', `<label class="lbl">En la portada se llama<input id="ajEsNom" value="${esc((App.ajustes.nombreEscribir || '').trim())}" placeholder="Escribir" autocomplete="off"></label>
         <div class="web-btns"><button class="btn-pri" id="ajEsGuardar">💾 Guardar</button></div>`, 'Ponle el nombre que quieras: «Mis textos», «Diario», «Escribir»…')
+      + this.tarjeta('🌍 Idioma en el que dictas', this.seg('ajEsIdi', [['es-ES','Español'],['ca-ES','Català'],['en-GB','English'],['fr-FR','Français']], Escribir.idioma()),
+        'Es el idioma que escucha el botón 🎤 Dictar de «' + esc(Escribir.nombre()) + '». Puedes cambiarlo cuando quieras.')
       + this.tarjeta('🎤 Cómo funciona', `<ul class="aj-lista"><li>Pulsa <b>🎤 Dictar</b> y habla: se escribe donde está el cursor. Pulsa otra vez para parar.</li>
-        <li>Puedes decir «coma», «punto», «punto y aparte» o «nueva línea».</li><li>Negrita, cursiva, subrayado, tamaño, listas, centrar, marcador amarillo y deshacer.</li><li><b>Fotos</b>: pégalas (copiar y pegar), arrástralas o usa 📷. Toca una foto para hacerla pequeña, mediana o grande, o quitarla.</li>
+        <li>Puedes decir «coma», «punto», «punto y aparte» o «nueva línea» (en català: «coma», «punt», «punt i a part», «línia nova»; in English: «comma», «full stop», «new paragraph», «new line»; en français: «virgule», «point», «nouveau paragraphe», «à la ligne»).</li><li>Negrita, cursiva, subrayado, tamaño, listas, centrar, marcador amarillo y deshacer.</li><li><b>Fotos</b>: pégalas (copiar y pegar), arrástralas o usa 📷. Toca una foto para hacerla pequeña, mediana o grande, o quitarla.</li>
         <li>Se guarda solo, <b>en este aparato</b>. En «📄 Mis escritos» tienes todos.</li><li><b>◻︎ Figura</b>: cuadrado, cuadrado redondeado, óvalo o redonda, con el color y el grosor del ribete y el color de dentro (o transparentes). Tócala para cambiarla.</li><li><b>📂 Abrir</b>: abre un <b>.docx</b> (Word o Pages) con su formato y fotos, o el texto de un <b>PDF</b>, para leerlo y cambiarlo.</li><li><b>📄 Guardar .docx</b>: lo abren Word y Pages (en el iPhone, elige «Guardar en Archivos» o Pages). Al guardarlo, <b>se quita de la app</b> para que no ocupe espacio (tienes unos segundos para «Deshacer»).</li></ul>`)
-      + this.nota('El idioma del dictado se elige en ' + this.enlace('general', '⚙️ General'));
+      + this.nota('El idioma de los otros micros (tareas, agenda…) se elige en ' + this.enlace('general', '⚙️ General'));
   },
   e_escribir(cont){
     this.enlazarEnlaces && this.enlazarEnlaces(cont);
+    this.enlazarSeg('ajEsIdi', async v => { App.ajustes.idiomaEscribir = v; await this.guardar(); toast('🎤 Dictar en ' + Voz.NOMBRES[v.slice(0,2)]); });
     $('#ajEsGuardar', cont).onclick = async () => { App.ajustes.nombreEscribir = $('#ajEsNom', cont).value.trim(); await this.guardar(); Portada.pintar(); toast('✏️ El botón se llama «' + Escribir.nombre() + '»'); };
   },
 
