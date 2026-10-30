@@ -1,6 +1,6 @@
 /* PorHacer · app principal: tablero de columnas, tareas y editor */
 
-const VERSION = 'V10.3';
+const VERSION = 'V10.4';
 const $ = (s, r=document) => r.querySelector(s);
 const $$ = (s, r=document) => Array.from(r.querySelectorAll(s));
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -35,7 +35,11 @@ function ajustesInicio(){
     fiesta:{ activa:true, segundos:5, musica:true, mensaje:'', email:'preguntar' }
   };
 }
-async function guardarAjustes(){ await DB.poner('ajustes', App.ajustes); }
+async function guardarAjustes(){
+  try{ localStorage.setItem('ph3-inicio', App.ajustes.inicio || 'portada'); }catch(e){}   // copia de «Al abrir la app» (por si el navegador pierde la base de datos)
+  await DB.poner('ajustes', App.ajustes);
+  if(typeof Ajustes !== 'undefined' && Ajustes.marcarGuardado) Ajustes.marcarGuardado();
+}
 const columnas = () => App.ajustes.columnas;
 const colDe = id => columnas().find(c => c.id === id) || columnas()[0];
 const persona = id => App.personas.find(p => p.id === id);
@@ -81,11 +85,13 @@ function toast(txt, accion, fn, ms=3200){
 function paginaEmpieza(cont, dir, cambio, fondo){
   const r = cont.getBoundingClientRect(), W = r.width, H = r.height;
   if(W < 10 || H < 10){ cambio(dir); return null; }
+  // la hoja que se dobla va por encima de la ventana donde está (p. ej. el año a pantalla completa)
+  let z = 700; for(let a = cont; a && a !== document.body; a = a.parentElement){ const zi = parseInt(getComputedStyle(a).zIndex); if(!isNaN(zi) && zi >= z) z = zi + 1; }
   const viejo = cont.cloneNode(true); viejo.removeAttribute('id'); $$('[id]', viejo).forEach(x => x.removeAttribute('id'));
   const scroll = cont.scrollTop;
   cambio(dir);
   const wrap = document.createElement('div'); wrap.className = 'curl-wrap';
-  Object.assign(wrap.style, { left:r.left + 'px', top:r.top + 'px', width:W + 'px', height:H + 'px', zIndex:700 });
+  Object.assign(wrap.style, { left:r.left + 'px', top:r.top + 'px', width:W + 'px', height:H + 'px', zIndex:z });
   const old = document.createElement('div'); old.className = 'curl-old'; old.style.background = fondo || '#fff';
   Object.assign(viejo.style, { position:'absolute', inset:'0', width:'100%', height:'100%', overflow:'hidden', margin:'0', transform:'none' });
   old.appendChild(viejo);
@@ -1093,7 +1099,8 @@ async function iniciar(){
   pedirPersistencia();
   Nube.iniciar();
   Calc.iniciar(); Mio.iniciar(); Grabar.iniciar(); Agenda.iniciar(); Tickets.iniciar(); Sitios.iniciar(); Portada.iniciar();
-  irA({ tablero:'tareas' }[App.ajustes.inicio] || App.ajustes.inicio || 'portada', true);
+  let ini = App.ajustes.inicio; try{ const c = localStorage.getItem('ph3-inicio'); if(c && (!ini || ini === 'portada')) ini = c; }catch(e){}
+  irA({ tablero:'tareas' }[ini] || ini || 'portada', true);
   $('#nubeEstado').onclick = () => { if(!Nube.user) Nube.pantallaEntrar(); else Nube.explicarEstado(); };
   if('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('sw.js').catch(()=>{});
 }

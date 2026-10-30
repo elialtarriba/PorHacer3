@@ -691,3 +691,10 @@
 .pa-meses .ag-n{font-size:10.5px}
 .pa-meses .ag-sem span{font-size:8.5px}
 @media (min-width:700px){.pa-meses .ag-n{font-size:13px}.pa-meses .ag-mini-t{font-size:15px}}
+
+/* V10.4 · botón Guardar de Configuración */
+.aj-guardar{flex:none;height:36px;padding:0 12px;border-radius:12px;background:var(--accent);color:#fff;font-weight:900;font-size:13.5px;display:inline-flex;align-items:center;gap:5px;margin-left:auto;margin-right:6px;
+  box-shadow:0 3px 0 color-mix(in srgb,var(--accent),#000 30%);transition:background .2s}
+.aj-guardar:active{transform:translateY(2px);box-shadow:0 1px 0 color-mix(in srgb,var(--accent),#000 30%)}
+.aj-guardar.ok{background:#22a55a;box-shadow:0 3px 0 #17773f}
+@media (max-width:370px){.aj-guardar span{display:none}}

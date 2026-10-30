@@ -29,6 +29,7 @@ const Ajustes = {
   ancho(){ return matchMedia('(min-width: 760px)').matches; },
   abrir(t){
     this.pintarMenu();
+    $('#ajGuardar').onclick = () => this.guardarTodo();
     TemaSec.aplicar('conf');
     abrir('ajustes');
     if(t) this.tab(t); else if(this.ancho()) this.ir(this.pagina || 'general'); else this.alMenu();
@@ -60,6 +61,17 @@ const Ajustes = {
     cont.scrollTop = quieto ? sc : 0;
   },
   async guardar(){ await guardarAjustes(); },
+  // Botón «💾 Guardar» de arriba: se guarda solo al cambiar cada cosa, pero así te aseguras
+  marcarGuardado(){ const b = $('#ajGuardar'); if(!b) return; b.classList.add('ok'); b.querySelector('span').textContent = 'Guardado';
+    clearTimeout(this._tg); this._tg = setTimeout(() => { b.classList.remove('ok'); b.querySelector('span').textContent = 'Guardar'; }, 1800); },
+  async guardarTodo(){
+    try{
+      await guardarAjustes();
+      if(typeof Nube !== 'undefined' && Nube.activa && Nube.esDueno && Nube.esDueno()) await Nube.subirConfig();
+      if(typeof Listas !== 'undefined' && Listas.lsGuardar && Listas.modo !== 'nube') Listas.lsGuardar();
+      toast('✅ Todo guardado' + ((typeof Nube !== 'undefined' && Nube.user) ? ' (también en la nube)' : ''));
+    }catch(e){ console.warn(e); popAviso('Guardar', 'No se ha podido guardar: ' + e.message); }
+  },
 
   /* ---------- Piezas ---------- */
   tarjeta(tit, html, ayuda){ return `<div class="aj-tarj"><h4>${tit}</h4>${ayuda ? `<p class="aj-ayuda">${ayuda}</p>` : ''}${html}</div>`; },
