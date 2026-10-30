@@ -19,6 +19,15 @@ const ICO = {
     <circle cx="40" cy="43" r="2.6" fill="#fff"/>
   </svg>`,
 
+  // Web personal: un globo terráqueo con una llave roja
+  web: `<svg viewBox="0 0 64 64" aria-hidden="true">
+    <circle cx="28" cy="29" r="21" fill="#fff" stroke="var(--dark)" stroke-width="4.5"/>
+    <path d="M7.5 29h41M28 8c-6.5 6-9.5 13-9.5 21s3 15 9.5 21M28 8c6.5 6 9.5 13 9.5 21s-3 15-9.5 21M11 18.5h34M11 39.5h34" fill="none" stroke="var(--dark)" stroke-width="3" stroke-linecap="round" opacity=".7"/>
+    <circle cx="45" cy="45" r="8" fill="var(--accent)" stroke="#fff" stroke-width="2.6"/>
+    <circle cx="45" cy="45" r="2.6" fill="#fff"/>
+    <path d="M50.5 50.5l8 8M55 55l-3 3M58.5 58.5l-2.6 2.6" stroke="var(--accent)" stroke-width="4" stroke-linecap="round"/>
+  </svg>`,
+
   // Copia de seguridad: caja con flecha roja
   copia: `<svg viewBox="0 0 64 64" aria-hidden="true">
     <path d="M10 30h44v20a6 6 0 0 1-6 6H16a6 6 0 0 1-6-6z" fill="#fff" stroke="var(--dark)" stroke-width="4.5" stroke-linejoin="round"/>

@@ -751,3 +751,38 @@
 .st-desl{float:right;font-size:11.5px;font-weight:800;color:var(--ink2);opacity:.8}
 
 .tm-nota{font-size:12px;font-weight:700;color:var(--ink2);margin:6px 2px 0}
+
+/* V10.13 · Agenda: el 📷 siempre (con 0) y los botones de la nota en una sola línea */
+.ag-nfotos{margin-left:auto;font-weight:900}
+.ag-nfotos.cero{opacity:.7}
+.ag-pie .ag-nfotos+.mini-btn{margin-left:0}
+.ne-chips{flex-wrap:nowrap;gap:5px;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;padding-bottom:2px}
+.ne-chips::-webkit-scrollbar{display:none}
+.ne-chip{flex:1 0 auto;justify-content:center;gap:4px;padding:9px 8px;font-size:13.5px;white-space:nowrap;border-radius:13px}
+.ne-chip .ic-in{width:17px;height:17px;margin-right:0}
+@media (max-width:360px){.ne-chip{font-size:12.5px;padding:8px 6px}}
+
+/* V10.14 · filas que se deslizan (botones de la nota, colores): con el ratón también, y una sombrita que avisa de que hay más */
+.ne-chips{flex-wrap:nowrap!important;touch-action:pan-x;cursor:grab;position:relative;-webkit-mask-image:none}
+.ne-chips.mas-der{-webkit-mask-image:linear-gradient(90deg,#000 85%,transparent);mask-image:linear-gradient(90deg,#000 85%,transparent)}
+.ne-chips.mas-izq{-webkit-mask-image:linear-gradient(90deg,transparent,#000 15%);mask-image:linear-gradient(90deg,transparent,#000 15%)}
+.ne-chips.mas-izq.mas-der{-webkit-mask-image:linear-gradient(90deg,transparent,#000 12%,#000 88%,transparent);mask-image:linear-gradient(90deg,transparent,#000 12%,#000 88%,transparent)}
+.ne-chip{flex:0 0 auto!important}
+.ne-chips .ne-chip:last-child{margin-right:2px}
+.st-pals{cursor:grab}
+
+/* V10.17 · botones de la tarea que se marcan y se hacen al guardar */
+.ed-extra .mini-btn{transition:background .15s,border-color .15s,color .15s}
+.ed-extra .mini-btn.marcado{background:color-mix(in srgb,var(--accent) 14%,var(--card));border-color:var(--accent);color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+.ed-extra .mini-btn.marcado::before{content:"✓ ";font-weight:900}
+.ed-acc-nota{font-size:12.5px;font-weight:700;color:var(--accent);margin:6px 2px 0}
+
+/* V10.19 · botones «Personal» (webs) */
+.web-cfg{border:1.5px solid var(--line);border-radius:16px;padding:10px 12px 12px;margin-top:10px;background:var(--colbg)}
+.web-cab{display:flex;align-items:center;gap:8px;font-size:15px}
+.web-ic{width:30px;height:30px;display:grid;place-items:center}.web-ic svg{width:28px;height:28px}
+.web-clave{display:flex;gap:6px;align-items:center;margin-top:5px}
+.web-clave input{flex:1;margin-top:0!important}
+.lbl .web-clave input{display:block;width:100%;height:46px;border-radius:13px;border:2px solid var(--line);padding:0 12px;font:inherit;font-size:16px;text-transform:none;letter-spacing:0}
+.web-ojo{width:46px;height:46px;flex:none;border-radius:13px;border:2px solid var(--line);background:var(--card);font-size:18px}
+.web-btns{display:flex;gap:8px;margin-top:10px}.web-btns button{flex:1}

@@ -355,3 +355,41 @@ Probó la V3 con su marido (rbielsa@gmail.com). Ella le había puesto en Persona
 - Petición (captura): en Reunión de Teams, al pulsar «＋ Elisabeth» o «＋ Raimon» no hacía nada; debería ponerlo en la tarea.
 - Arreglado: el fallo era que la app volvía a leer el recuadro de emails vacío. Ahora al tocar una persona se añade su email (y se pone «✓ Raimon»); al tocarla otra vez se quita. La tarea de Tareas queda asignada a la primera persona invitada (se avisa debajo: «la tarea quedará asignada a Raimon»).
 - Archivos para GitHub: portada.js, estilos3.css, app.js, index.html, sw.js (caché porhacer3-v122).
+
+## V10.13 — 30/10/2026
+- Petición (capturas HOME y PorHacer3): en la Agenda falta el botón 📷 con cuántas fotos hay (como en HOME). Al poner una nota nueva, los 4 botones (Color, Aviso, Dictar, Foto) en una sola línea.
+- Hecho: el botón «📷 N» sale siempre abajo, al lado de Colores (también con 0); en Mes cuenta las fotos del mes, en Día las del mes de ese día y en Año las de todo el año. Si no hay, lo dice. Los botones de la nota van en una sola línea (si hay más, como «Hecha» al editar, se desliza de lado).
+- Archivos para GitHub: agenda.js, estilos3.css, app.js, index.html, sw.js, portada.js (caché porhacer3-v123).
+
+## V10.14 — 30/10/2026
+- Petición (captura): en la Agenda, los botones Color, Aviso, Dictar, Foto y Hecha en una sola línea; si no caben, deslizar a derecha e izquierda con el dedo o el ratón. (La captura era aún de una versión anterior: los botones salían en dos líneas.)
+- Hecho: siempre en una línea; se desliza con el dedo, con el ratón (arrastrando) y con la rueda del ratón; el borde se difumina cuando hay más botones a un lado. Arrastrar no cuenta como pulsar. Lo mismo en la fila de colores de la casa (Sitios).
+- Archivos para GitHub: agenda.js, mio.js, sitios.js, estilos3.css, app.js, index.html, sw.js, portada.js (caché porhacer3-v124).
+
+## V10.15 — 30/10/2026
+- Petición: al editar una nota de la agenda, la primera vez que seleccionas el texto se cierra la nota; la segunda ya no.
+- Causa: la ventana se cierra al tocar fuera. La primera vez sale el teclado y la ventana se mueve (o al seleccionar, el dedo acaba fuera), y ese toque contaba como «tocar fuera».
+- Arreglado (en todas las ventanas de Agenda, Tickets, Sitios, Teams…): solo se cierra si el toque empieza y acaba fuera, no hay texto seleccionado y no acaba de salir/moverse el teclado.
+- Archivos para GitHub: mio.js, app.js, index.html, sw.js, portada.js (caché porhacer3-v125).
+
+## V10.16 — 30/10/2026
+- Petición: en cada tarea, un botón al lado de «Al calendario del móvil» que pase la tarea a Teams.
+- Hecho: botón «📹 Reunión de Teams» en la ventana de la tarea. Abre la ventana de Reunión de Teams ya rellenada con la tarea: título, día (fecha de inicio o del aviso), hora (la del aviso), persona asignada como invitada y las notas. No crea otra tarea (pone «✓ Es esta tarea»); si se quiere, también la apunta en la Agenda. Al crear, se abre Teams, y en la tarea queda la fecha (si no tenía) y una línea en el historial; hay que pulsar Guardar en la tarea.
+- Archivos para GitHub: index.html, app.js, portada.js, sw.js (caché porhacer3-v126).
+
+## V10.17 — 30/10/2026
+- Petición: los botones de la tarea (Al calendario del móvil, Duplicar, Pasar a una lista y Reunión de Teams) que se marquen al pulsarlos (que se vea) y que lo que hacen se haga al Guardar la tarea, preguntando entonces lo que haga falta.
+- Hecho: al tocarlos se marcan en rojo con ✓ (se desmarcan tocando otra vez) y sale «✓ Lo marcado se hará al pulsar Guardar». Al Guardar, se guarda la tarea y después, por orden: se descarga el evento del calendario, se duplica, pregunta a qué lista pasarla y abre la ventana de Teams rellenada. Si se cierra sin guardar, no se hace nada.
+- Archivos para GitHub: app.js, listas.js, portada.js, index.html, estilos3.css, sw.js (caché porhacer3-v127).
+
+## V10.18 — 30/10/2026
+- Petición: si al guardar te lo repiensas, poder cancelar lo marcado.
+- Hecho: al Guardar sale «✓ Tarea guardada» con la lista de lo marcado (casillas): quitar lo que ya no quieras, «Hacerlo» o «Cancelar» (la tarea queda guardada sin hacer nada más). Además, «Pasar a una lista» y la ventana de Teams tienen su propio «Cancelar».
+- Archivos para GitHub: app.js, index.html, portada.js, sw.js (caché porhacer3-v128).
+
+## V10.19 — 30/10/2026
+- Petición: dos botones en la portada «Personal», configurables en Configuración (nombre del botón, web, usuario y contraseña) para entrar directamente.
+- Hecho: botones «Personal» y «Personal 2» (icono globo con llave roja). En Configuración → General → «Botones Personal (tus webs)»: nombre, dirección, usuario y contraseña (con 👁), Guardar y Probar. Al tocar el botón se abre la web y la contraseña se copia para pegarla. Se pueden esconder como los demás botones.
+- Límite: ninguna app web puede escribir el usuario y la contraseña dentro de otra web (seguridad de los navegadores). Para entrar sin escribir nada: la primera vez, que Safari/Chrome guarde la contraseña (Llavero de iCloud); después la rellena solo.
+- Usuario y contraseña se guardan solo en este aparato (no van a la nube ni a las copias).
+- Archivos para GitHub: portada.js, ajustes.js, iconos.js, estilos3.css, app.js, index.html, sw.js (caché porhacer3-v129).

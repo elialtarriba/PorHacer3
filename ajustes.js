@@ -88,8 +88,16 @@ const Ajustes = {
     const ops = [['portada','portada','Portada'],['tareas','tablero','Tareas'],['cal','calendario','Calendario Tareas'],['listas','listas','Listas'],['agenda','agenda','Agenda'],['tickets','tickets','Tickets'],['sitios','sitios','Sitios'],['calc','calculadora','Calculadora'],['grabar','grabar','Grabar']];
     return this.tarjeta('🚪 Al abrir la app, ver…', `<div class="gen-inicio">${ops.map(([k, ic, t]) => `<button data-ini="${k}" class="${k === ini ? 'on' : ''}"><span>${icono(ic)}</span>${t}</button>`).join('')}</div>`, 'Lo primero que se ve al entrar en la app, en este aparato.')
       + this.acord('colores', '🎨', 'Colores de la portada', 'Ahora: ' + TemaSec.nombre('portada'), TemaSec.rejilla('portada') + '<p class="aj-ayuda">Solo cambia la pantalla de inicio (también con el botón 🎨 de la portada).</p>')
-      + this.tarjeta('👁 Botones de la portada', `<div class="gen-po">${[...Portada.SECC.map(s => [s.k, s.ico, s.t]), ['bloc', 'bloc', 'Notas secretas']].map(([k, ic, t]) => `<label class="check" style="margin-top:0"><input type="checkbox" data-pover="${k}" ${Portada.ocultos().includes(k) ? '' : 'checked'}><span class="caja"></span><span class="gen-po-t"><i>${icono(ic)}</i>${t}</span></label>`).join('')}</div>`,
+      + this.tarjeta('👁 Botones de la portada', `<div class="gen-po">${[...Portada.SECC.map(s => [s.k, s.ico, s.k.startsWith('web') ? Webs.nombre(s.k) : s.t]), ['bloc', 'bloc', 'Notas secretas']].map(([k, ic, t]) => `<label class="check" style="margin-top:0"><input type="checkbox" data-pover="${k}" ${Portada.ocultos().includes(k) ? '' : 'checked'}><span class="caja"></span><span class="gen-po-t"><i>${icono(ic)}</i>${t}</span></label>`).join('')}</div>`,
           'Quita la marca de los que no uses y desaparecerán de la portada. Vuelve a marcarlos para que salgan otra vez. Lo que tengas guardado no se borra. <b>Configuración</b> siempre se ve.')
+      + `<div id="webCfg"></div>` + this.tarjeta('🌐 Botones «Personal» (tus webs)', ['web1', 'web2'].map(k => { const w = Webs.de(k); return `<div class="web-cfg" data-web="${k}">
+          <div class="web-cab"><span class="web-ic">${icono('web')}</span><b>${esc(Webs.nombre(k))}</b></div>
+          <label class="lbl">Nombre del botón<input data-c="nombre" value="${esc(w.nombre || '')}" placeholder="${k === 'web1' ? 'Personal' : 'Personal 2'}" autocomplete="off"></label>
+          <label class="lbl">Dirección de la web<input data-c="url" type="url" inputmode="url" value="${esc(w.url || '')}" placeholder="Ej.: www.miweb.com" autocomplete="off" autocapitalize="off"></label>
+          <label class="lbl">Usuario (opcional)<input data-c="usuario" value="${esc(w.usuario || '')}" autocomplete="off" autocapitalize="off" spellcheck="false"></label>
+          <label class="lbl">Contraseña (opcional)<span class="web-clave"><input data-c="clave" type="password" value="${esc(w.clave || '')}" autocomplete="new-password"><button type="button" class="web-ojo" data-ojo aria-label="Ver la contraseña">👁</button></span></label>
+          <div class="web-btns"><button class="btn-pri" data-wguardar>💾 Guardar</button><button class="btn-sec" data-wprobar>🌐 Probar</button></div></div>`; }).join(''),
+          'Dos botones para la portada con <b>la web que quieras</b>. Al tocarlos se abre la web y, si has puesto la contraseña, se <b>copia</b> para que solo tengas que pegarla. Todo se guarda <b>solo en este aparato</b> (no va a la nube ni a las copias).')
       + this.tarjeta('↕️ Orden de la portada', '<button class="btn-sec btn-ancho" id="ajOrden">↺ Volver al orden de siempre</button>', 'Para cambiar de sitio un botón de la portada, <b>mantenlo pulsado</b> un momento y <b>arrástralo</b> donde quieras.')
       + this.tarjeta('🎤 Idioma del micrófono', this.seg('ajVoz', [['es-ES','Castellano'],['ca-ES','Català'],['en-GB','English']], a.idiomaVoz),
         'Para dictar en las tareas, la agenda y las notas. Puedes decir «coma», «punto», «punto y aparte», «nueva línea».')
@@ -99,6 +107,12 @@ const Ajustes = {
     const a = App.ajustes;
     $$('[data-ini]', cont).forEach(b => b.onclick = async () => { a.inicio = b.dataset.ini; await this.guardar(); $$('[data-ini]', cont).forEach(x => x.classList.toggle('on', x === b)); toast('🚪 Al abrir: ' + b.textContent.trim()); });
     this.enlazarSeg('ajVoz', async v => { a.idiomaVoz = v; await this.guardar(); });
+    $$('.web-cfg', cont).forEach(f => {
+      const k = f.dataset.web, leer = () => { const w = {}; $$('[data-c]', f).forEach(i => w[i.dataset.c] = i.value.trim()); return w; };
+      $('[data-ojo]', f).onclick = () => { const i = $('[data-c="clave"]', f); i.type = i.type === 'password' ? 'text' : 'password'; };
+      $('[data-wguardar]', f).onclick = () => { Webs.poner(k, leer()); $('.web-cab b', f).textContent = Webs.nombre(k); Portada.pintar(); this.marcarGuardado(); toast('🌐 «' + Webs.nombre(k) + '» guardado'); };
+      $('[data-wprobar]', f).onclick = () => { Webs.poner(k, leer()); Webs.abrir(k); };
+    });
     $$('[data-pover]', cont).forEach(c => c.onchange = async () => {
       const k = c.dataset.pover, s = new Set(Portada.ocultos()); if(c.checked) s.delete(k); else s.add(k);
       a.poOcultos = [...s]; await this.guardar(); Portada.pintar();

@@ -1,6 +1,6 @@
 /* PorHacer · app principal: tablero de columnas, tareas y editor */
 
-const VERSION = 'V10.12';
+const VERSION = 'V10.19';
 const $ = (s, r=document) => r.querySelector(s);
 const $$ = (s, r=document) => Array.from(r.querySelectorAll(s));
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -648,7 +648,7 @@ async function abrirEditor(id, colId){
   $('#edPersona').innerHTML = opcionesPersonas(t.personaId);
   $('#edEmail').checked = false;
   pintarSubs(); pintarDur(); pintarEmail(); pintarPunto();
-  App.ed.pend = [];
+  App.ed.pend = []; App.ed.acc = new Set(); pintarAcciones();
   pintarHistorial();
   pintarTableroTarea();
   $('#edBorrarFila').hidden = App.ed.nueva; $('#edDup').style.display = App.ed.nueva ? 'none' : '';
@@ -815,7 +815,33 @@ async function guardarEditor(){
   await contarMedia(); pintarTodo();
   toast(App.ed.nueva ? '✨ Tarea creada' : '💾 Guardada');
   if(enviar) Correo.tarea(t);
+  const acc = App.ed.acc ? [...App.ed.acc] : [];
   App.ed = null;
+  if(acc.length) setTimeout(() => accionesTrasGuardar(t, acc), 350);
+}
+function pintarAcciones(){
+  const A = (App.ed && App.ed.acc) || new Set();
+  [['#edIcs','ics'],['#edTeams','teams'],['#edDup','dup'],['#edALista','lista']].forEach(([s, k]) => { const b = $(s); if(b){ b.classList.toggle('marcado', A.has(k)); b.setAttribute('aria-pressed', A.has(k)); } });
+  const n = $('#edAccNota'); if(n) n.hidden = !A.size;
+}
+// Lo marcado se hace después de guardar, por orden: calendario, duplicar, lista y Teams
+async function accionesTrasGuardar(t, acc0){
+  const g = App.tareas.find(x => x.id === t.id) || t;
+  // antes de hacerlo, se puede repensar: quitar alguno o cancelarlo todo
+  const NOM = { ics:['📅','Al calendario del móvil','Se descarga el evento con sus avisos'], dup:['⧉','Duplicar','Se crea una copia de la tarea'],
+    lista:['📝','Pasar a una lista','Te preguntará a qué lista'], teams:['📹','Reunión de Teams','Se abre la reunión rellenada para enviarla'] };
+  const orden = ['ics','dup','lista','teams'].filter(k => acc0.includes(k));
+  const acc = await popup({ tit:'✓ Tarea guardada', html:`<p>«${esc(g.titulo || '')}». Ahora se hará lo que marcaste:</p>
+      <div class="acc-lista">${orden.map(k => `<label class="check" style="margin-top:6px"><input type="checkbox" data-acc="${k}" checked><span class="caja"></span><span>${NOM[k][0]} ${NOM[k][1]}<small>${NOM[k][2]}</small></span></label>`).join('')}</div>
+      <p class="aj-ayuda" style="margin-top:8px">Quita la marca de lo que ya no quieras.</p>`,
+    botones:[{ txt:'Cancelar', val:null }, { txt:'Hacerlo', cls:'btn-pri', val:c => $$('[data-acc]', c).filter(x => x.checked).map(x => x.dataset.acc) }] });
+  if(!acc || !acc.length){ toast('Cancelado: la tarea está guardada, sin hacer nada más'); return; }
+  try{
+    if(acc.includes('ics')) exportarIcs(g);
+    if(acc.includes('dup')) await duplicarTarea(g);
+    if(acc.includes('lista')) await Listas.desdeTarea(g);
+    if(acc.includes('teams')) Teams.desdeTarea(App.tareas.find(x => x.id === t.id) || g);
+  }catch(e){ console.warn(e); }
 }
 async function cancelarEditor(){
   Voz.parar();
@@ -868,8 +894,8 @@ async function borrarTarea(id){
     App.tareas.push(t); await DB.poner('tareas', limpiaTarea(t)); pintarTodo(); toast('↩️ Recuperada');
   }, 7000);
 }
-async function duplicarTarea(){
-  const o = leerEditor();
+async function duplicarTarea(o0){
+  const o = (o0 && o0.id) ? o0 : leerEditor();
   const c = structuredClone(limpiaTarea(o));
   c.id = nuevoId('t'); c.titulo = o.titulo + ' (copia)'; c.creada = Date.now(); c.orden = -Date.now(); delete c.emailEnviado; delete c.recordado; delete c.avisos; delete c.deLista; c.hist = []; anotar(c, '⧉ Creada como copia de «' + o.titulo + '»');
   for(const tipo of ['fotos','videos','audios']){
@@ -877,7 +903,7 @@ async function duplicarTarea(){
     if(l.length) await DB.ponerVarios(tipo, l.map(x => ({...x, id:nuevoId(tipo[0]), tareaId:c.id})));
   }
   await guardarTarea(c); App.tareas.push(c);
-  cerrar('editor'); soltarUrls(); App.ed = null;
+  if(App.ed){ cerrar('editor'); soltarUrls(); App.ed = null; }
   await contarMedia(); pintarTodo();
   toast('⧉ Duplicada', 'Abrir', () => abrirEditor(c.id));
 }
@@ -942,8 +968,8 @@ function descargar(blob, nombre){
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = nombre;
   document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 2000);
 }
-function exportarIcs(){
-  const t = leerEditor();
+function exportarIcs(t0){
+  const t = (t0 && t0.id) ? t0 : leerEditor();
   // los avisos con sonido van como alarmas del calendario del móvil (suenan aunque la app esté cerrada)
   const avs = Avisos.mios(t).filter(a => a.f && !a.sonado && new Date(a.f).getTime() > Date.now()).sort((a, b) => a.f.localeCompare(b.f));
   const r = rango(t) || (avs.length ? [avs[0].f.slice(0, 10), avs[0].f.slice(0, 10)] : null);
@@ -1028,10 +1054,11 @@ function eventos(){
   };
   $('#edGuardar').onclick = guardarEditor;
   $('#edBorrar').onclick = () => borrarTarea(App.ed.t.id);
-  $('#edDup').onclick = duplicarTarea;
-  $('#edIcs').onclick = exportarIcs;
+  // Estos 4 botones se MARCAN; lo que hacen se hace al pulsar «Guardar» (y entonces te pregunta lo que haga falta)
+  [['#edIcs','ics'],['#edTeams','teams'],['#edDup','dup'],['#edALista','lista']].forEach(([s, k]) => $(s).onclick = () => {
+    if(!App.ed) return; const A = App.ed.acc; A.has(k) ? A.delete(k) : A.add(k); pintarAcciones();
+    toast(A.has(k) ? '✓ Se hará al guardar' : 'Desmarcado', null, null, 1400); });
   $('#edRecordar').onclick = enviarRecordatorio;
-  $('#edALista').onclick = () => Listas.desdeTarea();
   $('#edTablero').onchange = cambiarTableroTarea;
   $('#edHoy').onclick = () => { const h = hoyIso(); $('#edIni').value = h; $('#edFin').value = h; pintarDur(); toast('☀️ Fecha: hoy'); };
   $('#btnGrabarAudio').onclick = async () => { if(await Audios.grabar(App.ed.t.id)){ App.ed.mediaNueva = true; apuntar('🎙️ Nota de audio añadida'); pintarHistorial(); pintarAudios(); contarMedia().then(pintarTodo); } };

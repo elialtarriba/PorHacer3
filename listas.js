@@ -222,9 +222,11 @@ const Listas = {
       alAbrir:(c, fin) => { if(seg){ const tm = setTimeout(() => { if($('#popup').classList.contains('abierto') && $('.ls-pasado', c)) fin(false); }, seg * 1000); } } });
   },
   /* Pasar una tarea del PorHacer a una lista (solo el título) */
-  async desdeTarea(){
-    if(!App.ed) return;
-    const t = leerEditor(); if(!t.titulo){ $('#edTitulo').focus(); toast('✏️ Escribe antes qué hay que hacer'); return; }
+  async desdeTarea(t0){
+    const yaGuardada = !!(t0 && t0.id);           // viene de «Guardar» (con el botón marcado)
+    if(!yaGuardada && !App.ed) return;
+    const t = yaGuardada ? t0 : leerEditor(); if(!t.titulo){ $('#edTitulo').focus(); toast('✏️ Escribe antes qué hay que hacer'); return; }
+    const esNueva = yaGuardada ? false : App.ed.nueva;
     this.vigilar();
     for(let i = 0; i < 20 && !this.datos.length; i++) await new Promise(r => setTimeout(r, 150));
     if(!this.datos.length) this.asegurar();
@@ -232,19 +234,20 @@ const Listas = {
     const v = await popup({ tit:'📝 Pasar a una lista', html:`<p class="ls-env-t">«${esc(t.titulo)}»</p>
       <label class="lbl">¿A qué lista?<select id="alLista">${this.datos.map(l => `<option value="${l.id}" ${origen && origen.id === l.id ? 'selected' : ''}>📝 ${esc(l.nombre)}${origen && origen.id === l.id ? ' (de donde venía)' : ''}</option>`).join('')}</select></label>
       <p class="aj-ayuda" style="margin-top:8px">Solo pasa el <b>título</b>${t.prio === 3 ? ', marcado como importante ⭐' : ''}.</p>
-      ${App.ed.nueva ? '' : '<label class="check" style="margin-top:10px"><input type="checkbox" id="alQuitar" checked><span class="caja"></span><span>Quitar la tarea del tablero</span></label>'}`,
-      botones:[{ txt:'Cancelar', val:null }, { txt:'📝 Pasar', cls:'btn-pri', val:c => ({ id:$('#alLista', c).value, quitar:App.ed.nueva || ($('#alQuitar', c) && $('#alQuitar', c).checked) }) }] });
+      ${esNueva ? '' : '<label class="check" style="margin-top:10px"><input type="checkbox" id="alQuitar" checked><span class="caja"></span><span>Quitar la tarea del tablero</span></label>'}`,
+      botones:[{ txt:'Cancelar', val:null }, { txt:'📝 Pasar', cls:'btn-pri', val:c => ({ id:$('#alLista', c).value, quitar:esNueva || ($('#alQuitar', c) && $('#alQuitar', c).checked) }) }] });
     if(!v) return;
     const l = this.datos.find(x => x.id === v.id); if(!l) return;
     const min = Math.min(0, ...l.items.map(x => x.pos || 0));
     l.items.push({ id:nuevoId('i'), t:t.titulo, ok:false, imp:t.prio === 3, creado:Date.now(), pos:min - 1 });
     await this.guardar(l);
     if(v.quitar){
-      const id = t.id, nueva = App.ed.nueva;
-      Voz.parar(); cerrar('editor'); soltarUrls(); App.ed = null;
+      const id = t.id, nueva = esNueva;
+      if(App.ed){ Voz.parar(); cerrar('editor'); soltarUrls(); App.ed = null; }
       if(!nueva){ App.tareas = App.tareas.filter(x => x.id !== id); await DB.borrar('tareas', id); for(const a of ['fotos','videos','audios']) await DB.borrarDeTarea(a, id).catch(() => {}); }
       await contarMedia(); pintarTodo();
-    } else { apuntar('📝 Copiada a la lista «' + l.nombre + '»'); pintarHistorial(); }
+    } else if(yaGuardada){ const g = App.tareas.find(x => x.id === t.id); if(g){ anotar(g, '📝 Copiada a la lista «' + l.nombre + '»'); await guardarTarea(g); } }
+    else { apuntar('📝 Copiada a la lista «' + l.nombre + '»'); pintarHistorial(); }
     toast('📝 «' + t.titulo + '» está en la lista «' + l.nombre + '»', 'Ver', () => { if(App.ed) cancelarEditor(); this.actual = l.id; lsSet('ph3-lista', l.id); this.abrir(); }, 6000);
   },
   rotuloTarea(t){ const b = $('#edALista'); if(!b) return; const o = t && t.deLista && this.datos.find(l => l.id === t.deLista.id); b.textContent = o ? '📝 Devolver a «' + o.nombre + '»' : '📝 Pasar a una lista'; },

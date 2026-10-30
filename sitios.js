@@ -311,6 +311,7 @@ const Sitios = {
     hj.onclick = e => { const b = e.target.closest('[data-a],[data-pal]'); if(!b) return;
       if(b.dataset.pal){ E.nombre = n.value; E.color = b.dataset.pal; this.pintarEditor(false); return; }
       const a = b.dataset.a; if(a === 'icono'){ E.nombre = n.value; this.elegirIcono(); } else if(a === 'ok') this.guardarEditor(); else { this.ED = null; cerrarHojaMio(); } };
+    deslizarLado($('.st-ed .st-pals'));
     const sel = $('.st-ed .st-pals .on'), fila = sel && sel.parentElement;
     if(fila){ fila.scrollLeft = this._palScroll != null ? this._palScroll : sel.offsetLeft - fila.clientWidth / 2 + sel.offsetWidth / 2; fila.onscroll = () => { this._palScroll = fila.scrollLeft; }; }
     if(foco){ this._palScroll = null; if(fila) fila.scrollLeft = sel.offsetLeft - fila.clientWidth / 2 + sel.offsetWidth / 2; }

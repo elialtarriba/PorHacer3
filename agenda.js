@@ -42,11 +42,11 @@ const Agenda = {
       cab = `<div class="ag-titulo">${MESES_C[m]} <span>${y}</span></div>`;
       cuerpo = this.rejilla(y, m, false);
     }
-    const nf = this.modo === 'anio' ? 0 : this.fotosDe(this.modo === 'dia' ? this.dia.slice(0, 7) : iso(this.mes).slice(0, 7)).length;
+    const nf = this.fotosDe(this.prefFotos()).length;
     c.innerHTML = `<div class="ag-card ag-m-${this.modo}">${modos}
       <div class="ag-cab"><button class="flecha" data-mv="-1" aria-label="Anterior">‹</button>${cab}<button class="flecha" data-mv="1" aria-label="Siguiente">›</button></div>
       ${cuerpo}
-      <div class="ag-pie"><button class="hoy-btn" data-hoy>Fecha actual</button>${nf ? `<button class="mini-btn" data-fotos>📷 ${nf}</button>` : ''}<button class="mini-btn" data-colores>🔎 Colores</button></div>
+      <div class="ag-pie"><button class="hoy-btn" data-hoy>Fecha actual</button><button class="mini-btn ag-nfotos ${nf ? '' : 'cero'}" data-fotos title="Fotos de ${this.modo === 'anio' ? 'este año' : 'este mes'}">📷 ${nf}</button><button class="mini-btn" data-colores>🔎 Colores</button></div>
     </div>`;
     c.scrollTop = sc;
     $('#agSub').textContent = this.modo === 'mes' ? this.resumenMes() : this.modo === 'dia' ? (this.notas(this.dia).length ? this.notas(this.dia).length + (this.notas(this.dia).length === 1 ? ' nota' : ' notas') : 'Día libre') : 'Todo el año';
@@ -168,6 +168,7 @@ const Agenda = {
       ${panel}
       <div class="mp-fila">${N.id ? '<button class="mp-b mp-borrar" data-borrar aria-label="Borrar nota">🗑️</button>' : ''}<button class="mp-b" data-cancelar>Cancelar</button><button class="mp-b mp-pri" data-guardar>${N.id ? 'Guardar' : 'Añadir'}</button></div>`, 'ne-pop');
     p.parentNode._alCerrar = () => this.cancelar(true);
+    deslizarLado($('.ne-chips', p));
     p.onclick = async e => {
       const b = e.target.closest('button,img[data-ver]'); if(!b) return;
       const d = b.dataset;
@@ -286,10 +287,12 @@ const Agenda = {
 
   /* ---------- Fotos del mes y buscar por colores ---------- */
   fotosDe(pref){ const out = []; Mio.todos('agenda').forEach(d => { if(d.id.startsWith(pref)) (d.items || []).forEach(it => (it.fotos || []).forEach(f => out.push({ k:d.id, f, it }))); }); return out.sort((a, b) => a.k < b.k ? -1 : 1); },
+  prefFotos(){ return this.modo === 'anio' ? String(this.mes.getFullYear()) : this.modo === 'dia' ? this.dia.slice(0, 7) : iso(this.mes).slice(0, 7); },
   verFotosMes(){
-    const pref = this.modo === 'dia' ? this.dia.slice(0, 7) : iso(this.mes).slice(0, 7), fs = this.fotosDe(pref), [y, m] = pref.split('-').map(Number);
-    const p = popMio(`<h3 class="mp-h">📷 Fotos de ${MESES[m - 1]} ${y}</h3>
-      <div class="ag-galeria">${fs.map(x => `<button data-k="${x.k}" data-f="${x.f}"><img src="${Mio.foto(x.f)}" alt=""><span>${deIso(x.k).getDate()}</span></button>`).join('')}</div>
+    const pref = this.prefFotos(), fs = this.fotosDe(pref), [y, m] = pref.split('-').map(Number);
+    const p = popMio(`<h3 class="mp-h">📷 Fotos de ${m ? MESES[m - 1] + ' ' + y : y}</h3>
+      ${fs.length ? `<div class="ag-galeria">${fs.map(x => `<button data-k="${x.k}" data-f="${x.f}"><img src="${Mio.foto(x.f)}" alt=""><span>${deIso(x.k).getDate()}${m ? '' : ' ' + MESES_C[deIso(x.k).getMonth()].slice(0, 3)}</span></button>`).join('')}</div>`
+        : `<p class="mp-p" style="text-align:center;padding:14px 4px">Aún no hay fotos ${m ? 'este mes' : 'este año'}.<br>Añádelas en una nota con el botón <b>📷 Foto</b>.</p>`}
       <button class="mp-cancelar" data-x>Cerrar</button>`);
     p.onclick = e => { const b = e.target.closest('[data-f]'); if(b){ verFotoGrande(Mio.foto(b.dataset.f)); return; } if(e.target.closest('[data-x]')) cerrarPopMio(); };
   },

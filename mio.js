@@ -339,7 +339,7 @@ function hojaMio(tit, html, clase){
   cerrarHojaMio();
   const v = document.createElement('div'); v.className = 'mio-velo'; v.id = 'mioVelo';
   v.innerHTML = `<div class="mio-hoja ${clase || ''}" role="dialog"><div class="mio-asa"></div>${tit ? `<h3>${tit}</h3>` : ''}<div class="mio-hoja-c">${html}</div></div>`;
-  v.addEventListener('click', e => { if(e.target === v) cerrarHojaMio(); });
+  fueraVelo(v, () => cerrarHojaMio());
   document.body.appendChild(v); requestAnimationFrame(() => v.classList.add('mio-ver'));
   return v.querySelector('.mio-hoja');
 }
@@ -349,7 +349,7 @@ function popMio(html, clase){
   cerrarPopMio();
   const v = document.createElement('div'); v.className = 'mio-velo mio-velo-c'; v.id = 'mioPop';
   v.innerHTML = `<div class="mio-pop ${clase || ''}" role="dialog">${html}</div>`;
-  v.addEventListener('click', e => { if(e.target === v){ if(v._alCerrar) v._alCerrar(); cerrarPopMio(); } });
+  fueraVelo(v, () => { if(v._alCerrar) v._alCerrar(); cerrarPopMio(); });
   document.body.appendChild(v); requestAnimationFrame(() => v.classList.add('mio-ver'));
   return v.querySelector('.mio-pop');
 }
@@ -392,4 +392,33 @@ async function pdfDeHtml(html, nombre, papel){
     toast('📄 PDF «' + nombre + '» listo');
   }catch(e){ console.warn(e); toast('⚠️ No se pudo hacer el PDF'); }
   finally{ z.remove(); }
+}
+
+// Una fila que se desliza de lado: con el dedo ya va sola; con el ratón, arrastrando (y sin que cuente como clic)
+function deslizarLado(el){
+  if(!el || el._lado) return; el._lado = true;
+  let D = null;
+  const marcar = () => { el.classList.toggle('mas-der', el.scrollLeft + el.clientWidth < el.scrollWidth - 4); el.classList.toggle('mas-izq', el.scrollLeft > 4); };
+  el.addEventListener('scroll', marcar, { passive:true }); setTimeout(marcar, 60);
+  el.addEventListener('pointerdown', e => { if(e.pointerType !== 'mouse' || e.button) return; D = { x:e.clientX, s:el.scrollLeft, mov:false }; });
+  addEventListener('pointermove', e => { if(!D) return; const dx = e.clientX - D.x; if(Math.abs(dx) > 5) D.mov = true; if(D.mov){ el.scrollLeft = D.s - dx; e.preventDefault(); } });
+  addEventListener('pointerup', () => { if(D && D.mov){ const quita = ev => { ev.stopPropagation(); ev.preventDefault(); }; el.addEventListener('click', quita, { capture:true, once:true }); setTimeout(() => el.removeEventListener('click', quita, true), 50); } D = null; });
+  el.addEventListener('wheel', e => { if(Math.abs(e.deltaY) > Math.abs(e.deltaX) && el.scrollWidth > el.clientWidth){ el.scrollLeft += e.deltaY; e.preventDefault(); } }, { passive:false });
+}
+
+/* Cerrar una ventana tocando fuera, pero SOLO si el toque empezó y acabó fuera.
+   (Al seleccionar texto, o cuando sale el teclado del móvil y la ventana se mueve, el «toque» podía caer fuera y cerraba la nota.) */
+let _vpCambio = 0;
+if(window.visualViewport) visualViewport.addEventListener('resize', () => { _vpCambio = Date.now(); });
+addEventListener('resize', () => { _vpCambio = Date.now(); });
+document.addEventListener('focusin', e => { if(e.target.matches && e.target.matches('input,textarea,[contenteditable]')) _vpCambio = Date.now(); });
+function fueraVelo(v, cerrar){
+  let empezo = false;
+  v.addEventListener('pointerdown', e => { empezo = e.target === v; });
+  v.addEventListener('click', e => {
+    if(e.target !== v) return;
+    const conTexto = (() => { try{ return String(getSelection()).length > 0; }catch(_){ return false; } })();
+    if(!empezo || conTexto || Date.now() - _vpCambio < 800){ empezo = false; return; }
+    empezo = false; cerrar();
+  });
 }

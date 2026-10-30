@@ -38,7 +38,9 @@ const Portada = {
     { k:'sitios',  t:'Sitios',     ico:'sitios',     c:'var(--dark)' },
     { k:'calc',    t:'Calculadora', ico:'calculadora', c:'var(--dark)' },
     { k:'grabar',  t:'Grabar',      ico:'grabar',      c:'var(--accent)' },
-    { k:'teams',   t:'Reunión de Teams', ico:'teams',    c:'var(--dark)' }
+    { k:'teams',   t:'Reunión de Teams', ico:'teams',    c:'var(--dark)' },
+    { k:'web1',    t:'Personal',   ico:'web',        c:'var(--accent)' },
+    { k:'web2',    t:'Personal 2', ico:'web',        c:'var(--dark)' }
   ],
   saludo(){
     const h = new Date().getHours(), n = (typeof Nube !== 'undefined' && Nube.perfil && Nube.perfil.nombre) || '';
@@ -61,6 +63,7 @@ const Portada = {
         return ts.length ? pl(ts.length, 'ticket', 'tickets') + (tot ? ' · ' + dinero(tot) : '') : 'Ninguno este mes'; }
       if(k === 'calc') return 'Cuentas, % e IVA';
       if(k === 'teams') return Teams.proxima();
+      if(k === 'web1' || k === 'web2') return Webs.info(k);
       if(k === 'grabar'){ const n = Grabar.lista.length; return n ? pl(n, 'nota de voz', 'notas de voz') : 'Notas de voz'; }
       if(k === 'sitios'){ const s = Mio.todos('sitios'), casas = s.filter(x => x.tipo === 'casa').length, cosas = s.reduce((n, x) => n + Object.keys(x.cosas || {}).length, 0);
         return casas ? pl(casas, 'casa', 'casas') + ' · ' + pl(cosas, 'cosa', 'cosas') : 'Empieza por tu casa'; }
@@ -116,12 +119,12 @@ const Portada = {
       </button>` : (S => `
       <button class="po-b" data-k="${S.k}" data-ir="${S.k}" style="--c:${S.c};--i:${i}">
         <span class="po-ico">${icono(S.ico)}</span>
-        <b>${S.t}</b><small>${esc(this.info(S.k))}</small>
+        <b>${esc(S.k.startsWith('web') ? Webs.nombre(S.k) : S.t)}</b><small>${esc(this.info(S.k))}</small>
         <span class="po-flecha">›</span>
       </button>`)(this.SECC.find(x => x.k === k));
     g.innerHTML = this.orden().map(baldosa).join('');
     $('#poCajaSitio').innerHTML = '';
-    $$('#vPortada [data-ir]').forEach(b => b.onclick = e => { if(Date.now() - (this._soltado || 0) < 600) return; if(b.dataset.ir === 'teams') Teams.nueva(); else this.entrarEn(b.dataset.ir, b); });
+    $$('#vPortada [data-ir]').forEach(b => b.onclick = e => { if(Date.now() - (this._soltado || 0) < 600) return; if(b.dataset.ir === 'teams') Teams.nueva(); else if(b.dataset.ir.startsWith('web')) Webs.abrir(b.dataset.ir); else this.entrarEn(b.dataset.ir, b); });
     $('#vPortada [data-conf]').onclick = e => { if(Date.now() - (this._soltado || 0) < 600) return; const b = e.currentTarget; b.classList.add('girando'); setTimeout(() => { b.classList.remove('girando'); Ajustes.abrir(); }, 420); };
     const bc = $('#vPortada [data-bloc]'); if(bc) bc.onclick = () => { if(Date.now() - (this._soltado || 0) < 600) return; this.abrirCaja(bc); };
     if(entrar){ const v = $('#vPortada'); v.classList.remove('entra'); void v.offsetWidth; v.classList.add('entra'); }
@@ -237,7 +240,7 @@ const Calc = {
     this._carga = new Promise(ok => {
       const f = $('#calcFrame');
       f.addEventListener('load', () => setTimeout(() => ok(this.win()), 60), { once:true });
-      f.src = 'calculadora.html?v=122';
+      f.src = 'calculadora.html?v=129';
     });
     return this._carga;
   },
@@ -389,6 +392,20 @@ const Teams = {
     this.R = { titulo:'', k:dia || hoyIso(), h:this.horaSig(), dur:+(lsGet('ph3-tm-dur') || 30), quien:'', notas:'', aviso:lsGet('ph3-tm-aviso') ?? '10', ...donde };
     this.pintar(true);
   },
+  // Desde una tarea (botón «📹 Reunión de Teams» al lado de «Al calendario del móvil»)
+  desdeTarea(t0){
+    const yaGuardada = !!(t0 && t0.id);
+    const t = yaGuardada ? t0 : leerEditor();
+    const tit = String(t.titulo || '').replace(/^📹\s*/, '').replace(/\s*·\s*\d{1,2}:\d{2}$/, '').trim();
+    if(!tit){ if(!yaGuardada) $('#edTitulo').focus(); toast('Escribe antes el título de la tarea'); return; }
+    const av = (t.avisos || []).map(a => a.f).filter(Boolean).sort()[0];
+    const p = persona(t.personaId);
+    const notas = (!yaGuardada && $('#edNotas')) ? $('#edNotas').innerText.trim() : String(t.notas || '').trim();
+    this.R = { titulo:tit, k:(t.teams && t.ini) || t.ini || (av ? av.slice(0, 10) : hoyIso()), h:(t.teams && t.teams.h) || (av ? av.slice(11, 16) : this.horaSig()),
+      dur:(t.teams && t.teams.dur) || +(lsGet('ph3-tm-dur') || 30), quien:p && p.email ? p.email : '', notas:notas.replace(/^📹 Reunión de Teams.*\n?/, ''),
+      aviso:'', tarea:false, agenda:false, deTarea:t.id };
+    this.pintar(false);
+  },
   leer(){ const R = this.R; if(!R) return; const v = id => { const e = $('#' + id); return e ? e.value : null; };
     if(v('tmTit') != null) R.titulo = v('tmTit'); if(v('tmHora')) R.h = v('tmHora'); if(v('tmQuien') != null) R.quien = v('tmQuien'); if(v('tmNotas') != null) R.notas = v('tmNotas'); },
   pintar(foco){
@@ -407,14 +424,14 @@ const Teams = {
       <div class="tm-nota">${App.personas.some(x => x.email && (R.quien || '').split(/[,;\s]+/).includes(x.email)) ? '👤 En Tareas, la tarea quedará <b>asignada</b> a ' + esc(App.personas.find(x => x.email && (R.quien || '').split(/[,;\s]+/).includes(x.email)).nombre) + '.' : 'Toca una persona para invitarla (y asignarle la tarea).'}</div>` : ''}
       <textarea class="mp-input tm-notas" id="tmNotas" placeholder="Notas o temas a tratar (opcional)">${esc(R.notas)}</textarea>
       <div class="tm-et">📝 Apuntarla en PorHacer3</div>
-      <div class="tm-fila">${chip(R.tarea, 'data-en="tarea"', (R.tarea ? '✓ ' : '') + '✅ Tareas')}${chip(R.agenda, 'data-en="agenda"', (R.agenda ? '✓ ' : '') + '📒 Agenda')}</div>
+      <div class="tm-fila">${R.deTarea ? '<span class="tm-chip on" style="cursor:default">✓ Es esta tarea</span>' : chip(R.tarea, 'data-en="tarea"', (R.tarea ? '✓ ' : '') + '✅ Tareas')}${chip(R.agenda, 'data-en="agenda"', (R.agenda ? '✓ ' : '') + '📒 Agenda')}</div>
       <div class="tm-et">⏰ Aviso</div>
       <div class="tm-fila">${[['', 'Sin aviso'], ['0', 'A la hora'], ['10', '10 min antes'], ['30', '30 min antes']].map(([v, t]) => chip(R.aviso === v, 'data-av="' + v + '"', t)).join('')}</div>
       <div class="mp-fila"><button class="mp-b" data-x>Cancelar</button><button class="mp-b mp-pri tm-crear" data-crear>📹 Crear en Teams</button></div>`, 'tm-pop');
     p.onclick = e => { const b = e.target.closest('button'); if(!b) return; const d = b.dataset;
       if(d.dia){ this.leer(); R.k = d.dia; this.pintar(); }
       else if(d.dur){ this.leer(); R.dur = +d.dur; lsSet('ph3-tm-dur', d.dur); this.pintar(); }
-      else if(d.en){ this.leer(); R[d.en] = !R[d.en]; lsSet('ph3-tm-donde', JSON.stringify({ tarea:R.tarea, agenda:R.agenda })); this.pintar(); }
+      else if(d.en){ this.leer(); R[d.en] = !R[d.en]; if(!R.deTarea) lsSet('ph3-tm-donde', JSON.stringify({ tarea:R.tarea, agenda:R.agenda })); this.pintar(); }
       else if(d.av != null && 'av' in d){ this.leer(); R.aviso = d.av; lsSet('ph3-tm-aviso', d.av); this.pintar(); }
       else if(d.mail){ this.leer(); const l = R.quien.split(/[,;\s]+/).filter(Boolean); R.quien = (l.includes(d.mail) ? l.filter(x => x !== d.mail) : [...l, d.mail]).join(', ');
         $('#tmQuien').value = R.quien; this.pintar(); }   // (antes se volvía a leer el recuadro vacío y no hacía nada)
@@ -461,11 +478,49 @@ const Teams = {
         await Agenda.guardarDia(R.k, [...Agenda.notas(R.k), n]); hecho.push('Agenda');
       }
     }catch(e){ console.warn(e); popAviso('Reunión de Teams', 'No se ha podido apuntar en PorHacer3: ' + e.message); }
+    if(R.deTarea && !App.ed){
+      // ya guardada: se actualiza la tarea directamente
+      const g = App.tareas.find(x => x.id === R.deTarea);
+      if(g){ if(!g.ini) g.ini = R.k; if(!g.fin) g.fin = R.k; g.teams = { h:R.h, dur:R.dur, url };
+        anotar(g, '📹 Reunión de Teams el ' + fechaCortaB(R.k) + ' a las ' + R.h + (quien.length ? ' con ' + quien.join(', ') : ''));
+        await guardarTarea(g); pintarTodo(); hecho.push('la tarea'); }
+    }
+    if(R.deTarea && App.ed){
+      // la tarea abierta: se le ponen el día y el aviso, y queda apuntado en su historial (se guarda al pulsar «Guardar»)
+      if(!$('#edIni').value){ $('#edIni').value = R.k; } if(!$('#edFin').value){ $('#edFin').value = R.k; } if(typeof pintarDur === 'function') pintarDur();
+      App.ed.t.teams = { h:R.h, dur:R.dur, url };
+      if(typeof apuntar === 'function') apuntar('📹 Reunión de Teams el ' + fechaCortaB(R.k) + ' a las ' + R.h + (quien.length ? ' con ' + quien.join(', ') : ''));
+      hecho.push('la tarea (pulsa Guardar)');
+    }
     const l = this.lista().filter(r => new Date(r.k + 'T' + r.h).getTime() > Date.now() - 86400000); l.push({ k:R.k, h:R.h, t:R.titulo }); lsSet('ph3-teams', JSON.stringify(l.slice(-30)));
     this.R = null; cerrarPopMio(); Portada.pintar();
     popup({ tit:'📹 Reunión apuntada', html:`<p><b>${esc(R.titulo)}</b><br>${esc(fechaBonita(R.k, true))} · ${R.h}–${hh(fin)}</p>
       <p class="aj-ayuda">${hecho.length ? 'Está en ' + hecho.join(' y ') + (aviso ? ', con aviso' : '') + '.' : 'No la has apuntado en PorHacer3.'}</p>
       <p class="aj-ayuda">${w ? 'Se ha abierto <b>Teams</b> con la reunión rellenada: revisa y pulsa <b>Enviar</b> (o Guardar).' : 'Pulsa el botón para abrir <b>Teams</b> con la reunión rellenada, y allí pulsa <b>Enviar</b>.'}</p>
       <a class="btn-pri btn-ancho tm-abrir" href="${url}" target="_blank" rel="noopener">📹 Abrir Teams</a>`, botones:[{ txt:'Hecho', cls:'btn-sec', val:true }] });
+  }
+};
+
+/* ---------- Botones «Personal» (dos webs a tu gusto) ----------
+   Nombre, dirección, usuario y contraseña se guardan SOLO en este aparato (no van a la nube ni a las copias). */
+const Webs = {
+  de(k){ try{ return JSON.parse(lsGet('ph3-' + k) || '{}') || {}; }catch(e){ return {}; } },
+  poner(k, w){ lsSet('ph3-' + k, JSON.stringify(w)); },
+  nombre(k){ return (this.de(k).nombre || '').trim() || (k === 'web1' ? 'Personal' : 'Personal 2'); },
+  url(k){ let u = (this.de(k).url || '').trim(); if(u && !/^[a-z]+:\/\//i.test(u)) u = 'https://' + u; return u; },
+  info(k){ const u = this.url(k); if(!u) return 'Toca para configurarla'; try{ return new URL(u).hostname.replace(/^www\./, ''); }catch(e){ return u; } },
+  copiar(t){
+    try{ if(navigator.clipboard && window.isSecureContext){ navigator.clipboard.writeText(t).catch(() => {}); return; } }catch(e){}
+    const x = document.createElement('textarea'); x.value = t; x.setAttribute('readonly', ''); x.style.cssText = 'position:fixed;left:-9999px;top:0';
+    document.body.appendChild(x); x.select(); try{ document.execCommand('copy'); }catch(e){} x.remove();
+  },
+  abrir(k){
+    const w = this.de(k), u = this.url(k);
+    if(!u){ toast('🌐 Pon primero la dirección de la web'); Ajustes.abrir('general'); setTimeout(() => { const e = $('#webCfg'); e && e.scrollIntoView({ block:'start', behavior:'smooth' }); }, 350); return; }
+    // la contraseña se copia (para pegarla al entrar) y se abre la web, todo con el mismo toque
+    if(w.clave) this.copiar(w.clave);
+    const v = window.open(u, '_blank'); try{ if(v) v.opener = null; }catch(e){}
+    if(w.clave || w.usuario) toast((w.usuario ? '👤 ' + w.usuario + ' · ' : '') + (w.clave ? '🔑 Contraseña copiada: pégala al entrar' : ''), null, null, 6000);
+    if(!v) location.href = u;
   }
 };
