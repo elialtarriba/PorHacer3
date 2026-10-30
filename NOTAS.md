@@ -414,3 +414,12 @@ Probó la V3 con su marido (rbielsa@gmail.com). Ella le había puesto en Persona
 - El PDF no se guarda en la app (sw.js) para que siempre se vea el último que se suba.
 - Para actualizar el manual en el futuro: sustituir manual.pdf y subirlo a GitHub.
 - Archivos para GitHub: portada.js, iconos.js, sw.js, app.js, index.html y manual.pdf (caché porhacer3-v131). No subir la carpeta Manual/ (no hace falta).
+
+## V10.22 — Manual dentro de la app — 30/10/2026
+- Petición: al abrir el manual no se puede salir; poner un botón de salir en todas las páginas y que con doble toque se vuelva a la app.
+- Hecho: el manual se ve DENTRO de la app (con pdf.js, archivos pdf.min.js y pdf.worker.min.js). Barra fija arriba en todas las páginas: «☰ Índice» (capítulos y apartados con su página, al tocar va allí), «Página X de 71» y ✕ rojo para salir. Doble toque (o doble clic) en cualquier página vuelve a la app; también la tecla Esc y el gesto/botón «atrás». El manual.pdf lleva marcadores (índice) para esto.
+- Archivos para GitHub: portada.js, estilos3.css, sw.js, app.js, index.html, manual.pdf, pdf.min.js, pdf.worker.min.js, pdfjs-LICENSE.txt (caché porhacer3-v132).
+
+## V11 — 30/10/2026
+- Petición: poner V11. Hecho (caché porhacer3-v133).
+- Archivos para GitHub: app.js, index.html, sw.js, portada.js.

@@ -786,3 +786,21 @@
 .lbl .web-clave input{display:block;width:100%;height:46px;border-radius:13px;border:2px solid var(--line);padding:0 12px;font:inherit;font-size:16px;text-transform:none;letter-spacing:0}
 .web-ojo{width:46px;height:46px;flex:none;border-radius:13px;border:2px solid var(--line);background:var(--card);font-size:18px}
 .web-btns{display:flex;gap:8px;margin-top:10px}.web-btns button{flex:1}
+
+/* V10.22 · Manual dentro de la app */
+.man-v{position:fixed;inset:0;z-index:950;background:#5a5a60;display:flex;flex-direction:column;opacity:0;transition:opacity .2s}
+.man-v.man-ver{opacity:1}
+.man-top{display:flex;align-items:center;gap:10px;padding:calc(8px + env(safe-area-inset-top,0px)) 12px 8px;background:var(--card);box-shadow:0 2px 10px rgba(0,0,0,.25);z-index:2}
+.man-pg{flex:1;text-align:center;font-weight:800;font-size:13px;color:var(--ink2)}
+.man-b{height:40px;padding:0 14px;border-radius:12px;background:var(--colbg);border:1.5px solid var(--line);font-weight:900;font-size:14px;color:var(--dark)}
+.man-x{width:44px;height:44px;border-radius:50%;background:var(--accent);color:#fff;font-size:19px;font-weight:900;box-shadow:0 3px 0 color-mix(in srgb,var(--accent),#000 30%)}
+.man-cuerpo{position:relative;flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:10px 8px 40px;display:flex;flex-direction:column;align-items:center;gap:10px}
+.man-hoja{background:#fff;box-shadow:0 3px 12px rgba(0,0,0,.35);flex:none;max-width:100%}
+.man-hoja canvas{display:block}
+.man-cargando{color:#fff;font-weight:800;margin-top:40vh;text-align:center;padding:0 20px}
+.man-indice{position:absolute;left:10px;right:10px;top:calc(64px + env(safe-area-inset-top,0px));bottom:50px;overflow-y:auto;background:var(--card);border-radius:18px;box-shadow:0 10px 30px rgba(0,0,0,.4);padding:8px;z-index:3}
+.man-it{display:flex;width:100%;gap:8px;align-items:baseline;text-align:left;padding:9px 10px;border-radius:10px;font-weight:900;font-size:14.5px;color:var(--dark)}
+.man-it.sub{font-weight:700;font-size:13px;padding:6px 10px 6px 26px;color:var(--ink)}
+.man-it span{flex:1}.man-it em{font-style:normal;color:var(--accent);font-weight:900}
+.man-it:active{background:var(--colbg)}
+.man-ayuda{position:absolute;bottom:calc(10px + env(safe-area-inset-bottom,0px));left:50%;transform:translateX(-50%);background:rgba(0,0,0,.6);color:#fff;font-size:12px;font-weight:700;padding:6px 12px;border-radius:20px;pointer-events:none;white-space:nowrap}

@@ -249,7 +249,7 @@ const Calc = {
     this._carga = new Promise(ok => {
       const f = $('#calcFrame');
       f.addEventListener('load', () => setTimeout(() => ok(this.win()), 60), { once:true });
-      f.src = 'calculadora.html?v=131';
+      f.src = 'calculadora.html?v=133';
     });
     return this._carga;
   },
@@ -541,9 +541,69 @@ const Webs = {
   }
 };
 
-/* ---------- Manual: el PDF de la carpeta de la app (siempre el último que se ha subido) ---------- */
-function abrirManual(){
-  const u = 'manual.pdf?v=' + encodeURIComponent(VERSION) + '-' + new Date().toISOString().slice(0, 10);
-  toast('📖 Abriendo el manual…', null, null, 2500);
-  const v = window.open(u, '_blank'); if(!v) location.href = u;
-}
+/* ---------- Manual: se ve DENTRO de la app (pdf.js), con ✕ para salir, índice y doble toque para volver ---------- */
+const Manual = {
+  async lib(){
+    if(window.pdfjsLib) return window.pdfjsLib;
+    await new Promise((ok, mal) => { const s = document.createElement('script'); s.src = 'pdf.min.js'; s.onload = ok; s.onerror = mal; document.head.appendChild(s); });
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'pdf.worker.min.js';
+    return pdfjsLib;
+  },
+  async abrir(){
+    if($('#manualV')) return;
+    const v = document.createElement('div'); v.id = 'manualV'; v.className = 'man-v';
+    v.innerHTML = `<div class="man-top"><button class="man-b" data-ind>☰ Índice</button><span class="man-pg" id="manPg">Cargando…</span><button class="man-x" data-x aria-label="Salir del manual">✕</button></div>
+      <div class="man-cuerpo" id="manCuerpo"><div class="man-cargando">📖 Abriendo el manual…</div></div>
+      <div class="man-indice" id="manIndice" hidden></div>
+      <div class="man-ayuda">✕ o <b>doble toque</b> para volver a la app</div>`;
+    document.body.appendChild(v); requestAnimationFrame(() => v.classList.add('man-ver'));
+    this._tecla = e => { if(e.key === 'Escape') this.cerrar(); }; addEventListener('keydown', this._tecla);
+    history.pushState({ manual:1 }, ''); this._pop = () => this.cerrar(true); addEventListener('popstate', this._pop);
+    v.addEventListener('click', e => { const b = e.target.closest('button'); if(!b) return;
+      if('x' in b.dataset) this.cerrar(); else if('ind' in b.dataset) this.indice(); else if(b.dataset.p) this.ir(+b.dataset.p); });
+    // doble toque / doble clic → volver a la app
+    let ult = 0, ux = 0, uy = 0;
+    $('#manCuerpo').addEventListener('touchend', e => { const t = e.changedTouches[0]; if(!t || e.touches.length) return; const n = Date.now();
+      if(n - ult < 320 && Math.hypot(t.clientX - ux, t.clientY - uy) < 40){ e.preventDefault(); this.cerrar(); } ult = n; ux = t.clientX; uy = t.clientY; }, { passive:false });
+    $('#manCuerpo').addEventListener('dblclick', () => this.cerrar());
+    try{
+      const L = await this.lib();
+      this.pdf = await L.getDocument({ url:'manual.pdf?v=' + encodeURIComponent(VERSION) + '-' + new Date().toISOString().slice(0, 10) }).promise;
+      const c = $('#manCuerpo'); if(!c) return; c.innerHTML = '';
+      const W = Math.min(c.clientWidth - 16, 900), n = this.pdf.numPages;
+      const p1 = await this.pdf.getPage(1), vp = p1.getViewport({ scale:1 }), alto = Math.round(W * vp.height / vp.width);
+      for(let i = 1; i <= n; i++){ const d = document.createElement('div'); d.className = 'man-hoja'; d.dataset.n = i; d.style.height = alto + 'px'; d.style.width = W + 'px'; c.appendChild(d); }
+      const pintar = async d => { if(d._ok) return; d._ok = true; const pg = await this.pdf.getPage(+d.dataset.n);
+        const r = Math.min(2.5, (window.devicePixelRatio || 1) * 1.15), esc = W / pg.getViewport({ scale:1 }).width, vw = pg.getViewport({ scale:esc * r });
+        const cv = document.createElement('canvas'); cv.width = vw.width; cv.height = vw.height; cv.style.width = W + 'px'; cv.style.height = alto + 'px';
+        await pg.render({ canvasContext:cv.getContext('2d', { willReadFrequently:true }), viewport:vw }).promise; d.appendChild(cv); };
+      this._pintar = pintar;
+      const io = new IntersectionObserver(es => es.forEach(e => { if(e.isIntersecting){ pintar(e.target); const s = e.target.nextElementSibling; s && pintar(s); } }), { root:c, rootMargin:'600px 0px' });
+      $$('.man-hoja', c).forEach(d => io.observe(d));
+      const cuenta = () => { const hs = $$('.man-hoja', c), y = c.scrollTop + c.clientHeight / 3; let k = 1; hs.forEach(h => { if(h.offsetTop <= y) k = +h.dataset.n; }); $('#manPg').textContent = 'Página ' + k + ' de ' + n; };
+      c.addEventListener('scroll', cuenta, { passive:true }); cuenta();
+      this.marcas = await this.pdf.getOutline().catch(() => null);
+    }catch(e){ console.warn(e); const c = $('#manCuerpo'); if(c) c.innerHTML = '<div class="man-cargando">No se ha podido abrir el manual. ¿Hay internet?</div>'; }
+  },
+  async pagDe(dest){ try{ if(typeof dest === 'string') dest = await this.pdf.getDestination(dest); return (await this.pdf.getPageIndex(dest[0])) + 1; }catch(e){ return null; } },
+  async indice(){
+    const x = $('#manIndice'); if(!x) return;
+    if(!x.hidden){ x.hidden = true; return; }
+    if(!this.marcas){ this.ir(2); return; }
+    if(!x._hecho){
+      const fila = async (m, sub) => { const p = await this.pagDe(m.dest); return p ? `<button class="man-it ${sub ? 'sub' : ''}" data-p="${p}"><span>${esc(m.title)}</span><em>${p}</em></button>` : ''; };
+      let h = ''; for(const m of this.marcas){ h += await fila(m, false); for(const s of (m.items || [])) h += await fila(s, true); }
+      x.innerHTML = h; x._hecho = true;
+    }
+    x.hidden = false;
+  },
+  ir(p){ const c = $('#manCuerpo'), d = c && $(`.man-hoja[data-n="${p}"]`, c); const x = $('#manIndice'); if(x) x.hidden = true; if(d){ if(this._pintar){ this._pintar(d); d.nextElementSibling && this._pintar(d.nextElementSibling); } c.scrollTop = d.offsetTop - 8; } },
+  cerrar(desdeAtras){
+    const v = $('#manualV'); if(!v) return;
+    removeEventListener('keydown', this._tecla); removeEventListener('popstate', this._pop);
+    if(!desdeAtras && history.state && history.state.manual) history.back();
+    v.classList.remove('man-ver'); setTimeout(() => v.remove(), 200);
+    if(this.pdf){ try{ this.pdf.destroy(); }catch(e){} this.pdf = null; }
+  }
+};
+function abrirManual(){ Manual.abrir(); }

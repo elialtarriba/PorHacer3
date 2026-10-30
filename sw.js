@@ -1,12 +1,12 @@
 // PorHacer3 · service worker: la app funciona sin conexión
-const CACHE = 'porhacer3-v131';
+const CACHE = 'porhacer3-v133';
 const ARCHIVOS = [
-  './', './index.html', './manifest.json', './estilos.css?v=131', './estilos3.css?v=131',
-  './iconos.js?v=131', './iconos-home.js?v=131', './mio.js?v=131', './agenda.js?v=131', './tickets.js?v=131', './sitios.js?v=131', './grabar.js?v=131', './portada.js?v=131', './temas.js?v=131', './db.js?v=131', './firebase-config.js?v=131', './email-config.js?v=131', './nube.js?v=131',
-  './correo.js?v=131', './audio.js?v=131', './fiesta.js?v=131', './avisos.js?v=131', './bloc.js?v=131', './listas.js?v=131', './listas.png', './lame.min.js', './html2canvas.min.js', './jspdf.min.js',
-  './fotos.js?v=131', './videos.js?v=131', './voz.js?v=131', './calendario.js?v=131', './ajustes.js?v=131',
-  './copias.js?v=131', './app.js?v=131',
-  './logo.png', './calculadora.html?v=131', './logo_elibi.jpg', './icon-192.png', './icon-512.png', './apple-touch-icon.png'
+  './', './index.html', './manifest.json', './estilos.css?v=133', './estilos3.css?v=133',
+  './iconos.js?v=133', './iconos-home.js?v=133', './mio.js?v=133', './agenda.js?v=133', './tickets.js?v=133', './sitios.js?v=133', './grabar.js?v=133', './portada.js?v=133', './temas.js?v=133', './db.js?v=133', './firebase-config.js?v=133', './email-config.js?v=133', './nube.js?v=133',
+  './correo.js?v=133', './audio.js?v=133', './fiesta.js?v=133', './avisos.js?v=133', './bloc.js?v=133', './listas.js?v=133', './listas.png', './lame.min.js', './html2canvas.min.js', './jspdf.min.js', './pdf.min.js', './pdf.worker.min.js',
+  './fotos.js?v=133', './videos.js?v=133', './voz.js?v=133', './calendario.js?v=133', './ajustes.js?v=133',
+  './copias.js?v=133', './app.js?v=133',
+  './logo.png', './calculadora.html?v=133', './logo_elibi.jpg', './icon-192.png', './icon-512.png', './apple-touch-icon.png'
 ];
 // Librería de Firebase: también se guarda para poder abrir la app sin internet
 const SDK = ['app','auth','firestore'].map(n => `https://www.gstatic.com/firebasejs/10.14.1/firebase-${n}-compat.js`);
