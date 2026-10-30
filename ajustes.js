@@ -21,6 +21,7 @@ const Ajustes = {
     { k:'calc',     ico:'calculadora',t:'Calculadora',         s:'Temas de la calculadora' },
     { k:'bloc',     ico:'bloc',       t:'Notas secretas',      s:'Contraseña y copia' },
     { k:'grabar',   ico:'grabar',     t:'Grabar',              s:'Dónde se guardan las notas · colores' },
+    { k:'escribir', ico:'escribir',   t:'Escribir',            s:'El nombre del botón · cómo funciona' },
     { k:'webs',     ico:'web',        t:'Webs personales',     s:'Los botones «Personal» · web, usuario y contraseña' }
   ],
   // nombres de antes → página y apartado a abrir
@@ -89,7 +90,7 @@ const Ajustes = {
     const ops = [['portada','portada','Portada'],['tareas','tablero','Tareas'],['cal','calendario','Calendario Tareas'],['listas','listas','Listas'],['agenda','agenda','Agenda'],['tickets','tickets','Tickets'],['sitios','sitios','Sitios'],['calc','calculadora','Calculadora'],['grabar','grabar','Grabar']];
     return this.tarjeta('🚪 Al abrir la app, ver…', `<div class="gen-inicio">${ops.map(([k, ic, t]) => `<button data-ini="${k}" class="${k === ini ? 'on' : ''}"><span>${icono(ic)}</span>${t}</button>`).join('')}</div>`, 'Lo primero que se ve al entrar en la app, en este aparato.')
       + this.acord('colores', '🎨', 'Colores de la portada', 'Ahora: ' + TemaSec.nombre('portada'), TemaSec.rejilla('portada') + '<p class="aj-ayuda">Solo cambia la pantalla de inicio (también con el botón 🎨 de la portada).</p>')
-      + this.tarjeta('👁 Botones de la portada', `<div class="gen-po">${[...Portada.SECC.map(s => [s.k, s.ico, s.k.startsWith('web') ? Webs.nombre(s.k) : s.t]), ['bloc', 'bloc', 'Notas secretas']].map(([k, ic, t]) => `<label class="check" style="margin-top:0"><input type="checkbox" data-pover="${k}" ${Portada.ocultos().includes(k) ? '' : 'checked'}><span class="caja"></span><span class="gen-po-t"><i>${icono(ic)}</i>${t}</span></label>`).join('')}</div>`,
+      + this.tarjeta('👁 Botones de la portada', `<div class="gen-po">${[...Portada.SECC.map(s => [s.k, s.ico, s.k.startsWith('web') ? Webs.nombre(s.k) : s.k === 'escribir' ? Escribir.nombre() : s.t]), ['bloc', 'bloc', 'Notas secretas']].map(([k, ic, t]) => `<label class="check" style="margin-top:0"><input type="checkbox" data-pover="${k}" ${Portada.ocultos().includes(k) ? '' : 'checked'}><span class="caja"></span><span class="gen-po-t"><i>${icono(ic)}</i>${t}</span></label>`).join('')}</div>`,
           'Quita la marca de los que no uses y desaparecerán de la portada. Vuelve a marcarlos para que salgan otra vez. Lo que tengas guardado no se borra. <b>Configuración</b> siempre se ve.')
       + this.tarjeta('↕️ Orden de la portada', '<button class="btn-sec btn-ancho" id="ajOrden">↺ Volver al orden de siempre</button>', 'Para cambiar de sitio un botón de la portada, <b>mantenlo pulsado</b> un momento y <b>arrástralo</b> donde quieras.')
       + this.tarjeta('🎤 Idioma del micrófono', this.seg('ajVoz', [['es-ES','Castellano'],['ca-ES','Català'],['en-GB','English']], a.idiomaVoz),
@@ -225,6 +226,20 @@ const Ajustes = {
       toast('✅ De HOME: ' + txt.join(' · '), null, null, 6000);
       this.ir('copias', 'mio', true);
     }catch(err){ console.warn(err); popAviso('Copia de HOME', 'No se ha podido pasar: ' + err.message); }
+  },
+
+  /* ---------- ESCRIBIR ---------- */
+  p_escribir(){
+    return this.tarjeta('✏️ Nombre del botón', `<label class="lbl">En la portada se llama<input id="ajEsNom" value="${esc((App.ajustes.nombreEscribir || '').trim())}" placeholder="Escribir" autocomplete="off"></label>
+        <div class="web-btns"><button class="btn-pri" id="ajEsGuardar">💾 Guardar</button></div>`, 'Ponle el nombre que quieras: «Mis textos», «Diario», «Escribir»…')
+      + this.tarjeta('🎤 Cómo funciona', `<ul class="aj-lista"><li>Pulsa <b>🎤 Dictar</b> y habla: se escribe donde está el cursor. Pulsa otra vez para parar.</li>
+        <li>Puedes decir «coma», «punto», «punto y aparte» o «nueva línea».</li><li>Negrita, cursiva, subrayado, tamaño, listas, centrar, marcador amarillo y deshacer.</li><li><b>Fotos</b>: pégalas (copiar y pegar), arrástralas o usa 📷. Toca una foto para hacerla pequeña, mediana o grande, o quitarla.</li>
+        <li>Se guarda solo, <b>en este aparato</b>. En «📄 Mis escritos» tienes todos.</li><li><b>◻︎ Figura</b>: cuadrado, cuadrado redondeado, óvalo o redonda, con el color y el grosor del ribete y el color de dentro (o transparentes). Tócala para cambiarla.</li><li><b>📂 Abrir</b>: abre un <b>.docx</b> (Word o Pages) con su formato y fotos, o el texto de un <b>PDF</b>, para leerlo y cambiarlo.</li><li><b>📄 Guardar .docx</b>: lo abren Word y Pages (en el iPhone, elige «Guardar en Archivos» o Pages). Al guardarlo, <b>se quita de la app</b> para que no ocupe espacio (tienes unos segundos para «Deshacer»).</li></ul>`)
+      + this.nota('El idioma del dictado se elige en ' + this.enlace('general', '⚙️ General'));
+  },
+  e_escribir(cont){
+    this.enlazarEnlaces && this.enlazarEnlaces(cont);
+    $('#ajEsGuardar', cont).onclick = async () => { App.ajustes.nombreEscribir = $('#ajEsNom', cont).value.trim(); await this.guardar(); Portada.pintar(); toast('✏️ El botón se llama «' + Escribir.nombre() + '»'); };
   },
 
   /* ---------- WEBS PERSONALES (los botones «Personal» de la portada) ---------- */

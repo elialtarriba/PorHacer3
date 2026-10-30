@@ -49,6 +49,7 @@ const Nube = {
     const q = new URLSearchParams(location.search);
     if(q.get('invitacion')) this.invitacionUrl = q.get('invitacion');
     if(!this.configurada()){ this.pintarEstado(); return; }
+    this.pintarEstado(true);          // «Conectando…» desde el primer momento (con poca cobertura tarda un poco)
     try{
       for(const f of ['firebase-app-compat.js','firebase-auth-compat.js','firebase-firestore-compat.js']) await cargarScript(SDK_FB + f);
     }catch(e){ console.warn(e); this.pintarEstado('⚠️'); return; }
@@ -70,7 +71,7 @@ const Nube = {
       this.pararLista(); this.desconectar(); this.perfil = null;
       // sin sesión no se deja nada de nadie en el móvil
       for(const x of ['tareas','personas','fotos','videos','audios']) await DB.vaciar(x).catch(()=>{});
-      App.tareas = []; App.personas = []; lsSet('ph3-cache-tid', null);
+      App.tareas = []; App.personas = []; lsSet('ph3-cache-tid', null); lsSet('ph3-tab-nombre', null);
       this.pintarEstado(); pintarTodo(); pintarCabecera(); this.pantallaEntrar(); return;
     }
     if(!u.emailVerified){ this.pantallaVerificar(); return; }

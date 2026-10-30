@@ -36,6 +36,15 @@ const ICO = {
     <path d="M42 11v19l4.5-3.4 4.5 3.4V11" fill="var(--accent)" stroke="var(--dark)" stroke-width="2.6" stroke-linejoin="round"/>
   </svg>`,
 
+  // Escribir: hoja con líneas, un lápiz y un micrófono rojo
+  escribir: `<svg viewBox="0 0 64 64" aria-hidden="true">
+    <path d="M12 6h26l12 12v36a5 5 0 0 1-5 5H12a5 5 0 0 1-5-5V11a5 5 0 0 1 5-5z" fill="#fff" stroke="var(--dark)" stroke-width="4.5" stroke-linejoin="round"/>
+    <path d="M38 6v12h12" fill="none" stroke="var(--dark)" stroke-width="4" stroke-linejoin="round"/>
+    <g stroke="var(--dark)" stroke-width="3" stroke-linecap="round" opacity=".6"><path d="M15 26h20M15 34h16M15 42h12"/></g>
+    <rect x="41" y="31" width="13" height="20" rx="6.5" fill="var(--accent)" stroke="#fff" stroke-width="2.6"/>
+    <path d="M37 45a10.5 10.5 0 0 0 21 0M47.5 55.5v5M42 61h11" fill="none" stroke="var(--accent)" stroke-width="3.2" stroke-linecap="round"/>
+  </svg>`,
+
   // Copia de seguridad: caja con flecha roja
   copia: `<svg viewBox="0 0 64 64" aria-hidden="true">
     <path d="M10 30h44v20a6 6 0 0 1-6 6H16a6 6 0 0 1-6-6z" fill="#fff" stroke="var(--dark)" stroke-width="4.5" stroke-linejoin="round"/>

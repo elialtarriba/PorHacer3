@@ -1,7 +1,7 @@
 /* PorHacer3 · Portada: la pantalla con todos los apartados.
    Cada apartado tiene un solo botón (arriba a la izquierda) para volver aquí. */
 
-const VISTAS = { grabar:'vGrabar', calc:'vCalc', portada:'vPortada', tareas:'vTablero', listas:'vListas', cal:'vCal', agenda:'vAgenda', tickets:'vTickets', sitios:'vSitios' };
+const VISTAS = { grabar:'vGrabar', calc:'vCalc', portada:'vPortada', tareas:'vTablero', listas:'vListas', cal:'vCal', agenda:'vAgenda', tickets:'vTickets', sitios:'vSitios', escribir:'vEscribir' };
 function soloVista(id){
   $$('.vista').forEach(v => v.classList.toggle('activa', v.id === id));
   TemaSec.aplicar(TemaSec.DE_VISTA[id] || null);
@@ -12,6 +12,7 @@ function irA(sec){
   if(!VISTAS[sec]) sec = 'portada';
   cerrarHojaMio();
   if(typeof Voz !== 'undefined' && Voz.activo) Voz.parar();
+  if(sec !== 'escribir' && typeof Escribir !== 'undefined' && Escribir.id) Escribir.guardarYa();
   if(sec !== 'grabar' && typeof Grabar !== 'undefined'){ if(Grabar.rec){ Grabar.pulsar(); toast('⏹ Grabación parada y guardada'); } Grabar.parar(); }
   ({
     portada: () => { soloVista('vPortada'); Portada.pintar(true); },
@@ -22,7 +23,8 @@ function irA(sec){
     tickets: () => Tickets.abrir(),
     sitios:  () => Sitios.abrir(),
     calc:    () => Calc.abrir(),
-    grabar:  () => Grabar.abrir()
+    grabar:  () => Grabar.abrir(),
+    escribir:() => Escribir.abrir()
   })[sec]();
   Portada.actual = sec;
 }
@@ -38,6 +40,7 @@ const Portada = {
     { k:'sitios',  t:'Sitios',     ico:'sitios',     c:'var(--dark)' },
     { k:'calc',    t:'Calculadora', ico:'calculadora', c:'var(--dark)' },
     { k:'grabar',  t:'Grabar',      ico:'grabar',      c:'var(--accent)' },
+    { k:'escribir',t:'Escribir',    ico:'escribir',    c:'var(--dark)' },
     { k:'teams',   t:'Reunión de Teams', ico:'teams',    c:'var(--dark)' },
     { k:'web1',    t:'Personal',   ico:'web',        c:'var(--accent)' },
     { k:'web2',    t:'Personal 2', ico:'web',        c:'var(--dark)' },
@@ -73,6 +76,7 @@ const Portada = {
       if(k === 'teams') return Teams.proxima();
       if(k === 'web1' || k === 'web2') return Webs.info(k);
       if(k === 'manual') return 'Cómo funciona todo';
+      if(k === 'escribir'){ const n = Escribir.lista().length; return n ? pl(n, 'escrito', 'escritos') : 'Escribe o dicta'; }
       if(k === 'grabar'){ const n = Grabar.lista.length; return n ? pl(n, 'nota de voz', 'notas de voz') : 'Notas de voz'; }
       if(k === 'sitios'){ const s = Mio.todos('sitios'), casas = s.filter(x => x.tipo === 'casa').length, cosas = s.reduce((n, x) => n + Object.keys(x.cosas || {}).length, 0);
         return casas ? pl(casas, 'casa', 'casas') + ' · ' + pl(cosas, 'cosa', 'cosas') : 'Empieza por tu casa'; }
@@ -128,7 +132,7 @@ const Portada = {
       </button>` : (S => `
       <button class="po-b" data-k="${S.k}" data-ir="${S.k}" style="--c:${S.c};--i:${i}">
         <span class="po-ico">${icono(S.ico)}</span>
-        <b>${esc(S.k.startsWith('web') ? Webs.nombre(S.k) : S.t)}</b><small>${esc(this.info(S.k))}</small>
+        <b>${esc(S.k.startsWith('web') ? Webs.nombre(S.k) : S.k === 'escribir' ? Escribir.nombre() : S.t)}</b><small>${esc(this.info(S.k))}</small>
         <span class="po-flecha">›</span>
       </button>`)(this.SECC.find(x => x.k === k));
     g.innerHTML = this.orden().map(baldosa).join('');
@@ -249,7 +253,7 @@ const Calc = {
     this._carga = new Promise(ok => {
       const f = $('#calcFrame');
       f.addEventListener('load', () => setTimeout(() => ok(this.win()), 60), { once:true });
-      f.src = 'calculadora.html?v=133';
+      f.src = 'calculadora.html?v=140';
     });
     return this._carga;
   },
@@ -288,8 +292,8 @@ const Calc = {
    Cada uno puede tener su tema o «Como la app». Al entrar en el apartado se ponen sus colores
    (también en sus ventanas) y al salir vuelven los de toda la app. Se guarda en este aparato. */
 const TemaSec = {
-  NOMBRES: { tareas:'Tareas', cal:'Calendario Tareas', agenda:'Agenda', grabar:'Grabar', sitios:'Sitios', conf:'Configuración', portada:'Portada' },
-  DE_VISTA: { vPortada:'portada', vTablero:'tareas', vCal:'cal', vAgenda:'agenda', vGrabar:'grabar', vSitios:'sitios' },
+  NOMBRES: { escribir:'Escribir', tareas:'Tareas', cal:'Calendario Tareas', agenda:'Agenda', grabar:'Grabar', sitios:'Sitios', conf:'Configuración', portada:'Portada' },
+  DE_VISTA: { vPortada:'portada', vTablero:'tareas', vCal:'cal', vAgenda:'agenda', vGrabar:'grabar', vSitios:'sitios', vEscribir:'escribir' },
   actual: null,
   de(sec){ const k = ((App.ajustes && App.ajustes.temaSec) || {})[sec]; return k && TEMAS[k] ? k : null; },
   colores(sec){ const k = sec && this.de(sec); return k ? TEMAS[k].c : App.ajustes.colores; },

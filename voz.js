@@ -32,11 +32,11 @@ const Voz = {
     if(ses.estado && ses.estado.dataset.de === ses.id) ses.estado.textContent = '';
     const c = ses.campo;
     if(ses.span){ const t = document.createTextNode(ses.span.textContent); ses.span.replaceWith(t); ses.span = null; }
-    else c.value = c.value.replace(/[ \t]+$/,'');
+    else if(!c.isContentEditable && typeof c.value === 'string') c.value = c.value.replace(/[ \t]+$/,'');
     c.dispatchEvent(new Event('input', { bubbles:true }));
   },
 
-  empezar(campo, boton, estado){
+  empezar(campo, boton, estado, op){
     if(!this.soportado()){
       popAviso('Micrófono', 'Este navegador no permite dictar. En iPhone funciona en Safari; en Android, en Chrome.');
       return;
@@ -50,7 +50,15 @@ const Voz = {
     r.lang = idioma; r.continuous = true; r.interimResults = true;
     let base = campo.isContentEditable ? (campo.textContent || '') : campo.value; if(base && !/\s$/.test(base)) base += ' ';
     const ses = { id: String(Date.now()), rec:r, campo, boton, estado, base, final:'', parado:false };
-    if(campo.isContentEditable){       // notas con negrita: lo dictado va al final, sin tocar lo de antes
+    if(campo.isContentEditable && op && op.rango){   // Escribir: lo dictado entra donde está el cursor
+      const r = op.rango; r.deleteContents();
+      const antes = r.startContainer.nodeType === 3 ? r.startContainer.nodeValue.slice(0, r.startOffset) : '';
+      ses.span = document.createElement('span');
+      if(antes && !/\s$/.test(antes)) r.insertNode(document.createTextNode(' '));
+      r.collapse(false); r.insertNode(ses.span);
+      ses.base = antes.trim() ? 'x ' : '';
+      try{ const s = getSelection(), rr = document.createRange(); rr.setStartAfter(ses.span); rr.collapse(true); s.removeAllRanges(); s.addRange(rr); }catch(e){}
+    } else if(campo.isContentEditable){       // notas con negrita: lo dictado va al final, sin tocar lo de antes
       if(campo.textContent && !/\s$/.test(campo.textContent)) campo.appendChild(document.createTextNode(' '));
       ses.span = document.createElement('span'); campo.appendChild(ses.span);
     }

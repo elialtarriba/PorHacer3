@@ -1,6 +1,6 @@
 /* PorHacer · app principal: tablero de columnas, tareas y editor */
 
-const VERSION = 'V11';
+const VERSION = 'V11.7';
 const $ = (s, r=document) => r.querySelector(s);
 const $$ = (s, r=document) => Array.from(r.querySelectorAll(s));
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -1005,8 +1005,11 @@ async function formPersona(p){
 function pintarCabecera(){
   const b = $('#btnTablero'); if(!b) return;
   const on = typeof Nube !== 'undefined' && Nube.activa;
-  b.hidden = !on; $('#hoyTxt').hidden = on;
-  if(on){ const n = Nube.invitaciones().length; b.innerHTML = '📋 ' + esc(Nube.nombreTablero(Nube.tablero || Nube.tableros[Nube.tid])) + ' <span>▾</span>' + (n ? ' <i>' + n + '</i>' : ''); }
+  const guardado = lsGet('ph3-tab-nombre');      // el último tablero: se ve aunque la nube aún esté conectando
+  b.hidden = !on && !guardado; $('#hoyTxt').hidden = !b.hidden;
+  if(on){ const nom = Nube.nombreTablero(Nube.tablero || Nube.tableros[Nube.tid]), n = Nube.invitaciones().length; lsSet('ph3-tab-nombre', nom);
+    b.innerHTML = '📋 ' + esc(nom) + ' <span>▾</span>' + (n ? ' <i>' + n + '</i>' : ''); b.classList.remove('esperando'); }
+  else if(guardado){ b.innerHTML = '📋 ' + esc(guardado) + ' <span>⏳</span>'; b.classList.add('esperando'); }
 }
 function fechaCabecera(){ const d = new Date(); const tx = DIAS[d.getDay()]+', '+d.getDate()+' de '+MESES[d.getMonth()]; $('#hoyTxt').textContent = tx.charAt(0).toUpperCase()+tx.slice(1); }
 function eventos(){
@@ -1062,7 +1065,7 @@ function eventos(){
   $('#edTablero').onchange = cambiarTableroTarea;
   $('#edHoy').onclick = () => { const h = hoyIso(); $('#edIni').value = h; $('#edFin').value = h; pintarDur(); toast('☀️ Fecha: hoy'); };
   $('#btnGrabarAudio').onclick = async () => { if(await Audios.grabar(App.ed.t.id)){ App.ed.mediaNueva = true; apuntar('🎙️ Nota de audio añadida'); pintarHistorial(); pintarAudios(); contarMedia().then(pintarTodo); } };
-  $('#btnTablero').onclick = () => Nube.elegirTablero();
+  $('#btnTablero').onclick = () => { if(!Nube.activa){ toast(Nube.user ? '⏳ Conectando con la nube… prueba en un momento' : '⏳ Conectando con la nube… (si tarda, mira si hay internet)'); return; } Nube.elegirTablero(); };
   $('#edTitulo').onkeydown = e => { if(e.key === 'Enter'){ e.preventDefault(); $('#edNotas').focus(); } };
   $$('.mic').forEach(m => m.onclick = () => Voz.empezar($('#'+m.dataset.mic), m, $('#vozEstado')));
 
@@ -1125,7 +1128,7 @@ async function iniciar(){
   setTimeout(() => document.body.classList.add('ya'), 1800);
   pedirPersistencia();
   Nube.iniciar();
-  Calc.iniciar(); Mio.iniciar(); Grabar.iniciar(); Agenda.iniciar(); Tickets.iniciar(); Sitios.iniciar(); Portada.iniciar();
+  Calc.iniciar(); Mio.iniciar(); Grabar.iniciar(); Escribir.iniciar(); Agenda.iniciar(); Tickets.iniciar(); Sitios.iniciar(); Portada.iniciar();
   let ini = App.ajustes.inicio; try{ const c = localStorage.getItem('ph3-inicio'); if(c && (!ini || ini === 'portada')) ini = c; }catch(e){}
   irA({ tablero:'tareas' }[ini] || ini || 'portada', true);
   $('#nubeEstado').onclick = () => { if(!Nube.user) Nube.pantallaEntrar(); else Nube.explicarEstado(); };

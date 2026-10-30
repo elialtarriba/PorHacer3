@@ -10,10 +10,10 @@
 <meta name="theme-color" content="#eeeff1">
 <title>PorHacer3</title>
 <link rel="icon" href="logo.png" type="image/png">
-<link rel="apple-touch-icon" href="apple-touch-icon.png?v=133">
+<link rel="apple-touch-icon" href="apple-touch-icon.png?v=140">
 <link rel="manifest" href="manifest.json">
-<link rel="stylesheet" href="estilos.css?v=133">
-<link rel="stylesheet" href="estilos3.css?v=133">
+<link rel="stylesheet" href="estilos.css?v=140">
+<link rel="stylesheet" href="estilos3.css?v=140">
 </head>
 <body>
 
@@ -47,7 +47,7 @@
         <button class="ibtn ibtn-portada" data-portada title="Portada" aria-label="Ir a la portada"></button>
       </div>
       <div class="insignias">
-            <span class="ver" id="verTxt">V11</span>
+            <span class="ver" id="verTxt">V11.7</span>
             <button class="nube-estado off" id="nubeEstado" hidden title="Nube" aria-label="Nube"></button>
           </div>
     </div>
@@ -122,7 +122,7 @@
     <header class="po-cab">
       <img src="logo.png" alt="" class="po-logo">
       <div class="po-tit"><h1>Por<span>Hacer</span><sup>3</sup></h1><small id="poSaludo"></small></div>
-      <div class="po-der"><span class="ver" id="verTxt2">V11</span><button class="ibtn ibtn-tema po-tema-b" data-temasec="portada" title="Colores de la portada" aria-label="Colores de la portada"></button></div>
+      <div class="po-der"><span class="ver" id="verTxt2">V11.7</span><button class="ibtn ibtn-tema po-tema-b" data-temasec="portada" title="Colores de la portada" aria-label="Colores de la portada"></button></div>
     </header>
     <div class="po-hoy" id="poHoy"></div>
     <div class="po-rejilla" id="poRejilla"></div>
@@ -171,6 +171,39 @@
 </section>
 
 <!-- ============ GRABAR NOTAS DE VOZ ============ -->
+<section id="vEscribir" class="vista">
+  <header class="top sec-top es-top">
+    <button class="ibtn" id="esMis" title="Mis escritos" aria-label="Mis escritos">📄</button>
+    <input class="es-titulo" id="esTitulo" placeholder="Título (opcional)" autocomplete="off" enterkeyhint="done">
+    <button class="ibtn ibtn-tema" data-temasec="escribir" title="Colores de Escribir" aria-label="Colores de Escribir"></button>
+    <button class="ibtn ibtn-portada" data-portada title="Portada" aria-label="Ir a la portada"></button>
+  </header>
+  <div class="es-barra" id="esBarra">
+    <button class="es-mic" id="esMic" aria-label="Dictar"></button>
+    <button data-c="bold" aria-label="Negrita"><b>B</b></button>
+    <button data-c="italic" aria-label="Cursiva"><i>I</i></button>
+    <button data-c="underline" aria-label="Subrayado"><u>S</u></button>
+    <select id="esTam" aria-label="Tamaño de la letra"><option value="">Aa ▾</option><option value="peq">Pequeña</option><option value="normal">Normal</option><option value="grande">Grande</option><option value="titulo">Título</option></select>
+    <button id="esFoto" aria-label="Poner una foto">📷</button>
+    <button id="esForma" aria-label="Poner una figura">◻︎ Figura</button>
+    <button data-c="marcar" aria-label="Marcador amarillo"><span class="es-marca">ab</span></button>
+    <button data-c="insertUnorderedList" aria-label="Lista con puntos">•≡</button>
+    <button data-c="insertOrderedList" aria-label="Lista con números">1≡</button>
+    <button data-c="justifyLeft" aria-label="Alinear a la izquierda">⇤</button>
+    <button data-c="justifyCenter" aria-label="Centrar">↔</button>
+    <button data-c="undo" aria-label="Deshacer">↶</button>
+    <button data-c="redo" aria-label="Rehacer">↷</button>
+    <button data-c="removeFormat" aria-label="Quitar el formato">T̸</button>
+    <button id="esAbrir" aria-label="Abrir un .docx o PDF">📂 Abrir</button>
+  </div>
+  <div class="es-hoja"><div class="es-texto" id="esTexto" contenteditable="true" spellcheck="true" data-ph="Escribe aquí… o pulsa 🎤 Dictar y habla."></div></div>
+  <div class="es-pie">
+    <button class="es-salir" id="esSalir">‹ Salir</button>
+    <span class="es-info"><b id="esEstado">✓ Guardado</b><small id="esCuenta"></small></span>
+    <button class="es-docx" id="esDocx">📄 Guardar .docx</button>
+  </div>
+</section>
+
 <section id="vGrabar" class="vista">
   <header class="top sec-top">
     <button class="ibtn ibtn-portada" data-portada title="Portada" aria-label="Ir a la portada"></button>
@@ -411,31 +444,32 @@
 
 <div class="toast" id="toast"></div>
 
-<script src="iconos.js?v=133"></script>
-<script src="iconos-home.js?v=133"></script>
-<script src="temas.js?v=133"></script>
-<script src="db.js?v=133"></script>
-<script src="firebase-config.js?v=133"></script>
-<script src="email-config.js?v=133"></script>
-<script src="correo.js?v=133"></script>
-<script src="audio.js?v=133"></script>
-<script src="listas.js?v=133"></script>
-<script src="bloc.js?v=133"></script>
-<script src="avisos.js?v=133"></script>
-<script src="fiesta.js?v=133"></script>
-<script src="nube.js?v=133"></script>
-<script src="fotos.js?v=133"></script>
-<script src="videos.js?v=133"></script>
-<script src="voz.js?v=133"></script>
-<script src="calendario.js?v=133"></script>
-<script src="ajustes.js?v=133"></script>
-<script src="copias.js?v=133"></script>
-<script src="mio.js?v=133"></script>
-<script src="agenda.js?v=133"></script>
-<script src="tickets.js?v=133"></script>
-<script src="sitios.js?v=133"></script>
-<script src="grabar.js?v=133"></script>
-<script src="portada.js?v=133"></script>
-<script src="app.js?v=133"></script>
+<script src="iconos.js?v=140"></script>
+<script src="iconos-home.js?v=140"></script>
+<script src="temas.js?v=140"></script>
+<script src="db.js?v=140"></script>
+<script src="firebase-config.js?v=140"></script>
+<script src="email-config.js?v=140"></script>
+<script src="correo.js?v=140"></script>
+<script src="audio.js?v=140"></script>
+<script src="listas.js?v=140"></script>
+<script src="bloc.js?v=140"></script>
+<script src="avisos.js?v=140"></script>
+<script src="fiesta.js?v=140"></script>
+<script src="nube.js?v=140"></script>
+<script src="fotos.js?v=140"></script>
+<script src="videos.js?v=140"></script>
+<script src="voz.js?v=140"></script>
+<script src="calendario.js?v=140"></script>
+<script src="ajustes.js?v=140"></script>
+<script src="copias.js?v=140"></script>
+<script src="mio.js?v=140"></script>
+<script src="agenda.js?v=140"></script>
+<script src="tickets.js?v=140"></script>
+<script src="sitios.js?v=140"></script>
+<script src="grabar.js?v=140"></script>
+<script src="escribir.js?v=140"></script>
+<script src="portada.js?v=140"></script>
+<script src="app.js?v=140"></script>
 </body>
 </html>
