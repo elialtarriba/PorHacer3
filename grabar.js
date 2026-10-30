@@ -116,17 +116,29 @@ const Grabar = {
 
   /* ---------- Deslizar las notas ---------- */
   iniciarDeslizar(){
+    // Se puede empezar a deslizar desde cualquier parte de la nota (también encima del nombre, del ▶ o de la barra).
+    // Si el dedo va más de lado que de arriba abajo, es deslizar; si no, es desplazar la lista.
     const c = $('#grbLista'); let D = null;
-    const LIM = 90;
-    const empezar = (x, y, t) => { const nota = t.closest && t.closest('.grb-nota'); if(!nota || t.closest('input,.grb-play,.grb-barra')) return; D = { x, y, nota, cara:nota.querySelector('.grb-cara'), dx:0, no:false, si:false }; };
+    const LIM = 70;
+    const empezar = (x, y, t) => { const nota = t.closest && t.closest('.grb-nota'); if(!nota) return; D = { x, y, nota, cara:nota.querySelector('.grb-cara'), dx:0, no:false, si:false, lx:x, lt:performance.now(), v:0 }; };
     const mover = (x, y) => {
       if(!D || D.no) return false;
       const dx = x - D.x, dy = y - D.y;
-      if(!D.si){ if(Math.abs(dx) < 8 && Math.abs(dy) < 8) return false; if(Math.abs(dy) > Math.abs(dx)){ D.no = true; return false; } D.si = true; D.cara.style.transition = 'none'; }
-      D.dx = Math.max(-170, Math.min(170, dx));
+      if(!D.si){
+        if(Math.abs(dx) < 7 && Math.abs(dy) < 7) return false;
+        if(Math.abs(dy) > Math.abs(dx) * 1.3){ D.no = true; return false; }   // va hacia arriba o abajo
+        D.si = true; D.cara.style.transition = 'none';
+        const a = document.activeElement; if(a && a.classList && a.classList.contains('grb-nombre')) a.blur();
+        try{ getSelection().removeAllRanges(); }catch(_){}
+      }
+      const now = performance.now(); D.v = (x - D.lx) / Math.max(1, now - D.lt); D.lx = x; D.lt = now;
+      const lim = 175, r = Math.abs(dx) > lim ? lim + (Math.abs(dx) - lim) * 0.25 : Math.abs(dx);
+      D.dx = Math.sign(dx) * r;
       D.cara.style.transform = `translateX(${D.dx}px)`;
       D.nota.classList.toggle('a-borrar', D.dx < 0); D.nota.classList.toggle('a-guardar', D.dx > 0);
-      D.nota.classList.toggle('listo', Math.abs(D.dx) > LIM);
+      const listo = Math.abs(D.dx) > LIM;
+      if(listo && !D.nota.classList.contains('listo')) try{ navigator.vibrate && navigator.vibrate(12); }catch(_){}
+      D.nota.classList.toggle('listo', listo);
       return true;
     };
     const acabar = () => {
@@ -134,12 +146,15 @@ const Grabar = {
       d.cara.style.transition = ''; d.cara.style.transform = '';
       setTimeout(() => d.nota.classList.remove('a-borrar', 'a-guardar', 'listo'), 250);
       this._desliz = Date.now();
-      if(d.dx < -LIM) this.eliminar(d.nota.dataset.id);
-      else if(d.dx > LIM) this.guardarEnAparato(d.nota.dataset.id);
+      const golpe = Math.abs(d.v) > 0.5 && Math.abs(d.dx) > 30 && Math.sign(d.v) === Math.sign(d.dx);   // un golpe rápido también vale
+      if(d.dx < -LIM || (golpe && d.dx < 0)) this.eliminar(d.nota.dataset.id);
+      else if(d.dx > LIM || (golpe && d.dx > 0)) this.guardarEnAparato(d.nota.dataset.id);
     };
-    c.addEventListener('touchstart', e => { if(e.touches.length === 1) empezar(e.touches[0].clientX, e.touches[0].clientY, e.target); }, { passive:true });
+    c.addEventListener('touchstart', e => { if(e.touches.length === 1) empezar(e.touches[0].clientX, e.touches[0].clientY, e.target); else D = null; }, { passive:true });
     c.addEventListener('touchmove', e => { if(D && mover(e.touches[0].clientX, e.touches[0].clientY) && e.cancelable) e.preventDefault(); }, { passive:false });
     c.addEventListener('touchend', acabar); c.addEventListener('touchcancel', acabar);
+    // después de deslizar, que no cuente como tocar el ▶, la barra o el nombre
+    c.addEventListener('click', e => { if(Date.now() - (this._desliz || 0) < 350){ e.stopPropagation(); e.preventDefault(); } }, true);
     c.addEventListener('pointerdown', e => { if(e.pointerType === 'mouse' && e.button === 0) empezar(e.clientX, e.clientY, e.target); });
     addEventListener('pointermove', e => { if(e.pointerType === 'mouse' && D) mover(e.clientX, e.clientY); });
     addEventListener('pointerup', e => { if(e.pointerType === 'mouse') acabar(); });

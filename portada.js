@@ -237,7 +237,7 @@ const Calc = {
     this._carga = new Promise(ok => {
       const f = $('#calcFrame');
       f.addEventListener('load', () => setTimeout(() => ok(this.win()), 60), { once:true });
-      f.src = 'calculadora.html?v=115';
+      f.src = 'calculadora.html?v=122';
     });
     return this._carga;
   },
@@ -321,7 +321,7 @@ const AnioPO = {
     if(this.abierto()) return;
     this.y = new Date().getFullYear();
     const v = document.createElement('div'); v.id = 'poAnio'; v.className = 'po-anio';
-    v.innerHTML = `<div class="pa-top"><button class="flecha" data-mv="-1" aria-label="Año anterior">‹</button><div class="pa-tit" id="paTit"></div><button class="flecha" data-mv="1" aria-label="Año siguiente">›</button><button class="pa-x" data-x aria-label="Cerrar">✕</button></div>
+    v.innerHTML = `<div class="pa-top"><span class="pa-marca">${icono('agenda')}Agenda</span><button class="pa-x" data-x aria-label="Cerrar">✕</button></div>
       <div class="pa-cuerpo" id="paCuerpo"></div><div class="pa-ayuda">Toca un día para abrirlo · desliza para cambiar de año · dos toques para cerrar</div>`;
     document.body.appendChild(v);
     this.pintar();
@@ -329,11 +329,11 @@ const AnioPO = {
     let ult = 0, tm = null, tu = 0, tx = 0, ty = 0, sx = 0, sy = 0;
     // dos toques con el dedo (en el iPhone el 2.º toque fuera de un botón no llega como «click»)
     v.addEventListener('touchstart', e => { const t = e.touches[0]; if(t){ sx = t.clientX; sy = t.clientY; } }, { passive:true });
-    v.addEventListener('touchend', e => { const t = e.changedTouches[0], n = Date.now(); if(!t || e.target.closest('.pa-top')) return;
+    v.addEventListener('touchend', e => { const t = e.changedTouches[0], n = Date.now(); if(!t || e.target.closest('.pa-top, .pa-cab')) return;
       if(Math.hypot(t.clientX - sx, t.clientY - sy) > 10){ tu = 0; return; }
       if(n - tu < 360 && Math.hypot(t.clientX - tx, t.clientY - ty) < 40){ clearTimeout(tm); tu = 0; ult = 0; if(e.cancelable) e.preventDefault(); this.cerrar(); return; }
       tu = n; tx = t.clientX; ty = t.clientY; }, { passive:false });
-    v.addEventListener('dblclick', e => { if(!e.target.closest('.pa-top')){ clearTimeout(tm); this.cerrar(); } });
+    v.addEventListener('dblclick', e => { if(!e.target.closest('.pa-top, .pa-cab')){ clearTimeout(tm); this.cerrar(); } });
     v.addEventListener('click', e => {
       const b = e.target.closest('button');
       if(b && 'x' in b.dataset){ this.cerrar(); return; }
@@ -357,8 +357,9 @@ const AnioPO = {
   pintar(){
     const c = $('#paCuerpo'); if(!c) return;
     const hoy = new Date();
-    $('#paTit').innerHTML = `Año ${this.y}${this.y === hoy.getFullYear() ? '<small>Hoy, ' + hoy.getDate() + ' de ' + MESES[hoy.getMonth()] + '</small>' : ''}`;
-    c.innerHTML = `<div class="pa-hoja"><div class="ag-anio pa-meses">${MESES_C.map((n, m) => `<div class="ag-mini ${this.y === hoy.getFullYear() && m === hoy.getMonth() ? 'ahora' : ''}"><button class="ag-mini-t" data-mes="${m}">${n}</button>${Agenda.rejilla(this.y, m, true)}</div>`).join('')}</div></div>`;
+    // el año va dentro de la hoja: así el título también se dobla al pasar la página
+    const tit = `Año ${this.y}${this.y === hoy.getFullYear() ? '<small>Hoy, ' + hoy.getDate() + ' de ' + MESES[hoy.getMonth()] + '</small>' : '<small>&nbsp;</small>'}`;
+    c.innerHTML = `<div class="pa-hoja"><div class="pa-cab"><button class="flecha" data-mv="-1" aria-label="Año anterior">‹</button><div class="pa-tit">${tit}</div><button class="flecha" data-mv="1" aria-label="Año siguiente">›</button></div><div class="ag-anio pa-meses">${MESES_C.map((n, m) => `<div class="ag-mini ${this.y === hoy.getFullYear() && m === hoy.getMonth() ? 'ahora' : ''}"><button class="ag-mini-t" data-mes="${m}">${n}</button>${Agenda.rejilla(this.y, m, true)}</div>`).join('')}</div></div>`;
   },
   pasar(dir){
     const h = $('#paCuerpo .pa-hoja');
@@ -402,7 +403,8 @@ const Teams = {
       <div class="tm-fila"><input type="time" class="tm-hora" id="tmHora" value="${R.h}">${[15, 30, 45, 60, 90].map(m => chip(R.dur === m, 'data-dur="' + m + '"', m < 60 ? m + ' min' : m === 60 ? '1 h' : '1 h 30')).join('')}</div>
       <div class="tm-et">👥 Invitar (opcional)</div>
       <input class="mp-input" id="tmQuien" type="email" inputmode="email" multiple placeholder="Emails, separados por comas" value="${esc(R.quien)}" autocomplete="off">
-      ${pers.length ? `<div class="tm-fila tm-pers">${pers.map(x => chip((R.quien || '').includes(x.email), 'data-mail="' + esc(x.email) + '"', '＋ ' + esc(x.nombre))).join('')}</div>` : ''}
+      ${pers.length ? `<div class="tm-fila tm-pers">${pers.map(x => { const on = (R.quien || '').split(/[,;\s]+/).includes(x.email); return chip(on, 'data-mail="' + esc(x.email) + '"', (on ? '✓ ' : '＋ ') + esc(x.nombre)); }).join('')}</div>
+      <div class="tm-nota">${App.personas.some(x => x.email && (R.quien || '').split(/[,;\s]+/).includes(x.email)) ? '👤 En Tareas, la tarea quedará <b>asignada</b> a ' + esc(App.personas.find(x => x.email && (R.quien || '').split(/[,;\s]+/).includes(x.email)).nombre) + '.' : 'Toca una persona para invitarla (y asignarle la tarea).'}</div>` : ''}
       <textarea class="mp-input tm-notas" id="tmNotas" placeholder="Notas o temas a tratar (opcional)">${esc(R.notas)}</textarea>
       <div class="tm-et">📝 Apuntarla en PorHacer3</div>
       <div class="tm-fila">${chip(R.tarea, 'data-en="tarea"', (R.tarea ? '✓ ' : '') + '✅ Tareas')}${chip(R.agenda, 'data-en="agenda"', (R.agenda ? '✓ ' : '') + '📒 Agenda')}</div>
@@ -414,7 +416,8 @@ const Teams = {
       else if(d.dur){ this.leer(); R.dur = +d.dur; lsSet('ph3-tm-dur', d.dur); this.pintar(); }
       else if(d.en){ this.leer(); R[d.en] = !R[d.en]; lsSet('ph3-tm-donde', JSON.stringify({ tarea:R.tarea, agenda:R.agenda })); this.pintar(); }
       else if(d.av != null && 'av' in d){ this.leer(); R.aviso = d.av; lsSet('ph3-tm-aviso', d.av); this.pintar(); }
-      else if(d.mail){ this.leer(); const l = R.quien.split(/[,;\s]+/).filter(Boolean); R.quien = (l.includes(d.mail) ? l.filter(x => x !== d.mail) : [...l, d.mail]).join(', '); this.pintar(); }
+      else if(d.mail){ this.leer(); const l = R.quien.split(/[,;\s]+/).filter(Boolean); R.quien = (l.includes(d.mail) ? l.filter(x => x !== d.mail) : [...l, d.mail]).join(', ');
+        $('#tmQuien').value = R.quien; this.pintar(); }   // (antes se volvía a leer el recuadro vacío y no hacía nada)
       else if('crear' in d) this.crear();
       else if('x' in d){ this.R = null; cerrarPopMio(); } };
     const di = $('#tmDia'); if(di) di.onchange = () => { if(di.value){ this.leer(); R.k = di.value; this.pintar(); } };
@@ -447,6 +450,7 @@ const Teams = {
       if(R.tarea){
         const t = { id:nuevoId('t'), titulo:'📹 ' + R.titulo + ' · ' + R.h, notas:det, colId:'nueva', color:'#c4e6f8', prio:0, ini:R.k, fin:R.k, personaId:'', subs:[], creada:Date.now(), orden:-Date.now(), teams:{ h:R.h, dur:R.dur, url } };
         if(!columnas().some(c => c.id === 'nueva')) t.colId = (columnas().find(c => c.visible && !c.hecha) || columnas()[0]).id;
+        const asig = (App.personas || []).find(x => x.email && quien.includes(x.email)); if(asig) t.personaId = asig.id;   // asignada a la primera persona invitada
         if(aviso) t.avisos = [{ id:nuevoId('av'), f:aviso, de:(typeof Nube !== 'undefined' && Nube.user && Nube.user.email) || '' }];
         anotar(t, '📹 Reunión de Teams el ' + fechaCortaB(R.k) + ' a las ' + R.h);
         await guardarTarea(t); App.tareas.push(t); pintarTodo(); hecho.push('Tareas');

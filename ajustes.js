@@ -170,7 +170,7 @@ const Ajustes = {
         `<label class="check" style="margin-top:0"><input type="checkbox" data-que="${k}" checked><span class="caja"></span><span>${t}<small>${n}</small></span></label>`).join('')}</div>
       <div class="gen-btns"><button class="btn-pri" id="genExp">⬇️ Exportar copia</button><button class="btn-sec" id="genImp">⬆️ Importar copia</button></div>
       <input type="file" id="genImpIn" accept=".json,application/json" hidden>
-      <p class="aj-ayuda" style="margin-top:10px">🏠 <b>¿Tienes tickets en HOME?</b> En HOME pulsa «⬇ Exportar copia» y aquí, «⬆️ Importar copia» con ese archivo (hogar-copia-….json): sus tickets se pasan a tus Tickets, con las fotos.</p>`;
+      <p class="aj-ayuda" style="margin-top:10px">🏠 <b>¿Tienes cosas en HOME?</b> En HOME pulsa «⬇ Exportar copia» y aquí, «⬆️ Importar copia» con ese archivo (hogar-copia-….json): sus <b>casas, sitios y cosas</b> pasan a Sitios y sus <b>tickets</b> a Tickets, con las fotos.</p>`;
     return this.nota('💡 Haz copias de vez en cuando y guárdalas en un sitio seguro (iCloud, un pendrive…). <b>No subas nunca estos archivos a GitHub</b>: tienen tus datos.')
       + this.acord('tareas', '✅', 'Tareas de PorHacer', 'Las tareas, personas, fotos, vídeos y audios · espacio usado', '<div id="ajCopias"></div>')
       + this.acord('mio', '📒', 'Agenda, Tickets, Sitios y Listas', 'En un solo archivo, con sus fotos', mia)
@@ -205,15 +205,25 @@ const Ajustes = {
   },
 
   async importarHome(obj){
-    const n = Array.isArray(obj.tickets) ? obj.tickets.length : 0;
-    if(!n){ popAviso('Copia de HOME', 'Esta copia de HOME no tiene tickets. En HOME, pulsa «⬇ Exportar copia» y elige el archivo nuevo.'); return; }
+    const r = Mio.resumenHome(obj);
+    if(!r.casas && !r.tickets){ popAviso('Copia de HOME', 'Esta copia de HOME no tiene casas ni tickets. En HOME, pulsa «⬇ Exportar copia» y elige el archivo nuevo.'); return; }
     const dia = obj.exportedAt ? ' del ' + new Date(obj.exportedAt).toLocaleDateString('es-ES') : '';
-    if(!await popConfirmar('🧾 Tickets de HOME', `Es una copia de HOME${dia} con ${n} ${n === 1 ? 'ticket' : 'tickets'}. Se pasarán a tus Tickets de PorHacer3, con sus fotos. Los que ya hayas pasado antes no se repiten.`, 'Pasar tickets')) return;
-    toast('🧾 Pasando tickets de HOME…', null, null, 60000);
-    try{ const r = await Mio.desdeHome(obj, (i, t) => toast('🧾 Pasando tickets de HOME… ' + i + ' de ' + t, null, null, 60000));
-      toast('✅ ' + (r.nuevos === 1 ? '1 ticket pasado' : r.nuevos + ' tickets pasados') + ' de HOME' + (r.ya ? ' · ' + r.ya + ' ya estaban' : ''));
-      this.ir('copias', 'mio', true); }
-    catch(err){ console.warn(err); popAviso('Tickets de HOME', 'No se han podido pasar: ' + err.message); }
+    const v = await popup({ tit:'🏠 Copia de HOME' + dia, html:`<p>¿Qué quieres pasar a PorHacer3?</p>
+      ${r.casas ? `<label class="check"><input type="checkbox" id="hmSit" checked><span class="caja"></span><span>🏡 Sitios<small>${r.casas} ${r.casas === 1 ? 'casa' : 'casas'} · ${r.sitios} ${r.sitios === 1 ? 'sitio' : 'sitios'} · ${r.cosas} ${r.cosas === 1 ? 'cosa' : 'cosas'}, con sus fotos</small></span></label>` : ''}
+      ${r.tickets ? `<label class="check"><input type="checkbox" id="hmTk" checked><span class="caja"></span><span>🧾 Tickets<small>${r.tickets} ${r.tickets === 1 ? 'ticket' : 'tickets'}, con sus fotos</small></span></label>` : ''}
+      <p class="aj-ayuda" style="margin-top:8px">Se añade a lo que ya tienes. Lo que ya pasaste antes no se repite. Si una casa se llama igual que una tuya, sus sitios van dentro de la tuya. En HOME no se borra nada.</p>`,
+      botones:[{ txt:'Cancelar', val:null }, { txt:'Pasar', cls:'btn-pri', val:c => ({ sit:!!($('#hmSit', c) || {}).checked, tk:!!($('#hmTk', c) || {}).checked }) }] });
+    if(!v || (!v.sit && !v.tk)) return;
+    toast('🏠 Pasando de HOME…', null, null, 60000);
+    try{
+      const txt = [];
+      if(v.sit){ const s = await Mio.sitiosDesdeHome(obj, (i, t) => toast('🏡 Pasando sitios de HOME… ' + i + ' de ' + t, null, null, 60000));
+        txt.push(s.casas + ' casas, ' + s.sitios + ' sitios y ' + s.cosas + ' cosas' + (s.ya ? ' (' + s.ya + ' ya estaban)' : '')); }
+      if(v.tk){ const k = await Mio.desdeHome(obj, (i, t) => toast('🧾 Pasando tickets de HOME… ' + i + ' de ' + t, null, null, 60000));
+        txt.push(k.nuevos + ' tickets' + (k.ya ? ' (' + k.ya + ' ya estaban)' : '')); }
+      toast('✅ De HOME: ' + txt.join(' · '), null, null, 6000);
+      this.ir('copias', 'mio', true);
+    }catch(err){ console.warn(err); popAviso('Copia de HOME', 'No se ha podido pasar: ' + err.message); }
   },
 
   /* ---------- PORHACER (TAREAS) ---------- */

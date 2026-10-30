@@ -317,3 +317,41 @@ Probó la V3 con su marido (rbielsa@gmail.com). Ella le había puesto en Persona
 - Hecho: botón «Reunión de Teams» en la portada (icono gris/blanco/rojo: pantalla con dos personas y cámara roja). Formulario: título, día (Hoy/Mañana/fecha), hora, duración, invitados (emails o personas), notas, apuntar en Tareas y/o Agenda, aviso (sin aviso, a la hora, 10 o 30 min antes). Al pulsar «Crear en Teams» se apunta en PorHacer3 y se abre Teams con la reunión rellenada; allí hay que pulsar Enviar. El botón de la portada dice cuál es la próxima reunión.
 - Configuración → General → «Botones de la portada»: marcar/desmarcar cada botón (Configuración siempre se ve).
 - Archivos para GitHub: iconos.js, portada.js, ajustes.js, estilos3.css, app.js, index.html, sw.js (caché porhacer3-v115).
+
+## V10.6 — 30/10/2026
+- Petición: en el año a pantalla completa, al pasar de año se veía el año nuevo antes de girar la hoja.
+- Hecho: el título «Año 2027» y las flechas ‹ › van ahora dentro de la hoja, y la hoja que se dobla se ve por encima: primero se gira la hoja y debajo aparece el año siguiente/anterior. Arriba queda «Agenda» y la ✕.
+- Archivos para GitHub: portada.js, estilos3.css, app.js, index.html, sw.js (caché porhacer3-v116).
+
+## V10.7 — 30/10/2026
+- Petición: en Grabar a veces cuesta deslizar para que salga Eliminar (y Guardar al otro lado).
+- Hecho: se puede empezar a deslizar desde cualquier parte de la nota (antes no funcionaba encima del nombre, del ▶ ni de la barra, que ocupan casi toda la nota). Basta con menos recorrido (70 px) o un golpe rápido; acepta el dedo un poco en diagonal; vibra un poco cuando ya se puede soltar.
+- Archivos para GitHub: grabar.js, estilos3.css, app.js, index.html, sw.js, portada.js (caché porhacer3-v117).
+
+## V10.8 — 30/10/2026
+- Petición: en todos los apartados, el botón de volver a la portada (arriba a la izquierda) que esté arriba a la DERECHA, más fácil con el móvil.
+- Hecho: Calendario Tareas, Listas, Agenda, Tickets, Sitios, Calculadora y Grabar tienen ahora el botón de la portada arriba a la derecha (Tareas ya lo tenía). En Sitios, el botón «‹ Atrás» pasa a la izquierda.
+- Archivos para GitHub: estilos3.css, calculadora.html, app.js, index.html, sw.js, portada.js (caché porhacer3-v118).
+
+## V10.9 — 30/10/2026
+- Petición (con captura de Sitios): «no es igual que en HOME… ¿no puedo poner dos ubicaciones o más?». La captura era de una versión anterior (botón de la portada aún a la izquierda).
+- Comprobado: dentro de una casa se pueden añadir todos los sitios que quieras con «＋ Sitio» (igual que en HOME). Para otra casa/ubicación (p. ej. Fabara) hay que volver a «Mis sitios» con ‹ y pulsar «＋ Nueva casa».
+- Hecho para que sea más fácil: dentro de una casa, botón «🏠 Otra casa» al lado de «＋ Sitio». En el menú ⋯ de un sitio, «🏠 Convertir en una casa aparte» (se lleva todo lo de dentro). El nombre largo de la casa se corta al final («RONDA SA…»), no al principio.
+- Archivos para GitHub: sitios.js, estilos3.css, app.js, index.html, sw.js, portada.js (caché porhacer3-v119).
+
+## V10.10 — 30/10/2026
+- Petición (captura de «Nueva casa»): ¿los colores se repiten? Ponerlos en una línea que se deslice a izquierda y derecha.
+- Respuesta: no se repiten (son 51 colores distintos, los de HOME), pero muchos se parecen.
+- Hecho: los colores de la casa están en una sola fila que se desliza; arriba pone el nombre del color elegido (p. ej. «Amapola ❤️»); al abrir, el color elegido sale en el centro. También en Configuración → Sitios.
+- Archivos para GitHub: sitios.js, estilos3.css, app.js, index.html, sw.js, portada.js (caché porhacer3-v120).
+
+## V10.11 — 30/10/2026
+- Petición: «ponme los datos que ya hay en este apartado de sitios» (los de HOME).
+- Los datos de HOME están dentro del móvil (navegador), no en ninguna carpeta: hay que hacer «⬇ Exportar copia» en HOME. En la carpeta HOME_ANTIC hay una copia antigua (28/6/2026) con STA JULITA (Quarto Gran > Armari darrera porta, Sota llit; Habitació Yan; Habitació Raimon) y FABARA, sin cosas.
+- Hecho: Configuración → Copias de seguridad → «Agenda, Tickets, Sitios y Listas» → Importar copia acepta la copia de HOME y deja elegir qué pasar: 🏡 Sitios (casas, sitios, sitios dentro de sitios, cosas, fotos, colores e iconos) y/o 🧾 Tickets. No se repite lo ya pasado; si una casa se llama igual que una tuya, sus sitios van dentro de la tuya.
+- Archivos para GitHub: mio.js, ajustes.js, app.js, index.html, sw.js, portada.js (caché porhacer3-v121).
+
+## V10.12 — 30/10/2026
+- Petición (captura): en Reunión de Teams, al pulsar «＋ Elisabeth» o «＋ Raimon» no hacía nada; debería ponerlo en la tarea.
+- Arreglado: el fallo era que la app volvía a leer el recuadro de emails vacío. Ahora al tocar una persona se añade su email (y se pone «✓ Raimon»); al tocarla otra vez se quita. La tarea de Tareas queda asignada a la primera persona invitada (se avisa debajo: «la tarea quedará asignada a Raimon»).
+- Archivos para GitHub: portada.js, estilos3.css, app.js, index.html, sw.js (caché porhacer3-v122).

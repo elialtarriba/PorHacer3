@@ -214,6 +214,50 @@ const Mio = {
     }
     return { nuevos:n, ya, total:lista.length };
   },
+  // Cuenta lo que trae una copia de HOME (para preguntar antes)
+  resumenHome(obj){
+    const casas = Array.isArray(obj && obj.houses) ? obj.houses.filter(h => h && h.id) : [];
+    const rooms = Object.values((obj && obj.rooms) || {}).filter(r => r && r.houseId);
+    const cosas = rooms.reduce((n, r) => n + Object.keys(r.tasks || {}).length, 0);
+    return { casas:casas.length, sitios:rooms.length, cosas, tickets:Array.isArray(obj && obj.tickets) ? obj.tickets.length : 0 };
+  },
+  // Casas, sitios y cosas de HOME → Sitios de PorHacer3 (con sus fotos). Lo que ya se pasó antes no se repite.
+  async sitiosDesdeHome(obj, avance){
+    const fotosH = (obj && obj.photos) || {}, ph = k => fotosH[k] || null;
+    const lig = async src => { if(!src || !String(src).startsWith('data:')) return null; try{ const b = await (await fetch(src)).blob(); return await aligerarImg(b, 1280, .74); }catch(e){ return src; } };
+    const nm = s => norm(String(s || '')).replace(/[^a-z0-9]/g, '');
+    const casasYa = this.todos('sitios').filter(x => x.tipo === 'casa');
+    const casaId = {};   // id de HOME → id en PorHacer3
+    let nCasas = 0, nSitios = 0, nCosas = 0, ya = 0, paso = 0;
+    const houses = Array.isArray(obj.houses) ? obj.houses.filter(h => h && h.id) : [];
+    const rooms = Object.entries(obj.rooms || {}).filter(([, r]) => r && r.houseId);
+    const total = houses.length + rooms.length;
+    for(const h of houses){
+      const id = 'home_' + h.id, mismo = casasYa.find(c => c.id === id || nm(c.nombre) === nm(h.name));
+      if(mismo){ casaId[h.id] = mismo.id; ya++; avance && avance(++paso, total); continue; }
+      const c = { id, tipo:'casa', nombre:String(h.name || 'Casa').toUpperCase(), emoji:h.emoji || '🏠', img:h.iconImage || null, color:(h.color && PALETTES[h.color]) ? h.color : 'verde',
+        orden:casasYa.length + nCasas, creada:Date.now(), deHome:true };
+      if(h.btnSitio) c.bSitio = h.btnSitio; if(h.btnCosa) c.bCosa = h.btnCosa;
+      const portada = await lig(ph('ph_house_' + h.id)); if(portada) c.fotoCasa = await this.ponerFoto(portada, 'fhc_' + h.id, 'sitios');
+      await this.poner('sitios', id, c); casaId[h.id] = id; nCasas++; avance && avance(++paso, total);
+    }
+    for(const [rid, r] of rooms){
+      const id = 'home_' + rid, casa = casaId[r.houseId] || ('home_' + r.houseId);
+      if(this.uno('sitios', id)){ ya++; avance && avance(++paso, total); continue; }
+      const cosas = {};
+      for(const [tid, t] of Object.entries(r.tasks || {})){
+        const ids = [...(Array.isArray(t.photoIds) ? t.photoIds : []), ...(t.photoId ? [t.photoId] : [])].filter((v, i, a) => v && a.indexOf(v) === i);
+        const fotos = []; for(const pid of ids){ const src = await lig(ph('ph_task_' + pid)); if(src) fotos.push(await this.ponerFoto(src, 'fht_' + pid, 'sitios')); }
+        cosas[tid] = { texto:String(t.text || '').trim(), fotos, orden:t.order || 0, creada:Date.now() }; nCosas++;
+      }
+      let adj = []; try{ adj = JSON.parse(ph('ph_list_' + rid) || '[]'); }catch(e){}
+      const fotos = []; for(const pid of adj){ const src = await lig(ph('ph_attach_' + pid)); if(src) fotos.push(await this.ponerFoto(src, 'fha_' + pid, 'sitios')); }
+      await this.poner('sitios', id, { id, tipo:'sitio', casa, padre:r.parentId ? 'home_' + r.parentId : null, nombre:String(r.name || 'Sitio'), emoji:r.emoji || '📦', img:r.iconImage || null,
+        orden:r.order || 0, cosas, fotos, creado:Date.now(), deHome:true });
+      nSitios++; avance && avance(++paso, total);
+    }
+    return { casas:nCasas, sitios:nSitios, cosas:nCosas, ya };
+  },
   async importar(obj, modo){       // modo: 'juntar' (añade y actualiza) o 'cambiar' (borra lo de antes)
     if(!obj || obj.tipo !== 'copia-mia') throw new Error('No es una copia de PorHacer3');
     for(const col of ['agenda', 'tickets', 'sitios']){

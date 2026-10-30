@@ -81,7 +81,7 @@ const Sitios = {
         return `<div class="st-fila cosa" id="cosa-${cid}" data-cosa="${cid}"><div class="st-thumb">${f.length ? `<img src="${f[0]}" alt="" data-grande>` : '<span class="st-pto"></span>'}</div><div class="st-tx"><b>${c.texto ? esc(c.texto) : 'Foto'}</b>${f.length > 1 ? `<small>${f.length} fotos</small>` : ''}</div><button class="st-mas" data-cosa="${cid}" aria-label="Opciones">⋯</button></div>`; }).join(''); }
     html += '</div>';
     $('#stCuerpo').innerHTML = html;
-    $('#stBarra').innerHTML = `<button class="st-add sitio" data-nuevositio>＋ Sitio</button>${cur ? '<button class="st-add cosa" data-nuevacosa>＋ Cosa</button>' : ''}`;
+    $('#stBarra').innerHTML = `<button class="st-add sitio" data-nuevositio>＋ Sitio</button>${cur ? '<button class="st-add cosa" data-nuevacosa>＋ Cosa</button>' : '<button class="st-add otra" data-otracasa>🏠 Otra casa</button>'}`;
     this.enlazarBuscar();
   },
   chipsCamino(){
@@ -155,6 +155,7 @@ const Sitios = {
       <button class="sh-op" data-a="mover">↔️ Mover a otro sitio</button>
       <button class="sh-op" data-a="foto">${icIn('camara')}Añadir foto del sitio</button>
       <button class="sh-op" data-a="pdf">📄 Guardar lista en PDF</button>
+      <button class="sh-op" data-a="casa">🏠 Convertir en una casa aparte</button>
       <button class="sh-op peligro" data-a="borrar">🗑️ Borrar sitio</button>
       <button class="sh-btn" data-a="x">Cancelar</button>`);
     hj.onclick = async e => { const b = e.target.closest('[data-a]'); if(!b) return; const a = b.dataset.a;
@@ -163,7 +164,23 @@ const Sitios = {
       if(a === 'editar') this.editor('sitio', id);
       else if(a === 'foto') this.fotoSitio(id);
       else if(a === 'pdf') this.pdf(id, x.casa);
+      else if(a === 'casa') this.convertirEnCasa(id);
       else if(a === 'borrar') this.borrarSitio(id); };
+  },
+  // Un sitio pasa a ser una casa (con todo lo que tiene dentro). Útil si lo pusiste dentro de otra casa sin querer.
+  async convertirEnCasa(id){
+    const x = this.s(id); if(!x) return;
+    if(!await confirmarMio('🏠 Convertir en casa', `«${x.nombre}» será una casa aparte, en «Mis sitios», con todo lo que tiene dentro.`, 'Convertir')) return;
+    const usados = this.casas().map(h => h.color), color = Object.keys(PALETTES).find(k => !usados.includes(k)) || 'verde';
+    const h = { id:nuevoId('casa'), tipo:'casa', nombre:x.nombre.toUpperCase(), emoji:'🏠', img:null, color, orden:this.casas().length, creada:Date.now() };
+    const ico = this.autoIcono && this.autoIcono(x.nombre, 'casa'); if(ico){ if(ico.img) h.img = ico.img; if(ico.emoji) h.emoji = ico.emoji; }
+    await this.guardar(h);
+    const rama = this.rama(id), conCosas = Object.keys(x.cosas || {}).length || (x.fotos || []).length;
+    for(const rid of rama){ if(rid === id) continue; const y = this.copia(rid); y.casa = h.id; if(y.padre === id) y.padre = conCosas ? id : null; await this.guardar(y); }
+    if(conCosas){ const y = this.copia(id); y.casa = h.id; y.padre = null; y.orden = -1; await this.guardar(y); }   // sus cosas siguen en un sitio con su nombre
+    else await Mio.quitar('sitios', id);
+    toast('🏠 «' + h.nombre + '» ya es una casa');
+    this.abrirCasa(h.id);
   },
   menuCosa(cid){
     const rid = this.camino[this.camino.length - 1], r = this.s(rid), c = r && r.cosas && r.cosas[cid]; if(!c) return;
@@ -285,7 +302,7 @@ const Sitios = {
         <div class="ed-pn" id="edPn" style="${esCasa ? `color:${p.text}` : ''}">${E.nombre ? esc(E.nombre) : '<span>Sin nombre</span>'}</div></div>
       <input class="mp-input" id="edNom" value="${esc(E.nombre)}" placeholder="${ph}" enterkeyhint="done" autocomplete="off">
       <button class="st-linea" data-a="icono"><i class="st-chipi">${this.icoEd()}</i><span><b>Icono</b><small>${E.manual ? 'Elegido por ti · toca para cambiar' : 'Se pone solo según el nombre · toca para elegir'}</small></span><em>›</em></button>
-      ${esCasa ? `<div class="st-et">Color de la casa</div><div class="st-pals">${PAL_KEYS.map(k => `<button data-pal="${k}" class="${k === E.color ? 'on' : ''}" title="${esc(PALETTES[k].name)}" style="background:${PALETTES[k].shades[1]};border-color:${PALETTES[k].ac}"></button>`).join('')}</div>` : ''}
+      ${esCasa ? `<div class="st-et">Color de la casa · <b>${esc(p.name)}</b> <span class="st-desl">desliza ↔</span></div><div class="st-pals">${PAL_KEYS.map(k => `<button data-pal="${k}" class="${k === E.color ? 'on' : ''}" title="${esc(PALETTES[k].name)}" style="background:${PALETTES[k].shades[1]};border-color:${PALETTES[k].ac}"></button>`).join('')}</div>` : ''}
       <div class="mp-fila"><button class="mp-b" data-a="x">Cancelar</button><button class="mp-b mp-pri" data-a="ok">${E.id ? 'Guardar' : 'Crear'}</button></div>`, 'st-ed');
     const n = $('#edNom');
     n.oninput = () => { E.nombre = n.value; $('#edPn').innerHTML = n.value ? esc(n.value) : '<span>Sin nombre</span>';
@@ -294,6 +311,9 @@ const Sitios = {
     hj.onclick = e => { const b = e.target.closest('[data-a],[data-pal]'); if(!b) return;
       if(b.dataset.pal){ E.nombre = n.value; E.color = b.dataset.pal; this.pintarEditor(false); return; }
       const a = b.dataset.a; if(a === 'icono'){ E.nombre = n.value; this.elegirIcono(); } else if(a === 'ok') this.guardarEditor(); else { this.ED = null; cerrarHojaMio(); } };
+    const sel = $('.st-ed .st-pals .on'), fila = sel && sel.parentElement;
+    if(fila){ fila.scrollLeft = this._palScroll != null ? this._palScroll : sel.offsetLeft - fila.clientWidth / 2 + sel.offsetWidth / 2; fila.onscroll = () => { this._palScroll = fila.scrollLeft; }; }
+    if(foco){ this._palScroll = null; if(fila) fila.scrollLeft = sel.offsetLeft - fila.clientWidth / 2 + sel.offsetWidth / 2; }
     if(foco && !E.id) setTimeout(() => n.focus(), 150);
   },
   autoIcono(nombre, tipo){
@@ -386,7 +406,7 @@ const Sitios = {
       else if(d.ir) this.irHallado(d.ir, d.ircosa);
       else if(d.quitaradj){ (async () => { if(!await confirmarMio('Quitar foto', '¿Quitar esta foto del sitio?', 'Quitar')) return; const id = this.camino[this.camino.length - 1], n = this.copia(id); n.fotos = (n.fotos || []).filter(f => f !== d.quitaradj); await this.guardar(n); await Mio.quitarFotos([d.quitaradj]); })(); }
     });
-    $('#stBarra').addEventListener('click', e => { const b = e.target.closest('button'); if(!b) return; if('nuevositio' in b.dataset) this.editor('sitio', null); else if('nuevacosa' in b.dataset) this.nuevaCosa(); });
+    $('#stBarra').addEventListener('click', e => { const b = e.target.closest('button'); if(!b) return; if('nuevositio' in b.dataset) this.editor('sitio', null); else if('nuevacosa' in b.dataset) this.nuevaCosa(); else if('otracasa' in b.dataset){ this.casa = null; this.camino = []; this.pintar(); this.editor('casa', null); } });
     Mio.al('sitios', () => { if(this.activa() && !(document.activeElement && document.activeElement.id === 'stQ')) this.pintar(); else if(this.activa() && this.q) this.buscar(this.q); });
   }
 };
