@@ -285,3 +285,18 @@ Probó la V3 con su marido (rbielsa@gmail.com). Ella le había puesto en Persona
 - Bloc: las pestañas solo se deslizan de lado (ya no se mueven arriba/abajo). Botón «Aa ▾» con el tamaño de la letra (Pequeña…Enorme) y «Quitar el formato»; se escribe con el tamaño elegido (también los iconos). Botón «💾 Guardar». Deslizar el dedo sobre la hoja pasa a la hoja siguiente/anterior con efecto de página.
 - Listas: deslizar fuera de los puntos pasa a la lista siguiente/anterior con efecto de página. Puntos de hasta 600 caracteres (antes 200).
 - V7.2: pasar página más fácil en listas y bloc (eventos táctiles, basta con ~1/4 de recorrido o un golpe rápido; en listas también desde la cabecera y el recuadro de añadir). Puntitos bajo «Agregar» que indican la lista y se pueden tocar.
+
+## Manual de PorHacer3 (V10) — 30/10/2026
+- Petición: «¿Podrías hacer un Manual de PorHacer3 con un índice para no perderte con tanto dato? Al estilo del manual PorHacer».
+- Hecho: carpeta Manual/ con PorHacer3-Manual.pdf (65 páginas) y PorHacer3-Manual.docx. Portada, índice con páginas, bienvenida y 18 capítulos con capturas y números rojos: Empezar, Portada, Tareas, Ventana de la tarea, Fotos y avisos, Tableros, Calendario Tareas, Listas, Agenda, Tickets, Sitios, Calculadora, Grabar, Notas secretas, Colores y temas, Configuración, Nube y copias, Preguntas.
+- La carpeta Manual/ NO hace falta subirla a GitHub (es solo para ti).
+
+## V10.1 — Tickets de HOME a PorHacer3 — 30/10/2026
+- Petición: pasar los tickets (con sus fotos) a los Tickets de mi usuario de PorHacer3. (Los tickets están en la app HOME; PorHacer no tiene tickets.)
+- Hecho: Configuración → Copias de seguridad → «Agenda, Tickets, Sitios y Listas» → Importar copia ahora acepta también la copia de HOME (hogar-copia-….json). Pasa sus tickets con fecha, nombre, importe, foto del ticket y foto de lo que es. Si se importa dos veces, no se repiten.
+- Archivos para GitHub: mio.js, ajustes.js, app.js, index.html, portada.js, sw.js (caché porhacer3-v111).
+
+## V10.2 — Fotos con Chrome — 30/10/2026
+- Petición: «Mi marido dice que para hacer fotos no se puede con Chrome, solo con Safari. ¿Tiene arreglo?»
+- Hecho: en Agenda, Tickets y Sitios la foto de la cámara se perdía en Chrome del iPhone (la app creía que se había cancelado al volver de la cámara). Ahora espera a que llegue la foto. Si aun así no abre la cámara: Ajustes del iPhone → Chrome → Cámara (y Fotos) → permitir.
+- Archivos para GitHub: mio.js, app.js, index.html, portada.js, sw.js (caché porhacer3-v112).

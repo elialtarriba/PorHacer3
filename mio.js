@@ -197,6 +197,23 @@ const Mio = {
     if(fotosUsadas.size){ out.fotos = {}; fotosUsadas.forEach(id => { const f = this.uno('fotos', id); if(f) out.fotos[id] = f; }); }
     return out;
   },
+  // Tickets de la app HOME (copia «hogar-copia-….json»): se pasan a los tickets de PorHacer3 sin repetir
+  async desdeHome(obj, avance){
+    const lista = (obj && Array.isArray(obj.tickets)) ? obj.tickets.filter(t => t && t.id) : [];
+    const lig = async (src, max, q) => { if(!src) return null; try{ const b = await (await fetch(src)).blob(); return await aligerarImg(b, max, q); }catch(e){ return src; } };
+    let n = 0, ya = 0;
+    for(const t of lista){
+      const id = 'home_' + t.id;
+      if(this.uno('tickets', id)){ ya++; continue; }
+      const foto = t.photo ? await this.ponerFoto(await lig(t.photo, 1400, .78), 'fh_' + t.id, 'tickets') : null;
+      const fotoProd = t.prodPhoto ? await this.ponerFoto(await lig(t.prodPhoto, 1280, .75), 'fhp_' + t.id, 'tickets') : null;
+      const fecha = /^\d{4}-\d{2}-\d{2}$/.test(t.date || '') ? t.date : hoyIso();
+      await this.poner('tickets', id, { id, fecha, titulo:(t.title || '').trim(), importe:(typeof t.amount === 'number' && !isNaN(t.amount)) ? t.amount : null,
+        foto, mini:t.thumb || null, fotoProd, miniProd:t.prodThumb || null, creado:t.created || Date.now(), cambiado:Date.now(), deHome:true });
+      n++; avance && avance(n + ya, lista.length);
+    }
+    return { nuevos:n, ya, total:lista.length };
+  },
   async importar(obj, modo){       // modo: 'juntar' (añade y actualiza) o 'cambiar' (borra lo de antes)
     if(!obj || obj.tipo !== 'copia-mia') throw new Error('No es una copia de PorHacer3');
     for(const col of ['agenda', 'tickets', 'sitios']){
@@ -253,7 +270,10 @@ function elegirFotos(camara, varias){
     i.style.display = 'none'; document.body.appendChild(i);
     let hecho = false; const fin = v => { if(hecho) return; hecho = true; i.remove(); ok(v); };
     i.onchange = () => fin([...i.files]);
-    addEventListener('focus', () => setTimeout(() => { if(!i.files || !i.files.length) fin([]); }, 1200), { once:true });
+    // Si se cancela: el aviso «cancel» del navegador. (Antes se miraba al volver a la app, pero en Chrome del iPhone
+    // la foto de la cámara llega más tarde y se perdía.)
+    i.addEventListener('cancel', () => fin([]));
+    setTimeout(() => { if(!hecho && !(i.files && i.files.length)) i.remove(); }, 600000);
     i.click();
   });
 }

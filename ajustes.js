@@ -151,7 +151,8 @@ const Ajustes = {
     const mia = `<div class="gen-que">${[['agenda','📒 Agenda', nNotas + (nNotas === 1 ? ' nota' : ' notas')],['tickets','🧾 Tickets', Mio.todos('tickets').length + ''],['sitios','🏡 Sitios', nCasas + (nCasas === 1 ? ' casa' : ' casas')],['listas','📝 Listas', Listas.datos.length + '']].map(([k, t, n]) =>
         `<label class="check" style="margin-top:0"><input type="checkbox" data-que="${k}" checked><span class="caja"></span><span>${t}<small>${n}</small></span></label>`).join('')}</div>
       <div class="gen-btns"><button class="btn-pri" id="genExp">⬇️ Exportar copia</button><button class="btn-sec" id="genImp">⬆️ Importar copia</button></div>
-      <input type="file" id="genImpIn" accept=".json,application/json" hidden>`;
+      <input type="file" id="genImpIn" accept=".json,application/json" hidden>
+      <p class="aj-ayuda" style="margin-top:10px">🏠 <b>¿Tienes tickets en HOME?</b> En HOME pulsa «⬇ Exportar copia» y aquí, «⬆️ Importar copia» con ese archivo (hogar-copia-….json): sus tickets se pasan a tus Tickets, con las fotos.</p>`;
     return this.nota('💡 Haz copias de vez en cuando y guárdalas en un sitio seguro (iCloud, un pendrive…). <b>No subas nunca estos archivos a GitHub</b>: tienen tus datos.')
       + this.acord('tareas', '✅', 'Tareas de PorHacer', 'Las tareas, personas, fotos, vídeos y audios · espacio usado', '<div id="ajCopias"></div>')
       + this.acord('mio', '📒', 'Agenda, Tickets, Sitios y Listas', 'En un solo archivo, con sus fotos', mia)
@@ -172,6 +173,7 @@ const Ajustes = {
     $('#genImpIn').onchange = async e => {
       const f = e.target.files[0]; e.target.value = ''; if(!f) return;
       let obj; try{ obj = JSON.parse(await f.text()); }catch(err){ popAviso('Importar', 'Este archivo no es una copia válida.'); return; }
+      if(obj && obj.app === 'Hogar'){ await this.importarHome(obj); return; }
       if(!obj || obj.tipo !== 'copia-mia'){ popAviso('Importar', 'Este archivo no es una copia de Agenda, Tickets, Sitios y Listas de PorHacer3. (Si es una copia de las tareas, impórtala en «Tareas de PorHacer»).'); return; }
       const modo = await popup({ tit:'⬆️ Importar copia', html:`<p>Copia del ${new Date(obj.fecha).toLocaleDateString('es-ES')}: ${['agenda','tickets','sitios','listas'].filter(k => obj[k]).map(k => ({ agenda:'📒 Agenda', tickets:'🧾 Tickets', sitios:'🏡 Sitios', listas:'📝 Listas' })[k]).join(', ')}.</p>
         <button class="opcion" data-v="juntar">➕ Juntar con lo que ya tengo</button><button class="opcion" data-v="cambiar">♻️ Cambiar lo que tengo por la copia</button>`,
@@ -182,6 +184,18 @@ const Ajustes = {
       try{ const r = await Mio.importar(obj, modo); toast('✅ Importado: ' + r.agenda + ' días, ' + r.tickets + ' tickets, ' + r.sitios + ' sitios, ' + r.listas + ' listas'); this.ir('copias', 'mio', true); }
       catch(err){ console.warn(err); popAviso('Importar', 'No se ha podido importar: ' + err.message); }
     };
+  },
+
+  async importarHome(obj){
+    const n = Array.isArray(obj.tickets) ? obj.tickets.length : 0;
+    if(!n){ popAviso('Copia de HOME', 'Esta copia de HOME no tiene tickets. En HOME, pulsa «⬇ Exportar copia» y elige el archivo nuevo.'); return; }
+    const dia = obj.exportedAt ? ' del ' + new Date(obj.exportedAt).toLocaleDateString('es-ES') : '';
+    if(!await popConfirmar('🧾 Tickets de HOME', `Es una copia de HOME${dia} con ${n} ${n === 1 ? 'ticket' : 'tickets'}. Se pasarán a tus Tickets de PorHacer3, con sus fotos. Los que ya hayas pasado antes no se repiten.`, 'Pasar tickets')) return;
+    toast('🧾 Pasando tickets de HOME…', null, null, 60000);
+    try{ const r = await Mio.desdeHome(obj, (i, t) => toast('🧾 Pasando tickets de HOME… ' + i + ' de ' + t, null, null, 60000));
+      toast('✅ ' + (r.nuevos === 1 ? '1 ticket pasado' : r.nuevos + ' tickets pasados') + ' de HOME' + (r.ya ? ' · ' + r.ya + ' ya estaban' : ''));
+      this.ir('copias', 'mio', true); }
+    catch(err){ console.warn(err); popAviso('Tickets de HOME', 'No se han podido pasar: ' + err.message); }
   },
 
   /* ---------- PORHACER (TAREAS) ---------- */
