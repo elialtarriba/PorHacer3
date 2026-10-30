@@ -15,6 +15,17 @@ Aquí se apunta lo que Elisabeth pide sobre la app, para no perder el hilo. Leer
 
 
 
+
+
+## 2026-10-30 · PorHacer3 · V10
+
+- Pidió poner la versión **V10** (todo lo de las V9.x: portada con temas, botones que se mueven, Grabar, calculadora, temas por apartado, configuración ordenada…).
+
+## 2026-10-30 · PorHacer3 · calculadora
+
+- En la calculadora, al mirar el **historial**, los primeros números quedaban **escondidos detrás de la pantalla**.
+- Arreglado: el historial empieza justo debajo de la pantalla (se calcula al abrirlo) y vuelve arriba del todo; el 💬 ya no tapa la operación.
+
 ## 2026-10-29 · PorHacer3 · V9.12
 
 - En la **pantalla de inicio (portada)** echaba de menos cambiar el tema, y quería **temas diferentes, dispares unos de otros y bonitos**.

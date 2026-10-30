@@ -98,7 +98,8 @@ body.edit-mode .calc-key:active::after, body.edit-mode .calc-mini-key:active::af
 .calc-history-item:last-child { border-bottom:none; }
 .calc-history-item .hist-expr { font-size:18px; color:color-mix(in srgb,var(--calc-display-text) 60%,transparent); border-bottom:1px solid rgba(52,35,28,.3); display:inline-block; padding-bottom:4px; margin-bottom:4px;}
 .calc-history-item .hist-date { position:absolute; top:12px; left:12px; font-size:10px; color:color-mix(in srgb,var(--calc-display-text) 50%,transparent); }
-.calc-history-item .hist-icon { position:absolute; top:12px; right:12px; font-size:14px; opacity:0.5; }
+.calc-history-item .hist-icon { position:absolute; top:10px; right:12px; font-size:13px; opacity:0.5; }
+.calc-history-item .hist-expr { margin-top:16px; }
 
 .calc-history-actions {
   display:grid; grid-template-columns:1fr 1fr; gap:1px; background:rgba(52,35,28,.3);
@@ -358,7 +359,11 @@ function renderHistory() {
 
 function toggleHistory() {
   const ov = document.getElementById('calc-history-overlay');
+  // el historial empieza justo debajo de la pantalla (así no se esconde ningún número detrás)
+  const d = document.querySelector('.calculator-display');
+  if (d) ov.style.top = (d.offsetTop + d.offsetHeight + 10) + 'px';
   ov.classList.toggle('open');
+  if (ov.classList.contains('open')) { const l = document.getElementById('calc-history-list'); if (l) l.scrollTop = 0; }
 }
 
 function clearHistory() {
