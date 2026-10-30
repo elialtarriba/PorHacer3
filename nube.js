@@ -326,6 +326,47 @@ const Nube = {
     $('#toast').classList.remove('ver');
   },
 
+  /* ---------- Copia completa: todos los tableros (los míos y los compartidos) ---------- */
+  async copiaTableros(conVideos, avance){
+    const out = [], lista = [...this.misTableros(), ...this.compartidos()];
+    for(const t of lista){
+      avance && avance('📋 ' + (t.nombre || 'Tablero'));
+      const get = async n => { try{ return (await this.colDe(t.id, n).get()).docs.map(d => d.data()); }catch(e){ console.warn(e); return []; } };
+      let config = null; try{ const d = await this.colDe(t.id, 'config').doc('tablero').get(); config = d.exists ? d.data() : null; }catch(e){}
+      const media = [];
+      for(const m of await get('media')){
+        if(!m.listo || (m.tipo === 'videos' && !conVideos)) continue;
+        const blob = await this._bajarTrozos(m.id, m.partes, m.mime, t.id).catch(() => null); if(!blob) continue;
+        const mini = m.partesMini ? await this._bajarTrozos(m.id + '_m', m.partesMini, 'image/jpeg', t.id).catch(() => null) : null;
+        media.push({ ...m, datos:await blobADatos(blob), datosMini:mini ? await blobADatos(mini) : null });
+      }
+      out.push({ id:t.id, nombre:t.nombre || '', mio:this.esDueno(t), creado:t.creado || 0, tareas:await get('tareas'), personas:await get('personas'), config, media });
+    }
+    return out;
+  },
+  // Vuelve a poner un tablero de la copia. Si ya no existe (o ya no estás en él), se crea uno nuevo tuyo con sus tareas.
+  async restaurarTablero(b, modo){
+    let tid = b.id, t = this.tableros[tid];
+    if(!t || !this.dentro(t)){ tid = await this.crearTablero(b.nombre + (b.mio ? '' : ' (copia)')); this.tableros[tid] = this.tableros[tid] || { id:tid, dueno:this.user.uid, nombre:b.nombre, miembros:[this.email()], aceptados:[this.email()] }; t = this.tableros[tid]; }
+    const mio = this.esDueno(t), C = n => this.colDe(tid, n);
+    if(b.config && mio) await C('config').doc('tablero').set(limpioFS(b.config));
+    for(const p of b.personas || []) if(p && p.id) await C('personas').doc(p.id).set(limpioFS(p));
+    if(modo === 'cambiar' && mio){   // en tus tableros: lo que no está en la copia se quita
+      const ids = new Set((b.tareas || []).map(x => x.id));
+      for(const d of (await C('tareas').get()).docs) if(!ids.has(d.id)) await d.ref.delete();
+    }
+    for(const x of b.tareas || []) if(x && x.id) await C('tareas').doc(x.id).set(limpioFS(x));
+    const ya = new Set((await C('media').get()).docs.map(d => d.id));
+    for(const m of b.media || []){
+      if(ya.has(m.id) || !m.datos) continue;
+      const { datos, datosMini, ...meta } = m;
+      meta.partes = await this._subirTrozos(m.id, m.id, datosABlob(datos), tid);
+      if(datosMini) meta.partesMini = await this._subirTrozos(m.id, m.id + '_m', datosABlob(datosMini), tid);
+      meta.listo = true; await C('media').doc(m.id).set(limpioFS(meta));
+    }
+    return { tid, nombre:b.nombre, tareas:(b.tareas || []).length };
+  },
+
   /* ---------- Compartir un tablero ---------- */
   async invitar(tid, persona){
     const t = this.tableros[tid]; if(!t || !this.esDueno(t)) return;
@@ -425,17 +466,17 @@ const Nube = {
   LIMITE: 1024 * 1024 * 1024,
   _minis: {},
   usadoNube(){ return this.media.reduce((s, m) => s + (m.size||0) + (m.sizeMini||0), 0); },
-  async _subirTrozos(id, clave, blob){
+  async _subirTrozos(id, clave, blob, tid){
     const buf = new Uint8Array(await blob.arrayBuffer());
     const n = Math.max(1, Math.ceil(buf.length / this.TROZO));
     for(let k = 0; k < n; k++){
       const parte = buf.subarray(k*this.TROZO, (k+1)*this.TROZO);
-      await this.col('trozos').doc(clave + '_' + k).set({ mid:id, clave, k, b: firebase.firestore.Blob.fromUint8Array(parte) });
+      await this.colDe(tid || this.tid, 'trozos').doc(clave + '_' + k).set({ mid:id, clave, k, b: firebase.firestore.Blob.fromUint8Array(parte) });
     }
     return n;
   },
-  async _bajarTrozos(clave, n, mime){
-    const snap = await this.col('trozos').where('clave', '==', clave).get();
+  async _bajarTrozos(clave, n, mime, tid){
+    const snap = await this.colDe(tid || this.tid, 'trozos').where('clave', '==', clave).get();
     const partes = snap.docs.map(d => d.data()).sort((a,b) => a.k - b.k);
     if(!partes.length || (n && partes.length < n)) return null;
     return new Blob(partes.map(p => p.b.toUint8Array()), { type: mime || 'application/octet-stream' });

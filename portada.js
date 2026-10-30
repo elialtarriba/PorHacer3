@@ -253,7 +253,7 @@ const Calc = {
     this._carga = new Promise(ok => {
       const f = $('#calcFrame');
       f.addEventListener('load', () => setTimeout(() => ok(this.win()), 60), { once:true });
-      f.src = 'calculadora.html?v=142';
+      f.src = 'calculadora.html?v=148';
     });
     return this._carga;
   },
@@ -539,6 +539,17 @@ const Webs = {
     if(!u){ toast('🌐 Pon primero la dirección de la web'); Ajustes.abrir('webs'); return; }
     // la contraseña se copia (para pegarla al entrar) y se abre la web, todo con el mismo toque
     if(w.clave) this.copiar(w.clave);
+    // iPhone/iPad con la app instalada: una web sin «https» se queda en blanco dentro de la app → se abre en Safari
+    const ios = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    const pwa = (window.matchMedia && matchMedia('(display-mode: standalone)').matches) || navigator.standalone;
+    if(ios && pwa && /^http:\/\//i.test(u)){
+      if(w.clave || w.usuario) toast((w.usuario ? '👤 ' + w.usuario + ' · ' : '') + (w.clave ? '🔑 Contraseña copiada: pégala al entrar' : ''), null, null, 6000);
+      location.href = 'x-safari-' + u;
+      setTimeout(() => { if(document.hidden) return;   // si Safari no se ha abierto, se ofrece abrirla aquí
+        const p = popMio(`<h3 class="mp-h">🌐 ${esc(this.nombre(k))}</h3><p style="margin:0 2px 12px;line-height:1.4">No se ha podido abrir en Safari. ¿La abro aquí?</p><div class="mp-fila"><button class="mp-b" data-x>Cancelar</button><button class="mp-b mp-pri" data-si>Abrir</button></div>`);
+        p.onclick = ev => { if(ev.target.closest('[data-si]')){ cerrarPopMio(); const v2 = window.open(u, '_blank'); if(!v2) location.href = u; } else if(ev.target.closest('[data-x]')) cerrarPopMio(); }; }, 1800);
+      return;
+    }
     const v = window.open(u, '_blank'); try{ if(v) v.opener = null; }catch(e){}
     if(w.clave || w.usuario) toast((w.usuario ? '👤 ' + w.usuario + ' · ' : '') + (w.clave ? '🔑 Contraseña copiada: pégala al entrar' : ''), null, null, 6000);
     if(!v) location.href = u;

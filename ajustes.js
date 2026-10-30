@@ -10,7 +10,7 @@ const Ajustes = {
     { k:'general', ico:'portada',    t:'General',              s:'Qué se ve al abrir · micrófono' },
     { k:'tema',    ico:'paleta',     t:'Tema y colores',       s:'Los colores de toda la app' },
     { k:'cuenta',  ico:'ajustes',    t:'Cuenta y nube',        s:'Tu cuenta, tus tableros y dónde se guarda cada cosa' },
-    { k:'copias',  ico:'copia',      t:'Copias de seguridad',  s:'Guardar y recuperar tus datos' },
+    { k:'copias',  ico:'copia',      t:'Copias de seguridad',  s:'Exportar e importar tus datos' },
     { grupo:'Cada apartado' },
     { k:'porhacer', ico:'tablero',    t:'Tareas',   s:'Colores, columnas, personas, al acabar, fotos y emails' },
     { k:'cal',      ico:'calendario', t:'Calendario Tareas',          s:'Cómo se ve al abrirlo · colores' },
@@ -46,13 +46,15 @@ const Ajustes = {
     $('#ajAtras').onclick = () => this.alMenu();
   },
   alMenu(){
-    this.pagina = null; $('#ajustes').classList.remove('en-pagina'); $('#ajTit').textContent = 'Configuración';
+    this.pagina = null; $('#ajustes').classList.remove('en-pagina'); $('#ajTit').textContent = 'Configuración'; $('#ajGuardar').hidden = false;
     $$('#ajMenu .aj-m').forEach(b => b.classList.remove('on')); $('#ajMenu').scrollTop = 0;
   },
   ir(p, ac, quieto){
     const P = this.PAGS.find(x => x.k === p); if(!P) return;
     const sc = $('#ajPagina').scrollTop;
     this.pagina = p; $('#ajustes').classList.add('en-pagina'); $('#ajTit').textContent = P.t;
+    // en las páginas donde solo se exporta, se importa o se hace algo al momento, no hay nada que «Guardar»
+    $('#ajGuardar').hidden = ['copias', 'bloc', 'cuenta'].includes(p);
     $$('#ajMenu .aj-m').forEach(b => b.classList.toggle('on', b.dataset.p === p));
     const cont = $('#ajPagina');
     cont.innerHTML = `<div class="aj-pcab"><span class="aj-m-ico">${icono(P.ico)}</span><div><h3>${P.t}</h3><small>${P.s}</small></div></div>` + this['p_' + p]();
@@ -173,13 +175,24 @@ const Ajustes = {
       <div class="gen-btns"><button class="btn-pri" id="genExp">⬇️ Exportar copia</button><button class="btn-sec" id="genImp">⬆️ Importar copia</button></div>
       <input type="file" id="genImpIn" accept=".json,application/json" hidden>
       <p class="aj-ayuda" style="margin-top:10px">🏠 <b>¿Tienes cosas en HOME?</b> En HOME pulsa «⬇ Exportar copia» y aquí, «⬆️ Importar copia» con ese archivo (hogar-copia-….json): sus <b>casas, sitios y cosas</b> pasan a Sitios y sus <b>tickets</b> a Tickets, con las fotos.</p>`;
+    const todo = `<div class="cc-caja"><div class="cc-cab"><span class="cc-ic">📦</span><span><b>Copia completa: TODO</b><small>Un solo archivo con todo lo de la app</small></span></div>
+        <p class="cc-que">📋 <b>Todos los tableros</b> (los tuyos y los compartidos) con sus tareas, personas, 📷 fotos y 🎙️ audios · 📒 Agenda · 🧾 Tickets · 🏡 Sitios · 📝 Listas · 🎙️ Grabaciones · 📄 Escritos · 🔒 Notas secretas (siguen cifradas) · 🌐 Webs personales · ⚙️ Configuración</p>
+        <label class="check" style="margin-top:4px"><input type="checkbox" id="ccVid"><span class="caja"></span><span>Incluir también los vídeos<small>Ocupan mucho; márcalo solo si los quieres guardar</small></span></label>
+        <div class="gen-btns"><button class="btn-pri" id="ccExp">⬇️ Exportar todo</button><button class="btn-sec" id="ccImp">⬆️ Importar todo</button></div>
+        <input type="file" id="ccImpIn" accept=".json,application/json" hidden>
+        <p class="aj-ayuda" style="margin-top:8px">Se guarda <b>PorHacer3-TODO-fecha.json</b>. Para recuperarlo, pulsa «⬆️ Importar todo» y elige ese archivo. ⚠️ Lleva las contraseñas de tus webs personales: guárdalo en un sitio seguro.</p></div>`;
     return this.nota('💡 Haz copias de vez en cuando y guárdalas en un sitio seguro (iCloud, un pendrive…). <b>No subas nunca estos archivos a GitHub</b>: tienen tus datos.')
+      + todo
+      + '<p class="cc-o">O, si solo quieres una parte:</p>'
       + this.acord('tareas', '✅', 'Tareas de PorHacer', 'Las tareas, personas, fotos, vídeos y audios · espacio usado', '<div id="ajCopias"></div>')
       + this.acord('mio', '📒', 'Agenda, Tickets, Sitios y Listas', 'En un solo archivo, con sus fotos', mia)
       + this.acord('bloc', '🔒', 'Notas secretas', 'Van cifradas, con tu contraseña', `<p class="aj-ayuda">La copia del bloc se hace desde su página, porque va cifrada.</p>${this.enlace('bloc', '🔒 Ir a Notas secretas')}`);
   },
   e_copias(cont){
     this.enlazarEnlaces(cont);
+    $('#ccExp', cont).onclick = ev => Completa.exportar($('#ccVid', cont).checked, ev.currentTarget);
+    $('#ccImp', cont).onclick = () => $('#ccImpIn', cont).click();
+    $('#ccImpIn', cont).onchange = e => { const f = e.target.files[0]; e.target.value = ''; if(f) Completa.importar(f); };
     // la copia de las tareas se pinta al abrir su apartado
     const dT = $('.aj-acord[data-ac="tareas"]', cont); dT.addEventListener('toggle', () => { if(dT.open) Copias.pintar(); });
     const que = () => { const q = {}; $$('[data-que]', cont).forEach(c => q[c.dataset.que] = c.checked); return q; };
@@ -235,8 +248,8 @@ const Ajustes = {
       + this.tarjeta('🌍 Idioma en el que dictas', this.seg('ajEsIdi', [['es-ES','Español'],['ca-ES','Català'],['en-GB','English'],['fr-FR','Français']], Escribir.idioma()),
         'Es el idioma que escucha el botón 🎤 Dictar de «' + esc(Escribir.nombre()) + '». Puedes cambiarlo cuando quieras.')
       + this.tarjeta('🎤 Cómo funciona', `<ul class="aj-lista"><li>Pulsa <b>🎤 Dictar</b> y habla: se escribe donde está el cursor. Pulsa otra vez para parar.</li>
-        <li>Puedes decir «coma», «punto», «punto y aparte» o «nueva línea» (en català: «coma», «punt», «punt i a part», «línia nova»; in English: «comma», «full stop», «new paragraph», «new line»; en français: «virgule», «point», «nouveau paragraphe», «à la ligne»).</li><li>Negrita, cursiva, subrayado, tamaño, listas, centrar, marcador amarillo y deshacer.</li><li><b>Fotos</b>: pégalas (copiar y pegar), arrástralas o usa 📷. Toca una foto para hacerla pequeña, mediana o grande, o quitarla.</li>
-        <li>Se guarda solo, <b>en este aparato</b>. En «📄 Mis escritos» tienes todos.</li><li><b>◻︎ Figura</b>: cuadrado, cuadrado redondeado, óvalo o redonda, con el color y el grosor del ribete y el color de dentro (o transparentes). Tócala para cambiarla.</li><li><b>📂 Abrir</b>: abre un <b>.docx</b> (Word o Pages) con su formato y fotos, o el texto de un <b>PDF</b>, para leerlo y cambiarlo.</li><li><b>📄 Guardar .docx</b>: lo abren Word y Pages (en el iPhone, elige «Guardar en Archivos» o Pages). Al guardarlo, <b>se quita de la app</b> para que no ocupe espacio (tienes unos segundos para «Deshacer»).</li></ul>`)
+        <li>Puedes decir «coma», «punto», «punto y aparte» o «nueva línea» (en català: «coma», «punt», «punt i a part», «línia nova»; in English: «comma», «full stop», «new paragraph», «new line»; en français: «virgule», «point», «nouveau paragraphe», «à la ligne»).</li><li><b>B</b>, <i>I</i>, <u>S</u>, <b>ab</b> (marcador) y el tamaño se <b>encienden en verde</b>: lo que escribes sale así hasta que lo vuelves a pulsar. Si antes seleccionas un trozo, se lo pone (o se lo quita) a ese trozo.</li><li><b>✅ ▾</b>: iconos para poner en la hoja. <b>🧹 Sin formato</b>: quita negrita, colores y tamaños de lo seleccionado (o del párrafo donde está el cursor).</li><li><b>Fotos</b>: pégalas (copiar y pegar), arrástralas o usa 📷. Toca una foto para hacerla pequeña, mediana o grande, o quitarla.</li>
+        <li>Se guarda solo, <b>en este aparato</b>. En «📄 Mis escritos» tienes todos.</li><li><b>◻︎ Figura</b>: cuadrado, redondeado, óvalo o redonda, para remarcar lo que has escrito. <b>Arrástrala</b> para moverla y <b>tira de las esquinas</b> para hacerla más grande o más pequeña. Puede ir <b>delante o detrás del texto</b>. Para cambiar colores, grosor o giro: tócala y pulsa «◻︎ Figura». Las de detrás se cogen tocando su borde.</li><li><b>📂 Abrir</b>: abre un <b>.docx</b> (Word o Pages) con su formato y fotos, o el texto de un <b>PDF</b>, para leerlo y cambiarlo.</li><li><b>📄 Guardar .docx</b>: lo abren Word y Pages (en el iPhone, elige «Guardar en Archivos» o Pages). Al guardarlo, <b>se quita de la app</b> para que no ocupe espacio (tienes unos segundos para «Deshacer»).</li></ul>`)
       + this.nota('El idioma de los otros micros (tareas, agenda…) se elige en ' + this.enlace('general', '⚙️ General'));
   },
   e_escribir(cont){
@@ -254,7 +267,7 @@ const Ajustes = {
           <label class="lbl">Usuario (opcional)<input data-c="usuario" value="${esc(w.usuario || '')}" autocomplete="off" autocapitalize="off" spellcheck="false"></label>
           <label class="lbl">Contraseña (opcional)<span class="web-clave"><input data-c="clave" type="password" value="${esc(w.clave || '')}" autocomplete="new-password"><button type="button" class="web-ojo" data-ojo aria-label="Ver la contraseña">👁</button></span></label>
           <div class="web-btns"><button class="btn-pri" data-wguardar>💾 Guardar</button><button class="btn-sec" data-wprobar>🌐 Probar</button></div></div>`; }).join(''),
-          'Dos botones para la portada con <b>la web que quieras</b>. Al tocarlos se abre la web y, si has puesto la contraseña, se <b>copia</b> para que solo tengas que pegarla. Todo se guarda <b>solo en este aparato</b> (no va a la nube ni a las copias).');
+          'Dos botones para la portada con <b>la web que quieras</b>. Al tocarlos se abre la web y, si has puesto la contraseña, se <b>copia</b> para que solo tengas que pegarla. Todo se guarda <b>solo en este aparato</b> (no va a la nube; sí va en la «📦 Copia completa»).');
   },
   e_webs(cont){
     $$('.web-cfg', cont).forEach(f => {

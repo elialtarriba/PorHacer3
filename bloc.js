@@ -388,12 +388,12 @@ const Bloc = {
       <h4>🔒 Bloc de notas secreto</h4>
       <p class="aj-ayuda">Se abre desde la portada, con la caja fuerte de las <b>Notas secretas</b>. Las notas se guardan <b>solo en este aparato</b> y <b>cifradas</b>: sin la contraseña nadie las puede leer.</p>
       <p class="aj-ayuda" style="color:#c4170f"><b>Importante:</b> si olvidas la contraseña, las notas no se pueden recuperar.</p>
-      ${hay ? `<button class="btn-pri btn-ancho" id="bjCambiar" style="margin-top:12px">🔑 Cambiar la contraseña</button>
-        <button class="btn-sec btn-ancho" id="bjExp" style="margin-top:8px">💾 Exportar una copia</button>
-        <button class="btn-sec btn-ancho" id="bjImp" style="margin-top:8px">📥 Importar una copia</button>
-        <button class="btn-borrar-tarea" id="bjBorrar" style="margin-top:18px">🗑 Borrar el bloc de este aparato</button>`
-      : `<button class="btn-pri btn-ancho" id="bjCrear" style="margin-top:12px">🔑 Poner contraseña y crear el bloc</button>
-        <button class="btn-sec btn-ancho" id="bjImp" style="margin-top:8px">📥 Importar una copia de otro aparato</button>`}
+      ${hay ? `<button class="btn-pri btn-ancho" id="bjCambiar" style="margin-top:12px">🔑 Cambiar la contraseña</button>`
+      : `<button class="btn-pri btn-ancho" id="bjCrear" style="margin-top:12px">🔑 Poner contraseña y crear el bloc</button>`}
+      <div class="cc-caja bj-copia"><div class="cc-cab"><span class="cc-ic">💾</span><span><b>Copia de seguridad</b><small>De las notas secretas (va cifrada)</small></span></div>
+        <div class="gen-btns"><button class="btn-pri" id="bjExp">⬇️ Exportar</button><button class="btn-sec" id="bjImp">⬆️ Importar</button></div>
+        <p class="aj-ayuda" style="margin-top:8px">${hay ? '<b>Exportar</b> guarda un archivo <b>bloc-porhacer-fecha.json</b>.' : 'Aún no hay notas secretas en este aparato: puedes crear el bloc o recuperar una copia con <b>Importar</b>.'} Para recuperarla, pulsa <b>Importar</b> y escribe <b>la contraseña con la que se hizo</b> la copia. También van en la «📦 Copia completa» de Copias de seguridad.</p></div>
+      ${hay ? `<button class="btn-borrar-tarea" id="bjBorrar" style="margin-top:18px">🗑 Borrar el bloc de este aparato</button>` : ''}
     </div>`;
     const r = () => this.pintarAjustes(el);
     const ok = (a, b) => !a ? 'Escribe la contraseña' : a.length < 4 ? 'Pon al menos 4 caracteres' : a !== b ? 'Las dos contraseñas no son iguales' : '';
@@ -402,7 +402,7 @@ const Bloc = {
       if(!v) return;
       this.sal = crypto.getRandomValues(new Uint8Array(16)); this.clave = await this.derivar(v[0], this.sal); this.datos = this.nuevo();
       await this.guardar(); this.clave = null; this.datos = null; this.sal = null;
-      toast('🔒 Bloc creado. Ábrelo desde el calendario (📒)'); r();
+      toast('🔒 Bloc creado. Ábrelo desde la portada, en «Notas secretas»'); r();
     };
     if($('#bjCambiar', el)) $('#bjCambiar', el).onclick = async () => {
       const paq = JSON.parse(await this.leerPaq()); let datos = null;
@@ -417,8 +417,12 @@ const Bloc = {
       if(!abierto){ this.clave = null; this.datos = null; this.sal = null; }
       toast('🔑 Contraseña cambiada');
     };
-    if($('#bjExp', el)) $('#bjExp', el).onclick = async () => { descargar(new Blob([await this.leerPaq()], { type:'application/json' }), 'bloc-porhacer-' + iso(new Date()) + '.json'); toast('💾 Copia guardada (va cifrada)'); };
-    $('#bjImp', el).onclick = () => this.importar();
+    $('#bjExp', el).onclick = async () => {
+      if(this.clave){ this.leerHoja && this.leerHoja(); await this.guardar(); }     // si está abierto, primero se guarda lo último
+      const v = await this.leerPaq();
+      if(!v){ popAviso('Exportar', 'Todavía no hay notas secretas en este aparato, así que no hay nada que copiar.'); return; }
+      descargar(new Blob([v], { type:'application/json' }), 'bloc-porhacer-' + iso(new Date()) + '.json'); toast('💾 Copia guardada (va cifrada con tu contraseña)'); };
+    $('#bjImp', el).onclick = async () => { await this.importar(); r(); };
     if($('#bjBorrar', el)) $('#bjBorrar', el).onclick = async () => {
       if(!await popConfirmar('¿Borrar el bloc?', 'Se borrarán todas las hojas de este aparato. Si no tienes una copia exportada, no se podrán recuperar.', 'Borrar')) return;
       const v = await popup({ tit:'¿Seguro del todo?', html:'<p>Esto no se puede deshacer.</p>', botones:[{ txt:'No', val:false }, { txt:'Sí, borrar', cls:'btn-borrar', val:true }] });
