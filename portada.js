@@ -48,6 +48,13 @@ const Portada = {
     return s + (n ? ', ' + n : '') + ' ' + (h < 6 ? '🌙' : h < 13 ? '☀️' : h < 20 ? '🌤️' : '🌙');
   },
   // lo que se ve en pequeño en cada baldosa
+  // Si no pones http:// o https://, mira si la web funciona con https (segura); si no, usa http
+  async arreglar(u){
+    u = String(u || '').trim(); if(!u || /^[a-z]+:\/\//i.test(u)) return u;
+    const prueba = url => Promise.race([fetch(url, { mode:'no-cors', cache:'no-store' }).then(() => true, () => false), new Promise(r => setTimeout(() => r(false), 4000))]);
+    if(await prueba('https://' + u)) return 'https://' + u;
+    return 'http://' + u;          // no responde con https: es una web sin conexión segura
+  },
   info(k){
     const hoy = hoyIso(), pl = (n, a, b) => n + ' ' + (n === 1 ? a : b);
     try{
@@ -240,7 +247,7 @@ const Calc = {
     this._carga = new Promise(ok => {
       const f = $('#calcFrame');
       f.addEventListener('load', () => setTimeout(() => ok(this.win()), 60), { once:true });
-      f.src = 'calculadora.html?v=129';
+      f.src = 'calculadora.html?v=130';
     });
     return this._carga;
   },
@@ -508,6 +515,13 @@ const Webs = {
   poner(k, w){ lsSet('ph3-' + k, JSON.stringify(w)); },
   nombre(k){ return (this.de(k).nombre || '').trim() || (k === 'web1' ? 'Personal' : 'Personal 2'); },
   url(k){ let u = (this.de(k).url || '').trim(); if(u && !/^[a-z]+:\/\//i.test(u)) u = 'https://' + u; return u; },
+  // Si no pones http:// o https://, mira si la web funciona con https (segura); si no, usa http
+  async arreglar(u){
+    u = String(u || '').trim(); if(!u || /^[a-z]+:\/\//i.test(u)) return u;
+    const prueba = url => Promise.race([fetch(url, { mode:'no-cors', cache:'no-store' }).then(() => true, () => false), new Promise(r => setTimeout(() => r(false), 4000))]);
+    if(await prueba('https://' + u)) return 'https://' + u;
+    return 'http://' + u;          // no responde con https: es una web sin conexión segura
+  },
   info(k){ const u = this.url(k); if(!u) return 'Toca para configurarla'; try{ return new URL(u).hostname.replace(/^www\./, ''); }catch(e){ return u; } },
   copiar(t){
     try{ if(navigator.clipboard && window.isSecureContext){ navigator.clipboard.writeText(t).catch(() => {}); return; } }catch(e){}
@@ -516,7 +530,7 @@ const Webs = {
   },
   abrir(k){
     const w = this.de(k), u = this.url(k);
-    if(!u){ toast('🌐 Pon primero la dirección de la web'); Ajustes.abrir('general'); setTimeout(() => { const e = $('#webCfg'); e && e.scrollIntoView({ block:'start', behavior:'smooth' }); }, 350); return; }
+    if(!u){ toast('🌐 Pon primero la dirección de la web'); Ajustes.abrir('webs'); return; }
     // la contraseña se copia (para pegarla al entrar) y se abre la web, todo con el mismo toque
     if(w.clave) this.copiar(w.clave);
     const v = window.open(u, '_blank'); try{ if(v) v.opener = null; }catch(e){}

@@ -1,12 +1,12 @@
 // PorHacer3 · service worker: la app funciona sin conexión
-const CACHE = 'porhacer3-v129';
+const CACHE = 'porhacer3-v130';
 const ARCHIVOS = [
-  './', './index.html', './manifest.json', './estilos.css?v=129', './estilos3.css?v=129',
-  './iconos.js?v=129', './iconos-home.js?v=129', './mio.js?v=129', './agenda.js?v=129', './tickets.js?v=129', './sitios.js?v=129', './grabar.js?v=129', './portada.js?v=129', './temas.js?v=129', './db.js?v=129', './firebase-config.js?v=129', './email-config.js?v=129', './nube.js?v=129',
-  './correo.js?v=129', './audio.js?v=129', './fiesta.js?v=129', './avisos.js?v=129', './bloc.js?v=129', './listas.js?v=129', './listas.png', './lame.min.js', './html2canvas.min.js', './jspdf.min.js',
-  './fotos.js?v=129', './videos.js?v=129', './voz.js?v=129', './calendario.js?v=129', './ajustes.js?v=129',
-  './copias.js?v=129', './app.js?v=129',
-  './logo.png', './calculadora.html?v=129', './logo_elibi.jpg', './icon-192.png', './icon-512.png', './apple-touch-icon.png'
+  './', './index.html', './manifest.json', './estilos.css?v=130', './estilos3.css?v=130',
+  './iconos.js?v=130', './iconos-home.js?v=130', './mio.js?v=130', './agenda.js?v=130', './tickets.js?v=130', './sitios.js?v=130', './grabar.js?v=130', './portada.js?v=130', './temas.js?v=130', './db.js?v=130', './firebase-config.js?v=130', './email-config.js?v=130', './nube.js?v=130',
+  './correo.js?v=130', './audio.js?v=130', './fiesta.js?v=130', './avisos.js?v=130', './bloc.js?v=130', './listas.js?v=130', './listas.png', './lame.min.js', './html2canvas.min.js', './jspdf.min.js',
+  './fotos.js?v=130', './videos.js?v=130', './voz.js?v=130', './calendario.js?v=130', './ajustes.js?v=130',
+  './copias.js?v=130', './app.js?v=130',
+  './logo.png', './calculadora.html?v=130', './logo_elibi.jpg', './icon-192.png', './icon-512.png', './apple-touch-icon.png'
 ];
 // Librería de Firebase: también se guarda para poder abrir la app sin internet
 const SDK = ['app','auth','firestore'].map(n => `https://www.gstatic.com/firebasejs/10.14.1/firebase-${n}-compat.js`);

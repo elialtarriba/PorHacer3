@@ -20,7 +20,8 @@ const Ajustes = {
     { k:'sitios',   ico:'sitios',     t:'Sitios',              s:'Colores · el color de cada casa' },
     { k:'calc',     ico:'calculadora',t:'Calculadora',         s:'Temas de la calculadora' },
     { k:'bloc',     ico:'bloc',       t:'Notas secretas',      s:'Contraseña y copia' },
-    { k:'grabar',   ico:'grabar',     t:'Grabar',              s:'Dónde se guardan las notas · colores' }
+    { k:'grabar',   ico:'grabar',     t:'Grabar',              s:'Dónde se guardan las notas · colores' },
+    { k:'webs',     ico:'web',        t:'Webs personales',     s:'Los botones «Personal» · web, usuario y contraseña' }
   ],
   // nombres de antes → página y apartado a abrir
   ANTES: { general:['general'], temas:['tema'], colores:['tema','colores'], tableros:['cuenta'], columnas:['porhacer','columnas'], personas:['porhacer','personas'],
@@ -90,14 +91,6 @@ const Ajustes = {
       + this.acord('colores', '🎨', 'Colores de la portada', 'Ahora: ' + TemaSec.nombre('portada'), TemaSec.rejilla('portada') + '<p class="aj-ayuda">Solo cambia la pantalla de inicio (también con el botón 🎨 de la portada).</p>')
       + this.tarjeta('👁 Botones de la portada', `<div class="gen-po">${[...Portada.SECC.map(s => [s.k, s.ico, s.k.startsWith('web') ? Webs.nombre(s.k) : s.t]), ['bloc', 'bloc', 'Notas secretas']].map(([k, ic, t]) => `<label class="check" style="margin-top:0"><input type="checkbox" data-pover="${k}" ${Portada.ocultos().includes(k) ? '' : 'checked'}><span class="caja"></span><span class="gen-po-t"><i>${icono(ic)}</i>${t}</span></label>`).join('')}</div>`,
           'Quita la marca de los que no uses y desaparecerán de la portada. Vuelve a marcarlos para que salgan otra vez. Lo que tengas guardado no se borra. <b>Configuración</b> siempre se ve.')
-      + `<div id="webCfg"></div>` + this.tarjeta('🌐 Botones «Personal» (tus webs)', ['web1', 'web2'].map(k => { const w = Webs.de(k); return `<div class="web-cfg" data-web="${k}">
-          <div class="web-cab"><span class="web-ic">${icono('web')}</span><b>${esc(Webs.nombre(k))}</b></div>
-          <label class="lbl">Nombre del botón<input data-c="nombre" value="${esc(w.nombre || '')}" placeholder="${k === 'web1' ? 'Personal' : 'Personal 2'}" autocomplete="off"></label>
-          <label class="lbl">Dirección de la web<input data-c="url" type="url" inputmode="url" value="${esc(w.url || '')}" placeholder="Ej.: www.miweb.com" autocomplete="off" autocapitalize="off"></label>
-          <label class="lbl">Usuario (opcional)<input data-c="usuario" value="${esc(w.usuario || '')}" autocomplete="off" autocapitalize="off" spellcheck="false"></label>
-          <label class="lbl">Contraseña (opcional)<span class="web-clave"><input data-c="clave" type="password" value="${esc(w.clave || '')}" autocomplete="new-password"><button type="button" class="web-ojo" data-ojo aria-label="Ver la contraseña">👁</button></span></label>
-          <div class="web-btns"><button class="btn-pri" data-wguardar>💾 Guardar</button><button class="btn-sec" data-wprobar>🌐 Probar</button></div></div>`; }).join(''),
-          'Dos botones para la portada con <b>la web que quieras</b>. Al tocarlos se abre la web y, si has puesto la contraseña, se <b>copia</b> para que solo tengas que pegarla. Todo se guarda <b>solo en este aparato</b> (no va a la nube ni a las copias).')
       + this.tarjeta('↕️ Orden de la portada', '<button class="btn-sec btn-ancho" id="ajOrden">↺ Volver al orden de siempre</button>', 'Para cambiar de sitio un botón de la portada, <b>mantenlo pulsado</b> un momento y <b>arrástralo</b> donde quieras.')
       + this.tarjeta('🎤 Idioma del micrófono', this.seg('ajVoz', [['es-ES','Castellano'],['ca-ES','Català'],['en-GB','English']], a.idiomaVoz),
         'Para dictar en las tareas, la agenda y las notas. Puedes decir «coma», «punto», «punto y aparte», «nueva línea».')
@@ -107,12 +100,6 @@ const Ajustes = {
     const a = App.ajustes;
     $$('[data-ini]', cont).forEach(b => b.onclick = async () => { a.inicio = b.dataset.ini; await this.guardar(); $$('[data-ini]', cont).forEach(x => x.classList.toggle('on', x === b)); toast('🚪 Al abrir: ' + b.textContent.trim()); });
     this.enlazarSeg('ajVoz', async v => { a.idiomaVoz = v; await this.guardar(); });
-    $$('.web-cfg', cont).forEach(f => {
-      const k = f.dataset.web, leer = () => { const w = {}; $$('[data-c]', f).forEach(i => w[i.dataset.c] = i.value.trim()); return w; };
-      $('[data-ojo]', f).onclick = () => { const i = $('[data-c="clave"]', f); i.type = i.type === 'password' ? 'text' : 'password'; };
-      $('[data-wguardar]', f).onclick = () => { Webs.poner(k, leer()); $('.web-cab b', f).textContent = Webs.nombre(k); Portada.pintar(); this.marcarGuardado(); toast('🌐 «' + Webs.nombre(k) + '» guardado'); };
-      $('[data-wprobar]', f).onclick = () => { Webs.poner(k, leer()); Webs.abrir(k); };
-    });
     $$('[data-pover]', cont).forEach(c => c.onchange = async () => {
       const k = c.dataset.pover, s = new Set(Portada.ocultos()); if(c.checked) s.delete(k); else s.add(k);
       a.poOcultos = [...s]; await this.guardar(); Portada.pintar();
@@ -238,6 +225,30 @@ const Ajustes = {
       toast('✅ De HOME: ' + txt.join(' · '), null, null, 6000);
       this.ir('copias', 'mio', true);
     }catch(err){ console.warn(err); popAviso('Copia de HOME', 'No se ha podido pasar: ' + err.message); }
+  },
+
+  /* ---------- WEBS PERSONALES (los botones «Personal» de la portada) ---------- */
+  p_webs(){
+    return this.tarjeta('🌐 Botones «Personal» (tus webs)', ['web1', 'web2'].map(k => { const w = Webs.de(k); return `<div class="web-cfg" data-web="${k}">
+          <div class="web-cab"><span class="web-ic">${icono('web')}</span><b>${esc(Webs.nombre(k))}</b></div>
+          <label class="lbl">Nombre del botón<input data-c="nombre" value="${esc(w.nombre || '')}" placeholder="${k === 'web1' ? 'Personal' : 'Personal 2'}" autocomplete="off"></label>
+          <label class="lbl">Dirección de la web<input data-c="url" type="url" inputmode="url" value="${esc(w.url || '')}" placeholder="Ej.: www.miweb.com o http://…" autocomplete="off" autocapitalize="off"></label>
+          <label class="lbl">Usuario (opcional)<input data-c="usuario" value="${esc(w.usuario || '')}" autocomplete="off" autocapitalize="off" spellcheck="false"></label>
+          <label class="lbl">Contraseña (opcional)<span class="web-clave"><input data-c="clave" type="password" value="${esc(w.clave || '')}" autocomplete="new-password"><button type="button" class="web-ojo" data-ojo aria-label="Ver la contraseña">👁</button></span></label>
+          <div class="web-btns"><button class="btn-pri" data-wguardar>💾 Guardar</button><button class="btn-sec" data-wprobar>🌐 Probar</button></div></div>`; }).join(''),
+          'Dos botones para la portada con <b>la web que quieras</b>. Al tocarlos se abre la web y, si has puesto la contraseña, se <b>copia</b> para que solo tengas que pegarla. Todo se guarda <b>solo en este aparato</b> (no va a la nube ni a las copias).');
+  },
+  e_webs(cont){
+    $$('.web-cfg', cont).forEach(f => {
+      const k = f.dataset.web, leer = () => { const w = {}; $$('[data-c]', f).forEach(i => w[i.dataset.c] = i.value.trim()); return w; };
+      $('[data-ojo]', f).onclick = () => { const i = $('[data-c="clave"]', f); i.type = i.type === 'password' ? 'text' : 'password'; };
+      $('[data-wguardar]', f).onclick = async () => { const w = leer(); toast('🌐 Comprobando la web…', null, null, 4000);
+        w.url = await Webs.arreglar(w.url); $('[data-c="url"]', f).value = w.url; Webs.poner(k, w); $('.web-cab b', f).textContent = Webs.nombre(k); Portada.pintar(); this.marcarGuardado();
+        toast('🌐 «' + Webs.nombre(k) + '» guardado' + (w.url.startsWith('http://') ? ' · esta web no es segura (http)' : '')); };
+      $('[data-wprobar]', f).onclick = () => { const w = leer(), antes = Webs.de(k);
+        if(antes.url && antes.url.replace(/^https?:\/\//, '') === w.url.replace(/^https?:\/\//, '')) w.url = antes.url;   // la que ya se comprobó al guardar
+        Webs.poner(k, w); Webs.abrir(k); };
+    });
   },
 
   /* ---------- PORHACER (TAREAS) ---------- */

@@ -393,3 +393,13 @@ Probó la V3 con su marido (rbielsa@gmail.com). Ella le había puesto en Persona
 - Límite: ninguna app web puede escribir el usuario y la contraseña dentro de otra web (seguridad de los navegadores). Para entrar sin escribir nada: la primera vez, que Safari/Chrome guarde la contraseña (Llavero de iCloud); después la rellena solo.
 - Usuario y contraseña se guardan solo en este aparato (no van a la nube ni a las copias).
 - Archivos para GitHub: portada.js, ajustes.js, iconos.js, estilos3.css, app.js, index.html, sw.js (caché porhacer3-v129).
+
+## V10.20 — 30/10/2026
+- Petición (capturas): la configuración de las webs 1 y 2 debería estar debajo de Grabar en Configuración. El segundo botón dice «Esta conexión no es segura» y, al Continuar, se queda en blanco.
+- Hecho: nueva página «Webs personales» en Configuración (después de Grabar). Si la dirección se escribe sin http/https, al Guardar se comprueba si la web funciona con https; si no, se guarda con http:// (y avisa). Se puede escribir la dirección tal cual con http:// o https://.
+- La pantalla «no es segura» la pone el iPhone con las webs http (sin candado): no se puede quitar desde la app. Si después de Continuar queda en blanco, puede ser la propia web (p. ej. una dirección de casa/del cole que solo va con su wifi, o una web que no se deja abrir en una ventana). Pendiente: saber qué dirección es para mirarlo.
+- Archivos para GitHub: ajustes.js, portada.js, app.js, index.html, sw.js (caché porhacer3-v130).
+
+## Aviso de GitHub «Possible valid secrets detected» — 30/10/2026
+- Pregunta: email de GitHub sobre una «Google API Key» en firebase-config.js. ¿Qué es y qué hago?
+- Respuesta: es la clave web de Firebase; no es una contraseña y tiene que estar en la app para que funcione (lo que protege los datos son las reglas de Firestore, que solo dejan ver lo de cada usuario). No hace falta cambiarla. Recomendado: 1) limitar la clave en Google Cloud a las webs de github.io (y localhost); 2) comprobar que en Firebase → Firestore → Reglas están publicadas las reglas de firestore.rules; 3) cerrar el aviso en GitHub (Security → Secret scanning → Close as «Won’t fix» / «False positive»). Sin cambios en la app.
