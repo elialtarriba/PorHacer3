@@ -403,3 +403,14 @@ Probó la V3 con su marido (rbielsa@gmail.com). Ella le había puesto en Persona
 ## Aviso de GitHub «Possible valid secrets detected» — 30/10/2026
 - Pregunta: email de GitHub sobre una «Google API Key» en firebase-config.js. ¿Qué es y qué hago?
 - Respuesta: es la clave web de Firebase; no es una contraseña y tiene que estar en la app para que funcione (lo que protege los datos son las reglas de Firestore, que solo dejan ver lo de cada usuario). No hace falta cambiarla. Recomendado: 1) limitar la clave en Google Cloud a las webs de github.io (y localhost); 2) comprobar que en Firebase → Firestore → Reglas están publicadas las reglas de firestore.rules; 3) cerrar el aviso en GitHub (Security → Secret scanning → Close as «Won’t fix» / «False positive»). Sin cambios en la app.
+- 30/10/2026: hecho. La «Browser key» de Firebase ya está limitada a sitios web (elialtarriba.github.io, porhacer-36f11.firebaseapp.com, porhacer-36f11.web.app, localhost) + 25 API. Falta: comprobar que las apps siguen funcionando y cerrar el aviso de GitHub.
+- 30/10/2026: con la clave limitada, PorHacer3 funciona en el móvil y en Chrome del Mac (nube en verde). En Firefox del Mac sale «Sin conectar». Restricción de Google Cloud se queda como está. Pendiente: probar a desactivar la protección contra rastreo (escudo) de Firefox para la web o mirar la consola de Firefox.
+- 30/10/2026: Firefox arreglado: en Ajustes → Privacidad → Cookies y datos del sitio → Excepciones, añadir https://elialtarriba.github.io como «Permitir» (no «en esta sesión»).
+- 30/10/2026: aviso de GitHub cerrado («Won’t fix»). Tema de la clave terminado.
+
+## V10.21 — Botón Manual — 30/10/2026
+- Petición: un botón nuevo en la portada que abra el manual actualizado.
+- Hecho: botón «Manual» (icono libro con marcapáginas rojo) que abre manual.pdf (en la carpeta de la app). Manual actualizado a V10.20: 20 capítulos y 70 páginas, con capítulos nuevos «Reunión de Teams» y «Webs personales», el año a pantalla completa, grabar tocando el reloj, esconder botones, botones de la tarea que se hacen al guardar, Sitios (otra casa, convertir en casa, colores en fila, pasar de HOME), etc. Más ligero (7 MB). La copia también está en Manual/ (PDF y Word).
+- El PDF no se guarda en la app (sw.js) para que siempre se vea el último que se suba.
+- Para actualizar el manual en el futuro: sustituir manual.pdf y subirlo a GitHub.
+- Archivos para GitHub: portada.js, iconos.js, sw.js, app.js, index.html y manual.pdf (caché porhacer3-v131). No subir la carpeta Manual/ (no hace falta).

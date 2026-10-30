@@ -28,6 +28,14 @@ const ICO = {
     <path d="M50.5 50.5l8 8M55 55l-3 3M58.5 58.5l-2.6 2.6" stroke="var(--accent)" stroke-width="4" stroke-linecap="round"/>
   </svg>`,
 
+  // Manual: libro abierto con un marcapáginas rojo
+  manual: `<svg viewBox="0 0 64 64" aria-hidden="true">
+    <path d="M32 16c-6-5-15-6-24-4v38c9-2 18-1 24 4 6-5 15-6 24-4V12c-9-2-18-1-24 4z" fill="#fff" stroke="var(--dark)" stroke-width="4.5" stroke-linejoin="round"/>
+    <path d="M32 16v38" stroke="var(--dark)" stroke-width="4"/>
+    <g stroke="var(--dark)" stroke-width="3" stroke-linecap="round" opacity=".55"><path d="M14 22h11M14 29h11M14 36h9M39 22h11M39 29h11M39 36h8"/></g>
+    <path d="M42 11v19l4.5-3.4 4.5 3.4V11" fill="var(--accent)" stroke="var(--dark)" stroke-width="2.6" stroke-linejoin="round"/>
+  </svg>`,
+
   // Copia de seguridad: caja con flecha roja
   copia: `<svg viewBox="0 0 64 64" aria-hidden="true">
     <path d="M10 30h44v20a6 6 0 0 1-6 6H16a6 6 0 0 1-6-6z" fill="#fff" stroke="var(--dark)" stroke-width="4.5" stroke-linejoin="round"/>

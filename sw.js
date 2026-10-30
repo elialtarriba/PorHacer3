@@ -1,12 +1,12 @@
 // PorHacer3 · service worker: la app funciona sin conexión
-const CACHE = 'porhacer3-v130';
+const CACHE = 'porhacer3-v131';
 const ARCHIVOS = [
-  './', './index.html', './manifest.json', './estilos.css?v=130', './estilos3.css?v=130',
-  './iconos.js?v=130', './iconos-home.js?v=130', './mio.js?v=130', './agenda.js?v=130', './tickets.js?v=130', './sitios.js?v=130', './grabar.js?v=130', './portada.js?v=130', './temas.js?v=130', './db.js?v=130', './firebase-config.js?v=130', './email-config.js?v=130', './nube.js?v=130',
-  './correo.js?v=130', './audio.js?v=130', './fiesta.js?v=130', './avisos.js?v=130', './bloc.js?v=130', './listas.js?v=130', './listas.png', './lame.min.js', './html2canvas.min.js', './jspdf.min.js',
-  './fotos.js?v=130', './videos.js?v=130', './voz.js?v=130', './calendario.js?v=130', './ajustes.js?v=130',
-  './copias.js?v=130', './app.js?v=130',
-  './logo.png', './calculadora.html?v=130', './logo_elibi.jpg', './icon-192.png', './icon-512.png', './apple-touch-icon.png'
+  './', './index.html', './manifest.json', './estilos.css?v=131', './estilos3.css?v=131',
+  './iconos.js?v=131', './iconos-home.js?v=131', './mio.js?v=131', './agenda.js?v=131', './tickets.js?v=131', './sitios.js?v=131', './grabar.js?v=131', './portada.js?v=131', './temas.js?v=131', './db.js?v=131', './firebase-config.js?v=131', './email-config.js?v=131', './nube.js?v=131',
+  './correo.js?v=131', './audio.js?v=131', './fiesta.js?v=131', './avisos.js?v=131', './bloc.js?v=131', './listas.js?v=131', './listas.png', './lame.min.js', './html2canvas.min.js', './jspdf.min.js',
+  './fotos.js?v=131', './videos.js?v=131', './voz.js?v=131', './calendario.js?v=131', './ajustes.js?v=131',
+  './copias.js?v=131', './app.js?v=131',
+  './logo.png', './calculadora.html?v=131', './logo_elibi.jpg', './icon-192.png', './icon-512.png', './apple-touch-icon.png'
 ];
 // Librería de Firebase: también se guarda para poder abrir la app sin internet
 const SDK = ['app','auth','firestore'].map(n => `https://www.gstatic.com/firebasejs/10.14.1/firebase-${n}-compat.js`);
@@ -30,6 +30,7 @@ self.addEventListener('fetch', e => {
     return;
   }
   if(new URL(req.url).origin !== location.origin) return;
+  if(/\.pdf$/i.test(new URL(req.url).pathname)) return;      // el manual (PDF): directo de internet, sin guardarlo
   // Archivos de la app: primero internet (versión nueva); si no hay o tarda, lo guardado
   e.respondWith(new Promise(ok => {
     let hecho = false;

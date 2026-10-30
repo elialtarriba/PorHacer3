@@ -40,7 +40,8 @@ const Portada = {
     { k:'grabar',  t:'Grabar',      ico:'grabar',      c:'var(--accent)' },
     { k:'teams',   t:'Reunión de Teams', ico:'teams',    c:'var(--dark)' },
     { k:'web1',    t:'Personal',   ico:'web',        c:'var(--accent)' },
-    { k:'web2',    t:'Personal 2', ico:'web',        c:'var(--dark)' }
+    { k:'web2',    t:'Personal 2', ico:'web',        c:'var(--dark)' },
+    { k:'manual',  t:'Manual',     ico:'manual',     c:'var(--accent)' }
   ],
   saludo(){
     const h = new Date().getHours(), n = (typeof Nube !== 'undefined' && Nube.perfil && Nube.perfil.nombre) || '';
@@ -71,6 +72,7 @@ const Portada = {
       if(k === 'calc') return 'Cuentas, % e IVA';
       if(k === 'teams') return Teams.proxima();
       if(k === 'web1' || k === 'web2') return Webs.info(k);
+      if(k === 'manual') return 'Cómo funciona todo';
       if(k === 'grabar'){ const n = Grabar.lista.length; return n ? pl(n, 'nota de voz', 'notas de voz') : 'Notas de voz'; }
       if(k === 'sitios'){ const s = Mio.todos('sitios'), casas = s.filter(x => x.tipo === 'casa').length, cosas = s.reduce((n, x) => n + Object.keys(x.cosas || {}).length, 0);
         return casas ? pl(casas, 'casa', 'casas') + ' · ' + pl(cosas, 'cosa', 'cosas') : 'Empieza por tu casa'; }
@@ -131,7 +133,7 @@ const Portada = {
       </button>`)(this.SECC.find(x => x.k === k));
     g.innerHTML = this.orden().map(baldosa).join('');
     $('#poCajaSitio').innerHTML = '';
-    $$('#vPortada [data-ir]').forEach(b => b.onclick = e => { if(Date.now() - (this._soltado || 0) < 600) return; if(b.dataset.ir === 'teams') Teams.nueva(); else if(b.dataset.ir.startsWith('web')) Webs.abrir(b.dataset.ir); else this.entrarEn(b.dataset.ir, b); });
+    $$('#vPortada [data-ir]').forEach(b => b.onclick = e => { if(Date.now() - (this._soltado || 0) < 600) return; if(b.dataset.ir === 'teams') Teams.nueva(); else if(b.dataset.ir.startsWith('web')) Webs.abrir(b.dataset.ir); else if(b.dataset.ir === 'manual') abrirManual(); else this.entrarEn(b.dataset.ir, b); });
     $('#vPortada [data-conf]').onclick = e => { if(Date.now() - (this._soltado || 0) < 600) return; const b = e.currentTarget; b.classList.add('girando'); setTimeout(() => { b.classList.remove('girando'); Ajustes.abrir(); }, 420); };
     const bc = $('#vPortada [data-bloc]'); if(bc) bc.onclick = () => { if(Date.now() - (this._soltado || 0) < 600) return; this.abrirCaja(bc); };
     if(entrar){ const v = $('#vPortada'); v.classList.remove('entra'); void v.offsetWidth; v.classList.add('entra'); }
@@ -247,7 +249,7 @@ const Calc = {
     this._carga = new Promise(ok => {
       const f = $('#calcFrame');
       f.addEventListener('load', () => setTimeout(() => ok(this.win()), 60), { once:true });
-      f.src = 'calculadora.html?v=130';
+      f.src = 'calculadora.html?v=131';
     });
     return this._carga;
   },
@@ -538,3 +540,10 @@ const Webs = {
     if(!v) location.href = u;
   }
 };
+
+/* ---------- Manual: el PDF de la carpeta de la app (siempre el último que se ha subido) ---------- */
+function abrirManual(){
+  const u = 'manual.pdf?v=' + encodeURIComponent(VERSION) + '-' + new Date().toISOString().slice(0, 10);
+  toast('📖 Abriendo el manual…', null, null, 2500);
+  const v = window.open(u, '_blank'); if(!v) location.href = u;
+}
