@@ -92,6 +92,8 @@ const Portada = {
         </svg>
       </div>`;
     this.reloj();
+    const pd = $('#poHoy .po-dia'); if(pd){ pd.setAttribute('role', 'button'); pd.title = 'Ver el año de la agenda'; pd.onclick = () => AnioPO.abrir(); }
+    const rl = $('#poHoy .po-reloj'); if(rl){ rl.setAttribute('role', 'button'); rl.title = 'Toca para grabar una nota de voz'; rl.onclick = () => this.grabarYa(); }
     const g = $('#poRejilla');
     const dial = `<svg viewBox="0 0 100 100" aria-hidden="true" class="po-dialito">
           <circle cx="50" cy="50" r="46" class="d-aro"/>
@@ -130,6 +132,12 @@ const Portada = {
     return o;
   },
   ordenDeSiempre(){ lsSet('ph3-po-orden', null); this.pintar(); },
+  // Tocar el reloj: va a Grabar y empieza a grabar enseguida
+  grabarYa(){
+    if(typeof Grabar === 'undefined') return;
+    irA('grabar');
+    if(!Grabar.rec){ Grabar.pulsar(); toast('🎙 Grabando… pulsa «Parar» cuando acabes'); }
+  },
   iniciarMover(){
     const g = $('#poRejilla'), sc = $('.po-scroll'); let D = null, raf = null;
     const levantar = () => {
@@ -223,7 +231,7 @@ const Calc = {
     this._carga = new Promise(ok => {
       const f = $('#calcFrame');
       f.addEventListener('load', () => setTimeout(() => ok(this.win()), 60), { once:true });
-      f.src = 'calculadora.html?v=112';
+      f.src = 'calculadora.html?v=113';
     });
     return this._carga;
   },
@@ -294,5 +302,67 @@ const TemaSec = {
     this.enlazar(p, sec);
     p.querySelector('[data-x]').onclick = () => cerrarPopMio();
     p.querySelector('[data-toda]').onclick = () => { cerrarPopMio(); Ajustes.abrir('temas'); };
+  }
+};
+
+/* ---------- El año de la agenda a pantalla completa (tocando la fecha de la portada) ----------
+   Toca un día para abrirlo en la Agenda. Dos toques seguidos (o la ✕) lo cierran.
+   Deslizando de lado se pasa de año con la hoja que se dobla, como en la Agenda. */
+const AnioPO = {
+  y: new Date().getFullYear(),
+  abierto(){ return !!$('#poAnio'); },
+  abrir(){
+    if(this.abierto()) return;
+    this.y = new Date().getFullYear();
+    const v = document.createElement('div'); v.id = 'poAnio'; v.className = 'po-anio';
+    v.innerHTML = `<div class="pa-top"><button class="flecha" data-mv="-1" aria-label="Año anterior">‹</button><div class="pa-tit" id="paTit"></div><button class="flecha" data-mv="1" aria-label="Año siguiente">›</button><button class="pa-x" data-x aria-label="Cerrar">✕</button></div>
+      <div class="pa-cuerpo" id="paCuerpo"></div><div class="pa-ayuda">Toca un día para abrirlo · desliza para cambiar de año · dos toques para cerrar</div>`;
+    document.body.appendChild(v);
+    this.pintar();
+    requestAnimationFrame(() => v.classList.add('pa-ver'));
+    let ult = 0, tm = null, tu = 0, tx = 0, ty = 0, sx = 0, sy = 0;
+    // dos toques con el dedo (en el iPhone el 2.º toque fuera de un botón no llega como «click»)
+    v.addEventListener('touchstart', e => { const t = e.touches[0]; if(t){ sx = t.clientX; sy = t.clientY; } }, { passive:true });
+    v.addEventListener('touchend', e => { const t = e.changedTouches[0], n = Date.now(); if(!t || e.target.closest('.pa-top')) return;
+      if(Math.hypot(t.clientX - sx, t.clientY - sy) > 10){ tu = 0; return; }
+      if(n - tu < 360 && Math.hypot(t.clientX - tx, t.clientY - ty) < 40){ clearTimeout(tm); tu = 0; ult = 0; if(e.cancelable) e.preventDefault(); this.cerrar(); return; }
+      tu = n; tx = t.clientX; ty = t.clientY; }, { passive:false });
+    v.addEventListener('dblclick', e => { if(!e.target.closest('.pa-top')){ clearTimeout(tm); this.cerrar(); } });
+    v.addEventListener('click', e => {
+      const b = e.target.closest('button');
+      if(b && 'x' in b.dataset){ this.cerrar(); return; }
+      if(b && b.dataset.mv){ this.pasar(+b.dataset.mv); return; }
+      if(Date.now() - (this._desliz || 0) < 400) return;
+      const ahora = Date.now();
+      if(ahora - ult < 360){ clearTimeout(tm); ult = 0; this.cerrar(); return; }
+      ult = ahora;
+      const d = e.target.closest('[data-k]'), m = e.target.closest('[data-mes]');
+      clearTimeout(tm);
+      if(d || m) tm = setTimeout(() => { this.cerrar(); irA('agenda');
+        if(d){ Agenda.ponerModo('dia'); Agenda.irDia(d.dataset.k); }
+        else { Agenda.mes = new Date(this.y, +m.dataset.mes, 1); Agenda.ponerModo('mes'); } }, 380);
+    });
+    deslizarPaginas($('#paCuerpo'), { puede: () => true, cont: () => $('#paCuerpo .pa-hoja'),
+      fondo: () => { const k = $('#paCuerpo .pa-hoja'); return k ? getComputedStyle(k).backgroundColor : '#fff'; },
+      cambio: dir => { this._desliz = Date.now(); this.y += dir; this.pintar(); } });
+    this._tecla = e => { if(e.key === 'Escape') this.cerrar(); else if(e.key === 'ArrowRight') this.pasar(1); else if(e.key === 'ArrowLeft') this.pasar(-1); };
+    addEventListener('keydown', this._tecla);
+  },
+  pintar(){
+    const c = $('#paCuerpo'); if(!c) return;
+    const hoy = new Date();
+    $('#paTit').innerHTML = `Año ${this.y}${this.y === hoy.getFullYear() ? '<small>Hoy, ' + hoy.getDate() + ' de ' + MESES[hoy.getMonth()] + '</small>' : ''}`;
+    c.innerHTML = `<div class="pa-hoja"><div class="ag-anio pa-meses">${MESES_C.map((n, m) => `<div class="ag-mini ${this.y === hoy.getFullYear() && m === hoy.getMonth() ? 'ahora' : ''}"><button class="ag-mini-t" data-mes="${m}">${n}</button>${Agenda.rejilla(this.y, m, true)}</div>`).join('')}</div></div>`;
+  },
+  pasar(dir){
+    const h = $('#paCuerpo .pa-hoja');
+    if(!h || matchMedia('(prefers-reduced-motion: reduce)').matches){ this.y += dir; this.pintar(); return; }
+    const ctx = paginaEmpieza(h, dir, d => { this.y += d; this.pintar(); }, getComputedStyle(h).backgroundColor);
+    if(ctx) paginaA(ctx, 1, 760);
+  },
+  cerrar(){
+    const v = $('#poAnio'); if(!v) return;
+    removeEventListener('keydown', this._tecla);
+    v.classList.remove('pa-ver'); setTimeout(() => v.remove(), 220);
   }
 };

@@ -659,3 +659,35 @@
 .po-der{display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex:none}
 .po-tema-b{width:42px;height:42px;border-radius:13px}
 .po-tema-b svg{width:28px;height:28px}
+
+/* ===== V10.3 · Año de la agenda a pantalla completa (desde la fecha de la portada) y reloj que graba ===== */
+.po-dia,.po-reloj{cursor:pointer;-webkit-tap-highlight-color:transparent}
+.po-dia:active,.po-reloj:active{transform:scale(.95)}
+.po-anio{position:fixed;inset:0;z-index:900;background:linear-gradient(180deg,var(--bg),var(--bg2,var(--bg)));display:flex;flex-direction:column;
+  padding:calc(10px + var(--safeT,env(safe-area-inset-top))) 10px calc(8px + var(--safeB,env(safe-area-inset-bottom)));opacity:0;transform:scale(.97);transition:opacity .2s,transform .2s;touch-action:pan-y}
+.po-anio.pa-ver{opacity:1;transform:none}
+.pa-top{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.pa-tit{flex:1;text-align:center;font-size:clamp(22px,6.4vw,30px);font-weight:900;color:var(--dark);letter-spacing:-.5px;line-height:1.05}
+.pa-tit small{display:block;font-size:12.5px;font-weight:800;color:var(--ink2);letter-spacing:0;margin-top:2px}
+.pa-x{width:40px;height:40px;border-radius:50%;flex:none;background:var(--card);border:1px solid var(--line);color:var(--dark);font-size:17px;font-weight:900;box-shadow:0 3px 0 color-mix(in srgb,var(--dark) 10%,transparent)}
+.pa-cuerpo{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;position:relative}
+.pa-hoja{background:var(--card);border-radius:24px;border:1px solid var(--line);padding:10px 8px;min-height:100%;box-shadow:0 6px 0 color-mix(in srgb,var(--dark) 8%,transparent),0 14px 30px var(--sombra)}
+.pa-meses{grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}
+@media (min-width:700px){.pa-meses{grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}}
+@media (min-width:1100px){.pa-meses{grid-template-columns:repeat(6,minmax(0,1fr))}}
+.pa-meses .ag-mini{padding:5px 4px 6px;border-radius:12px}
+.pa-meses .ag-mini-t{font-size:12.5px;padding-left:2px;margin-bottom:2px}
+.pa-meses .ag-sem span{font-size:8px}
+.pa-meses .ag-rej,.pa-meses .ag-sem{gap:1.5px}
+.pa-meses .ag-n{font-size:9px}
+.pa-meses .ag-d.hoy{box-shadow:0 0 0 1.5px var(--accent)}
+.pa-ayuda{text-align:center;font-size:11.5px;font-weight:700;color:var(--ink2);padding-top:7px}
+/* el año ocupa toda la pantalla */
+.pa-hoja{height:100%;display:flex}
+.pa-meses{flex:1;grid-auto-rows:1fr;min-height:430px}
+.pa-meses .ag-mini{display:flex;flex-direction:column;min-height:0}
+.pa-meses .ag-rej{flex:1;grid-auto-rows:1fr}
+.pa-meses .ag-d{aspect-ratio:auto;min-height:0}
+.pa-meses .ag-n{font-size:10.5px}
+.pa-meses .ag-sem span{font-size:8.5px}
+@media (min-width:700px){.pa-meses .ag-n{font-size:13px}.pa-meses .ag-mini-t{font-size:15px}}
