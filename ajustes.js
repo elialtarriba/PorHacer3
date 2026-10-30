@@ -88,6 +88,8 @@ const Ajustes = {
     const ops = [['portada','portada','Portada'],['tareas','tablero','Tareas'],['cal','calendario','Calendario Tareas'],['listas','listas','Listas'],['agenda','agenda','Agenda'],['tickets','tickets','Tickets'],['sitios','sitios','Sitios'],['calc','calculadora','Calculadora'],['grabar','grabar','Grabar']];
     return this.tarjeta('🚪 Al abrir la app, ver…', `<div class="gen-inicio">${ops.map(([k, ic, t]) => `<button data-ini="${k}" class="${k === ini ? 'on' : ''}"><span>${icono(ic)}</span>${t}</button>`).join('')}</div>`, 'Lo primero que se ve al entrar en la app, en este aparato.')
       + this.acord('colores', '🎨', 'Colores de la portada', 'Ahora: ' + TemaSec.nombre('portada'), TemaSec.rejilla('portada') + '<p class="aj-ayuda">Solo cambia la pantalla de inicio (también con el botón 🎨 de la portada).</p>')
+      + this.tarjeta('👁 Botones de la portada', `<div class="gen-po">${[...Portada.SECC.map(s => [s.k, s.ico, s.t]), ['bloc', 'bloc', 'Notas secretas']].map(([k, ic, t]) => `<label class="check" style="margin-top:0"><input type="checkbox" data-pover="${k}" ${Portada.ocultos().includes(k) ? '' : 'checked'}><span class="caja"></span><span class="gen-po-t"><i>${icono(ic)}</i>${t}</span></label>`).join('')}</div>`,
+          'Quita la marca de los que no uses y desaparecerán de la portada. Vuelve a marcarlos para que salgan otra vez. Lo que tengas guardado no se borra. <b>Configuración</b> siempre se ve.')
       + this.tarjeta('↕️ Orden de la portada', '<button class="btn-sec btn-ancho" id="ajOrden">↺ Volver al orden de siempre</button>', 'Para cambiar de sitio un botón de la portada, <b>mantenlo pulsado</b> un momento y <b>arrástralo</b> donde quieras.')
       + this.tarjeta('🎤 Idioma del micrófono', this.seg('ajVoz', [['es-ES','Castellano'],['ca-ES','Català'],['en-GB','English']], a.idiomaVoz),
         'Para dictar en las tareas, la agenda y las notas. Puedes decir «coma», «punto», «punto y aparte», «nueva línea».')
@@ -97,6 +99,10 @@ const Ajustes = {
     const a = App.ajustes;
     $$('[data-ini]', cont).forEach(b => b.onclick = async () => { a.inicio = b.dataset.ini; await this.guardar(); $$('[data-ini]', cont).forEach(x => x.classList.toggle('on', x === b)); toast('🚪 Al abrir: ' + b.textContent.trim()); });
     this.enlazarSeg('ajVoz', async v => { a.idiomaVoz = v; await this.guardar(); });
+    $$('[data-pover]', cont).forEach(c => c.onchange = async () => {
+      const k = c.dataset.pover, s = new Set(Portada.ocultos()); if(c.checked) s.delete(k); else s.add(k);
+      a.poOcultos = [...s]; await this.guardar(); Portada.pintar();
+      toast((c.checked ? '👁 Se ve: ' : '🙈 Escondido: ') + c.closest('label').textContent.trim()); });
     TemaSec.enlazar(cont, 'portada');
     $('#ajOrden').onclick = () => { Portada.ordenDeSiempre(); toast('↺ La portada vuelve al orden de siempre'); };
     this.enlazarEnlaces(cont);

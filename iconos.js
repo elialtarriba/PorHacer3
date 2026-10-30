@@ -8,6 +8,17 @@ const ICO = {
     <circle cx="32" cy="32" r="8.5" fill="var(--accent)" stroke="var(--dark)" stroke-width="3"/>
   </svg>`,
 
+  // Reunión de Teams: pantalla con dos personas y una cámara de vídeo roja
+  teams: `<svg viewBox="0 0 64 64" aria-hidden="true">
+    <rect x="5" y="9" width="46" height="36" rx="10" fill="#fff" stroke="var(--dark)" stroke-width="4.5"/>
+    <g fill="var(--dark)"><circle cx="20" cy="22" r="5"/><circle cx="36" cy="22" r="5"/></g>
+    <path d="M11.5 38c0-5.5 3.8-8.5 8.5-8.5s8.5 3 8.5 8.5M27.5 38c0-5.5 3.8-8.5 8.5-8.5s8.5 3 8.5 8.5" fill="var(--dark)" opacity=".55"/>
+    <path d="M20 51h16" stroke="var(--dark)" stroke-width="4.5" stroke-linecap="round"/>
+    <rect x="33" y="35" width="21" height="16" rx="5" fill="var(--accent)" stroke="#fff" stroke-width="2.6"/>
+    <path d="M54 39.5l6-3.5v14l-6-3.5z" fill="var(--accent)" stroke="#fff" stroke-width="2.4" stroke-linejoin="round"/>
+    <circle cx="40" cy="43" r="2.6" fill="#fff"/>
+  </svg>`,
+
   // Copia de seguridad: caja con flecha roja
   copia: `<svg viewBox="0 0 64 64" aria-hidden="true">
     <path d="M10 30h44v20a6 6 0 0 1-6 6H16a6 6 0 0 1-6-6z" fill="#fff" stroke="var(--dark)" stroke-width="4.5" stroke-linejoin="round"/>

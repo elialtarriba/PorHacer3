@@ -300,3 +300,20 @@ Probó la V3 con su marido (rbielsa@gmail.com). Ella le había puesto en Persona
 - Petición: «Mi marido dice que para hacer fotos no se puede con Chrome, solo con Safari. ¿Tiene arreglo?»
 - Hecho: en Agenda, Tickets y Sitios la foto de la cámara se perdía en Chrome del iPhone (la app creía que se había cancelado al volver de la cámara). Ahora espera a que llegue la foto. Si aun así no abre la cámara: Ajustes del iPhone → Chrome → Cámara (y Fotos) → permitir.
 - Archivos para GitHub: mio.js, app.js, index.html, portada.js, sw.js (caché porhacer3-v112).
+
+## V10.3 — Año a pantalla completa y reloj que graba — 30/10/2026
+- Petición: tocar la fecha (30 OCT) de la portada abre la agenda con el año actual a pantalla completa; dos toques la esconden y arriba hay un botón de cerrar; deslizar pasa de año con el pliegue de la hoja. Tocar el reloj redondo empieza a grabar una nota de voz (apartado Grabar).
+- Hecho: el año ocupa toda la pantalla (3 columnas en el móvil, 6 en el ordenador), con ‹ › y ✕. Tocar un día abre ese día en la Agenda; tocar el nombre de un mes, ese mes. El reloj va a Grabar y empieza a grabar; «Parar» la guarda.
+- Archivos para GitHub: portada.js, estilos3.css, app.js, index.html, sw.js (caché porhacer3-v113). Si aún no subiste la V10.1/V10.2, sube también mio.js y ajustes.js.
+
+## V10.4 — 30/10/2026
+- Petición: al pasar de año (tocando la fecha) no se veía la hoja que se dobla. → Arreglado: la hoja se dobla por encima del año a pantalla completa (antes quedaba escondida detrás).
+- Petición: «En el ordenador he puesto que se abra con las tareas y se abre con la portada». → «Al abrir la app» se guarda también aparte en el aparato y se lee al empezar. Ojo: en el Mac, la app del Dock y la pestaña del navegador guardan sus ajustes por separado (hay que elegirlo en la que uses). Después de cambiarlo, hay que cerrar la app/pestaña y volver a abrirla.
+- Petición: un botón Guardar en Configuración. → Botón rojo «💾 Guardar» arriba; se pone verde «Guardado» al guardar (también cuando se guarda solo al cambiar algo).
+- Archivos para GitHub: app.js, ajustes.js, index.html, estilos3.css, portada.js, sw.js (caché porhacer3-v114).
+
+## V10.5 — Reunión de Teams y esconder botones — 30/10/2026
+- Petición: botón para poner una reunión en Teams y que se apunte una tarea el día de la reunión; icono de la línea de la app. Y en Configuración → General poder esconder botones de la portada y volver a verlos.
+- Hecho: botón «Reunión de Teams» en la portada (icono gris/blanco/rojo: pantalla con dos personas y cámara roja). Formulario: título, día (Hoy/Mañana/fecha), hora, duración, invitados (emails o personas), notas, apuntar en Tareas y/o Agenda, aviso (sin aviso, a la hora, 10 o 30 min antes). Al pulsar «Crear en Teams» se apunta en PorHacer3 y se abre Teams con la reunión rellenada; allí hay que pulsar Enviar. El botón de la portada dice cuál es la próxima reunión.
+- Configuración → General → «Botones de la portada»: marcar/desmarcar cada botón (Configuración siempre se ve).
+- Archivos para GitHub: iconos.js, portada.js, ajustes.js, estilos3.css, app.js, index.html, sw.js (caché porhacer3-v115).

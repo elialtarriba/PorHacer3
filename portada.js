@@ -37,7 +37,8 @@ const Portada = {
     { k:'tickets', t:'Tickets',    ico:'tickets',    c:'var(--accent)' },
     { k:'sitios',  t:'Sitios',     ico:'sitios',     c:'var(--dark)' },
     { k:'calc',    t:'Calculadora', ico:'calculadora', c:'var(--dark)' },
-    { k:'grabar',  t:'Grabar',      ico:'grabar',      c:'var(--accent)' }
+    { k:'grabar',  t:'Grabar',      ico:'grabar',      c:'var(--accent)' },
+    { k:'teams',   t:'Reunión de Teams', ico:'teams',    c:'var(--dark)' }
   ],
   saludo(){
     const h = new Date().getHours(), n = (typeof Nube !== 'undefined' && Nube.perfil && Nube.perfil.nombre) || '';
@@ -59,6 +60,7 @@ const Portada = {
       if(k === 'tickets'){ const m = hoy.slice(0, 7), ts = Mio.todos('tickets').filter(t => (t.fecha || '').startsWith(m)), tot = ts.reduce((s, t) => s + (t.importe || 0), 0);
         return ts.length ? pl(ts.length, 'ticket', 'tickets') + (tot ? ' · ' + dinero(tot) : '') : 'Ninguno este mes'; }
       if(k === 'calc') return 'Cuentas, % e IVA';
+      if(k === 'teams') return Teams.proxima();
       if(k === 'grabar'){ const n = Grabar.lista.length; return n ? pl(n, 'nota de voz', 'notas de voz') : 'Notas de voz'; }
       if(k === 'sitios'){ const s = Mio.todos('sitios'), casas = s.filter(x => x.tipo === 'casa').length, cosas = s.reduce((n, x) => n + Object.keys(x.cosas || {}).length, 0);
         return casas ? pl(casas, 'casa', 'casas') + ' · ' + pl(cosas, 'cosa', 'cosas') : 'Empieza por tu casa'; }
@@ -119,7 +121,7 @@ const Portada = {
       </button>`)(this.SECC.find(x => x.k === k));
     g.innerHTML = this.orden().map(baldosa).join('');
     $('#poCajaSitio').innerHTML = '';
-    $$('#vPortada [data-ir]').forEach(b => b.onclick = e => { if(Date.now() - (this._soltado || 0) < 600) return; this.entrarEn(b.dataset.ir, b); });
+    $$('#vPortada [data-ir]').forEach(b => b.onclick = e => { if(Date.now() - (this._soltado || 0) < 600) return; if(b.dataset.ir === 'teams') Teams.nueva(); else this.entrarEn(b.dataset.ir, b); });
     $('#vPortada [data-conf]').onclick = e => { if(Date.now() - (this._soltado || 0) < 600) return; const b = e.currentTarget; b.classList.add('girando'); setTimeout(() => { b.classList.remove('girando'); Ajustes.abrir(); }, 420); };
     const bc = $('#vPortada [data-bloc]'); if(bc) bc.onclick = () => { if(Date.now() - (this._soltado || 0) < 600) return; this.abrirCaja(bc); };
     if(entrar){ const v = $('#vPortada'); v.classList.remove('entra'); void v.offsetWidth; v.classList.add('entra'); }
@@ -129,8 +131,10 @@ const Portada = {
     const def = [...this.SECC.map(s => s.k), 'bloc', 'conf'];
     let o = []; try{ o = JSON.parse(lsGet('ph3-po-orden') || '[]'); }catch(e){}
     o = o.filter(k => def.includes(k)); def.forEach(k => { if(!o.includes(k)) o.splice(k === 'conf' ? o.length : k === 'bloc' ? (o.includes('conf') ? o.indexOf('conf') : o.length) : Math.min(o.length, def.indexOf(k)), 0, k); });
-    return o;
+    const ocultos = this.ocultos();
+    return o.filter(k => k === 'conf' || !ocultos.includes(k));
   },
+  ocultos(){ return (App.ajustes && Array.isArray(App.ajustes.poOcultos)) ? App.ajustes.poOcultos : []; },
   ordenDeSiempre(){ lsSet('ph3-po-orden', null); this.pintar(); },
   // Tocar el reloj: va a Grabar y empieza a grabar enseguida
   grabarYa(){
@@ -162,7 +166,9 @@ const Portada = {
     const acabar = () => {
       if(!D) return; clearTimeout(D.t); cancelAnimationFrame(raf); raf = null;
       if(D.on){ D.f.remove(); D.el.classList.remove('po-hueco'); g.classList.remove('ordenando'); this._soltado = Date.now(); this._moviendo = false;
-        lsSet('ph3-po-orden', JSON.stringify([...new Set([...g.children].map(b => b.dataset.k).filter(Boolean))])); toast('↕️ Orden guardado'); }
+        let antes = []; try{ antes = JSON.parse(lsGet('ph3-po-orden') || '[]'); }catch(e){}
+        const vis = [...g.children].map(b => b.dataset.k).filter(Boolean);
+        lsSet('ph3-po-orden', JSON.stringify([...new Set([...vis, ...antes.filter(k => !vis.includes(k))])])); toast('↕️ Orden guardado'); }
       D = null; this._moviendo = false;
     };
     g.addEventListener('touchstart', e => { if(e.touches.length === 1) empezar(e.touches[0].clientX, e.touches[0].clientY, e.target); }, { passive:true });
@@ -231,7 +237,7 @@ const Calc = {
     this._carga = new Promise(ok => {
       const f = $('#calcFrame');
       f.addEventListener('load', () => setTimeout(() => ok(this.win()), 60), { once:true });
-      f.src = 'calculadora.html?v=114';
+      f.src = 'calculadora.html?v=115';
     });
     return this._carga;
   },
@@ -364,5 +370,98 @@ const AnioPO = {
     const v = $('#poAnio'); if(!v) return;
     removeEventListener('keydown', this._tecla);
     v.classList.remove('pa-ver'); setTimeout(() => v.remove(), 220);
+  }
+};
+
+/* ---------- Reunión de Teams ----------
+   Se escribe aquí la reunión: se apunta en Tareas y/o en la Agenda ese día (con aviso)
+   y se abre Teams con la reunión nueva ya rellenada, para enviarla. */
+const Teams = {
+  lista(){ try{ return JSON.parse(lsGet('ph3-teams') || '[]'); }catch(e){ return []; } },
+  proxima(){
+    const ahora = Date.now(), l = this.lista().filter(r => new Date(r.k + 'T' + r.h).getTime() > ahora - 3600000).sort((a, b) => (a.k + a.h) < (b.k + b.h) ? -1 : 1)[0];
+    return l ? 'Próxima: ' + (l.k === hoyIso() ? 'hoy' : fechaCortaB(l.k)) + ' ' + l.h : 'Crea una reunión';
+  },
+  horaSig(){ const d = new Date(Date.now() + 30 * 60000); d.setMinutes(d.getMinutes() < 30 ? 30 : 60, 0, 0); return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); },
+  nueva(dia){
+    let donde = { tarea:true, agenda:true }; try{ donde = Object.assign(donde, JSON.parse(lsGet('ph3-tm-donde') || '{}')); }catch(e){}
+    this.R = { titulo:'', k:dia || hoyIso(), h:this.horaSig(), dur:+(lsGet('ph3-tm-dur') || 30), quien:'', notas:'', aviso:lsGet('ph3-tm-aviso') ?? '10', ...donde };
+    this.pintar(true);
+  },
+  leer(){ const R = this.R; if(!R) return; const v = id => { const e = $('#' + id); return e ? e.value : null; };
+    if(v('tmTit') != null) R.titulo = v('tmTit'); if(v('tmHora')) R.h = v('tmHora'); if(v('tmQuien') != null) R.quien = v('tmQuien'); if(v('tmNotas') != null) R.notas = v('tmNotas'); },
+  pintar(foco){
+    const R = this.R; if(!R) return; this.leer();
+    const man = sumaDias(hoyIso(), 1), chip = (on, attr, t) => `<button class="tm-chip ${on ? 'on' : ''}" ${attr}>${t}</button>`;
+    const pers = (App.personas || []).filter(x => x.email);
+    const p = popMio(`<div class="tm-cab"><span class="tm-ic">${icono('teams')}</span><div><h3 class="mp-h">Reunión de Teams</h3><small>Se apunta aquí y se abre Teams para enviarla</small></div></div>
+      <input class="mp-input" id="tmTit" placeholder="¿De qué es la reunión? Ej.: Claustro, tutoría…" value="${esc(R.titulo)}" autocomplete="off">
+      <div class="tm-et">📅 Día</div>
+      <div class="tm-fila">${chip(R.k === hoyIso(), 'data-dia="' + hoyIso() + '"', 'Hoy')}${chip(R.k === man, 'data-dia="' + man + '"', 'Mañana')}<label class="tm-chip tm-fecha ${R.k !== hoyIso() && R.k !== man ? 'on' : ''}">📅 ${fechaCortaB(R.k)}<input type="date" id="tmDia" value="${R.k}"></label></div>
+      <div class="tm-et">🕐 Hora y duración</div>
+      <div class="tm-fila"><input type="time" class="tm-hora" id="tmHora" value="${R.h}">${[15, 30, 45, 60, 90].map(m => chip(R.dur === m, 'data-dur="' + m + '"', m < 60 ? m + ' min' : m === 60 ? '1 h' : '1 h 30')).join('')}</div>
+      <div class="tm-et">👥 Invitar (opcional)</div>
+      <input class="mp-input" id="tmQuien" type="email" inputmode="email" multiple placeholder="Emails, separados por comas" value="${esc(R.quien)}" autocomplete="off">
+      ${pers.length ? `<div class="tm-fila tm-pers">${pers.map(x => chip((R.quien || '').includes(x.email), 'data-mail="' + esc(x.email) + '"', '＋ ' + esc(x.nombre))).join('')}</div>` : ''}
+      <textarea class="mp-input tm-notas" id="tmNotas" placeholder="Notas o temas a tratar (opcional)">${esc(R.notas)}</textarea>
+      <div class="tm-et">📝 Apuntarla en PorHacer3</div>
+      <div class="tm-fila">${chip(R.tarea, 'data-en="tarea"', (R.tarea ? '✓ ' : '') + '✅ Tareas')}${chip(R.agenda, 'data-en="agenda"', (R.agenda ? '✓ ' : '') + '📒 Agenda')}</div>
+      <div class="tm-et">⏰ Aviso</div>
+      <div class="tm-fila">${[['', 'Sin aviso'], ['0', 'A la hora'], ['10', '10 min antes'], ['30', '30 min antes']].map(([v, t]) => chip(R.aviso === v, 'data-av="' + v + '"', t)).join('')}</div>
+      <div class="mp-fila"><button class="mp-b" data-x>Cancelar</button><button class="mp-b mp-pri tm-crear" data-crear>📹 Crear en Teams</button></div>`, 'tm-pop');
+    p.onclick = e => { const b = e.target.closest('button'); if(!b) return; const d = b.dataset;
+      if(d.dia){ this.leer(); R.k = d.dia; this.pintar(); }
+      else if(d.dur){ this.leer(); R.dur = +d.dur; lsSet('ph3-tm-dur', d.dur); this.pintar(); }
+      else if(d.en){ this.leer(); R[d.en] = !R[d.en]; lsSet('ph3-tm-donde', JSON.stringify({ tarea:R.tarea, agenda:R.agenda })); this.pintar(); }
+      else if(d.av != null && 'av' in d){ this.leer(); R.aviso = d.av; lsSet('ph3-tm-aviso', d.av); this.pintar(); }
+      else if(d.mail){ this.leer(); const l = R.quien.split(/[,;\s]+/).filter(Boolean); R.quien = (l.includes(d.mail) ? l.filter(x => x !== d.mail) : [...l, d.mail]).join(', '); this.pintar(); }
+      else if('crear' in d) this.crear();
+      else if('x' in d){ this.R = null; cerrarPopMio(); } };
+    const di = $('#tmDia'); if(di) di.onchange = () => { if(di.value){ this.leer(); R.k = di.value; this.pintar(); } };
+    if(foco) setTimeout(() => { const t = $('#tmTit'); t && t.focus(); }, 150);
+  },
+  url(R, ini, fin){
+    const off = -ini.getTimezoneOffset(), z = (off >= 0 ? '+' : '-') + String(Math.floor(Math.abs(off) / 60)).padStart(2, '0') + ':' + String(Math.abs(off) % 60).padStart(2, '0');
+    const f = d => iso(d) + 'T' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0') + ':00' + z;
+    const q = [['subject', R.titulo], ['startTime', f(ini)], ['endTime', f(fin)]];
+    const quien = R.quien.split(/[,;\s]+/).filter(x => x.includes('@')); if(quien.length) q.push(['attendees', quien.join(',')]);
+    if(R.notas.trim()) q.push(['content', R.notas.trim()]);
+    return 'https://teams.microsoft.com/l/meeting/new?' + q.map(([k, v]) => k + '=' + encodeURIComponent(v)).join('&');
+  },
+  async crear(){
+    const R = this.R; if(!R) return; this.leer();
+    R.titulo = R.titulo.trim(); if(!R.titulo){ $('#tmTit') && $('#tmTit').focus(); toast('Escribe de qué es la reunión'); return; }
+    if(!/^\d{2}:\d{2}$/.test(R.h)){ toast('Pon la hora'); return; }
+    const ini = new Date(R.k + 'T' + R.h), fin = new Date(ini.getTime() + R.dur * 60000);
+    const hh = d => String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+    // 1) Teams, enseguida (tiene que ser con el mismo toque, si no el navegador lo bloquea)
+    const url = this.url(R, ini, fin);
+    let w = null; try{ w = window.open(url, '_blank'); }catch(e){}
+    // 2) Apuntarla en PorHacer3
+    let aviso = '';
+    if(R.aviso !== ''){ const a = new Date(ini.getTime() - (+R.aviso) * 60000); aviso = iso(a) + 'T' + hh(a); }
+    const quien = R.quien.split(/[,;\s]+/).filter(x => x.includes('@'));
+    const det = `📹 Reunión de Teams · ${R.h}–${hh(fin)}` + (quien.length ? '\n👥 ' + quien.join(', ') : '') + (R.notas.trim() ? '\n' + R.notas.trim() : '');
+    const hecho = [];
+    try{
+      if(R.tarea){
+        const t = { id:nuevoId('t'), titulo:'📹 ' + R.titulo + ' · ' + R.h, notas:det, colId:'nueva', color:'#c4e6f8', prio:0, ini:R.k, fin:R.k, personaId:'', subs:[], creada:Date.now(), orden:-Date.now(), teams:{ h:R.h, dur:R.dur, url } };
+        if(!columnas().some(c => c.id === 'nueva')) t.colId = (columnas().find(c => c.visible && !c.hecha) || columnas()[0]).id;
+        if(aviso) t.avisos = [{ id:nuevoId('av'), f:aviso, de:(typeof Nube !== 'undefined' && Nube.user && Nube.user.email) || '' }];
+        anotar(t, '📹 Reunión de Teams el ' + fechaCortaB(R.k) + ' a las ' + R.h);
+        await guardarTarea(t); App.tareas.push(t); pintarTodo(); hecho.push('Tareas');
+      }
+      if(R.agenda){
+        const n = { id:nuevoId('n'), creada:Date.now(), texto:'📹 ' + R.h + ' ' + R.titulo + ' (Teams, ' + (R.dur < 60 ? R.dur + ' min' : R.dur / 60 + ' h').replace('.5 h', ' h 30') + ')', color:'azul', hecha:false, fotos:[] };
+        if(aviso){ n.aviso = aviso; n.avisoVisto = false; }
+        await Agenda.guardarDia(R.k, [...Agenda.notas(R.k), n]); hecho.push('Agenda');
+      }
+    }catch(e){ console.warn(e); popAviso('Reunión de Teams', 'No se ha podido apuntar en PorHacer3: ' + e.message); }
+    const l = this.lista().filter(r => new Date(r.k + 'T' + r.h).getTime() > Date.now() - 86400000); l.push({ k:R.k, h:R.h, t:R.titulo }); lsSet('ph3-teams', JSON.stringify(l.slice(-30)));
+    this.R = null; cerrarPopMio(); Portada.pintar();
+    popup({ tit:'📹 Reunión apuntada', html:`<p><b>${esc(R.titulo)}</b><br>${esc(fechaBonita(R.k, true))} · ${R.h}–${hh(fin)}</p>
+      <p class="aj-ayuda">${hecho.length ? 'Está en ' + hecho.join(' y ') + (aviso ? ', con aviso' : '') + '.' : 'No la has apuntado en PorHacer3.'}</p>
+      <p class="aj-ayuda">${w ? 'Se ha abierto <b>Teams</b> con la reunión rellenada: revisa y pulsa <b>Enviar</b> (o Guardar).' : 'Pulsa el botón para abrir <b>Teams</b> con la reunión rellenada, y allí pulsa <b>Enviar</b>.'}</p>
+      <a class="btn-pri btn-ancho tm-abrir" href="${url}" target="_blank" rel="noopener">📹 Abrir Teams</a>`, botones:[{ txt:'Hecho', cls:'btn-sec', val:true }] });
   }
 };
