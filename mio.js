@@ -449,6 +449,23 @@ async function pdfDeHtml(html, nombre, papel){
   z.innerHTML = html; document.body.appendChild(z);
   try{
     await Promise.all([...z.querySelectorAll('img')].map(i => i.complete ? 0 : new Promise(r => { i.onload = i.onerror = r; })));
+    // que las filas y los bloques no se corten entre dos hojas: si uno cae en el corte, pasa entero a la hoja siguiente
+    const H = Math.floor(794 * 297 / 210);
+    for(let vuelta = 0; vuelta < 400; vuelta++){
+      const zr = z.getBoundingClientRect(); let movido = false;
+      for(const el of z.querySelectorAll('tr:not([data-sp]), img, [data-bloque]')){
+        const r = el.getBoundingClientRect(), top = r.top - zr.top, alto = r.height;
+        if(alto < 4 || alto > H * 0.9 || el.closest('tr[data-sp]')) continue;
+        const dentro = top % H;
+        if(dentro + alto > H - 2 && dentro > 2){
+          const falta = H - dentro + 6;
+          if(el.tagName === 'TR'){ const sp = document.createElement('tr'); sp.dataset.sp = '1'; sp.innerHTML = `<td colspan="20" style="height:${falta}px;padding:0;border:0"></td>`; el.before(sp); }
+          else { el.style.marginTop = (parseFloat(getComputedStyle(el).marginTop) + falta) + 'px'; }
+          movido = true; break;
+        }
+      }
+      if(!movido) break;
+    }
     const cv = await html2canvas(z, { scale:2, backgroundColor:papel, useCORS:true, logging:false });
     const { jsPDF } = window.jspdf, doc = new jsPDF({ unit:'mm', format:'a4', compress:true });
     const pw = 210, ph = 297, altoPag = Math.floor(cv.width * ph / pw), hojas = [];
@@ -469,7 +486,7 @@ async function pdfDeHtml(html, nombre, papel){
 // Ver un PDF antes de guardarlo: ocupa toda la pantalla, se pasa hacia abajo y con dos dedos se amplía.
 function verPdf(hojas, blob, nombre){
   const v = document.createElement('div'); v.className = 'vpd';
-  v.innerHTML = `<div class="vpd-top"><button class="vpd-b vpd-x" data-x aria-label="Cerrar">✕</button><b>${esc(nombre)}</b><button class="vpd-b vpd-g" data-g>📤 Guardar</button></div>
+  v.innerHTML = `<div class="vpd-top"><button class="vpd-b vpd-x" data-x aria-label="Cerrar">✕</button><b>${esc(nombre)}</b><button class="vpd-b" data-imp aria-label="Imprimir">🖨</button><button class="vpd-b vpd-g" data-g>📤 Guardar</button></div>
     <div class="vpd-zona"><div class="vpd-hojas">${hojas.map((h, i) => `<img src="${h}" alt="Hoja ${i + 1}" draggable="false">`).join('')}</div></div>
     <div class="vpd-pie"><button class="vpd-b" data-menos aria-label="Más pequeño">－</button><span class="vpd-n">${hojas.length} ${hojas.length === 1 ? 'hoja' : 'hojas'} · 🤏 dos dedos para ampliar</span><button class="vpd-b" data-mas aria-label="Más grande">＋</button></div>`;
   document.body.appendChild(v);
@@ -495,12 +512,21 @@ function verPdf(hojas, blob, nombre){
   v.addEventListener('click', async e => { const b = e.target.closest('.vpd-b'); if(!b) return;
     if('x' in b.dataset) cerrarV();
     else if('mas' in b.dataset) zoom(k * 1.4); else if('menos' in b.dataset) zoom(k / 1.4);
+    else if('imp' in b.dataset) imprimirHojas(hojas, nombre);
     else if('g' in b.dataset){
       const file = new File([blob], nombre, { type:'application/pdf' });
       if(matchMedia('(pointer:coarse)').matches && navigator.canShare && navigator.canShare({ files:[file] })){
         try{ await navigator.share({ files:[file], title:nombre }); toast('📄 PDF «' + nombre + '» listo'); }catch(err){ if(err.name !== 'AbortError') descargar(blob, nombre); }
       } else { descargar(blob, nombre); toast('📄 PDF «' + nombre + '» guardado'); }
     } });
+}
+// Imprimir unas hojas (imágenes A4): una por página
+function imprimirHojas(hojas, nombre){
+  const f = document.createElement('iframe'); f.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0'; document.body.appendChild(f);
+  const d = f.contentDocument;
+  d.open(); d.write(`<!doctype html><html><head><title>${esc(nombre || 'PorHacer3')}</title><style>@page{size:A4;margin:0}html,body{margin:0;padding:0}img{display:block;width:210mm;height:297mm;object-fit:contain;page-break-after:always;break-after:page}img:last-child{page-break-after:auto;break-after:auto}</style></head><body>${hojas.map(h => `<img src="${h}">`).join('')}</body></html>`); d.close();
+  const ir = () => { try{ f.contentWindow.focus(); f.contentWindow.print(); }catch(e){ toast('⚠️ No se ha podido imprimir: usa «📤 Guardar» y luego Imprimir'); } setTimeout(() => f.remove(), 60000); };
+  const imgs = [...d.images]; Promise.all(imgs.map(i => i.complete ? 0 : new Promise(r => { i.onload = i.onerror = r; }))).then(() => setTimeout(ir, 200));
 }
 // Una fila que se desliza de lado: con el dedo ya va sola; con el ratón, arrastrando (y sin que cuente como clic)
 function deslizarLado(el){

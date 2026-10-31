@@ -1016,3 +1016,8 @@ ul.aj-lista b{display:inline;font-size:inherit;margin:0}
 .gx-sep{font-size:13px;font-weight:900;color:var(--ink2);margin:16px 6px 6px}
 .gx-nada{text-align:center;color:var(--ink2);font-weight:700;padding:30px 10px}
 .ne-rep-fechas label{min-width:0}.ne-rep-fechas input{-webkit-appearance:none;appearance:none;font-size:14px}
+.tks-pdfs{display:grid;gap:8px;margin-top:10px}.tks-pdfs .mp-op:disabled{opacity:.45}
+
+/* Agenda, vista de año: un puntito por cada color de las notas del día */
+.ag-pts{position:absolute;bottom:1px;left:0;right:0;display:flex;justify-content:center;gap:1.5px;pointer-events:none}
+.ag-pts i{width:4.5px;height:4.5px;border-radius:50%;box-shadow:0 0 0 .5px rgba(255,255,255,.8)}

@@ -221,15 +221,103 @@ const Tickets = {
       <div class="seg tks-modos">${[['fechas','📅 Fechas'],['nombre','🔤 Nombre'],['ambos','📅+🔤 Las dos']].map(([m, t]) => `<button data-m="${m}" class="${S.modo === m ? 'on' : ''}">${t}</button>`).join('')}</div>
       ${S.modo === 'fechas' ? fechas : S.modo === 'nombre' ? nombre : fechas + nombre}
       <div class="tks-cuenta" id="tksCuenta">${this.cuenta(res)}</div>
-      <div class="mp-fila"><button class="mp-b" data-x>Cerrar</button><button class="mp-b mp-pri" id="tksPdf" ${res.length ? '' : 'disabled'}>📄 Crear PDF</button></div>`, 'tk-pop');
+      <div class="tks-pdfs"><button class="mp-op" id="tksRes" ${res.length ? '' : 'disabled'}><span class="mp-ic">📊</span><span><b>Resumen con gráfico</b><small>En qué gastas, sin fotos: gráfico redondo, mes a mes y la lista</small></span></button>
+        <button class="mp-op" id="tksPdf" ${res.length ? '' : 'disabled'}><span class="mp-ic">🧾</span><span><b>PDF con las fotos</b><small>Todos los tickets, con su foto</small></span></button></div>
+      <div class="mp-fila"><button class="mp-b" data-x>Cerrar</button></div>`, 'tk-pop');
     p.onclick = e => { const b = e.target.closest('button'); if(!b) return;
       if(b.dataset.m){ S.modo = b.dataset.m; this.pintarBuscar(); } else if(b.dataset.p) this.preset(b.dataset.p);
-      else if(b.id === 'tksPdf') this.pdf(); else if('x' in b.dataset) cerrarPopMio(); };
+      else if(b.closest('#tksPdf')) this.pdf(); else if(b.closest('#tksRes')) this.resumen(); else if('x' in b.dataset) cerrarPopMio(); };
     const d1 = $('#tksDesde'), d2 = $('#tksHasta'), qi = $('#tksQ');
     if(d1) d1.onchange = () => { if(d1.value){ S.desde = d1.value; this.pintarBuscar(); } };
     if(d2) d2.onchange = () => { if(d2.value){ S.hasta = d2.value; this.pintarBuscar(); } };
-    if(qi){ qi.oninput = () => { S.q = qi.value; const r = this.resultados(); $('#tksCuenta').innerHTML = this.cuenta(r); $('#tksPdf').disabled = !r.length; };
+    if(qi){ qi.oninput = () => { S.q = qi.value; const r = this.resultados(); $('#tksCuenta').innerHTML = this.cuenta(r); $('#tksPdf').disabled = $('#tksRes').disabled = !r.length; };
       qi.onkeydown = e => { if(e.key === 'Enter') qi.blur(); }; }
+  },
+  /* ---------- Resumen con gráficos (sin fotos) ---------- */
+  COL_GR: ['#e5484d','#2f80ed','#3fae5a','#f2a20c','#8b5adf','#14a3a3','#e84898','#8a5a3c','#5b6b7a','#f26b1d','#9aa0a6'],
+  // «Mercadona», «MERCADONA 2», «Ferretería: pintura» → se juntan por el nombre (lo de antes de «:» o « - »)
+  categoria(t){ const base = String(t.titulo || '').split(/:| - | – |,/)[0].trim() || 'Sin nombre'; return { k:norm(base).replace(/[^a-z0-9ñ ]/g, '').replace(/\s+\d+$/, '').trim() || 'sin nombre', n:base.charAt(0).toUpperCase() + base.slice(1) }; },
+  grupos(res){
+    const g = {}; res.forEach(t => { if(t.importe == null) return; const c = this.categoria(t); (g[c.k] = g[c.k] || { k:c.k, n:c.n, tot:0, n2:0, items:[] }); g[c.k].tot += t.importe; g[c.k].n2++; g[c.k].items.push(t); });
+    let l = Object.values(g).sort((a, b) => b.tot - a.tot);
+    if(l.length > 10){ const resto = l.slice(9); l = l.slice(0, 9); l.push({ k:'__otros', n:'Otros (' + resto.length + ')', tot:resto.reduce((s, x) => s + x.tot, 0), n2:resto.reduce((s, x) => s + x.n2, 0), otros:resto.map(x => x.n) }); }
+    l.forEach((x, i) => x.c = this.COL_GR[i % this.COL_GR.length]);
+    return l;
+  },
+  grafRedondo(l, tot){
+    const S = 760, c = document.createElement('canvas'); c.width = S; c.height = S; const x = c.getContext('2d'), R = S / 2 - 10, r = R * 0.58;
+    let a = -Math.PI / 2;
+    l.forEach(g => { const da = (g.tot / tot) * Math.PI * 2; x.beginPath(); x.moveTo(S / 2, S / 2); x.arc(S / 2, S / 2, R, a, a + da); x.closePath(); x.fillStyle = g.c; x.fill();
+      x.strokeStyle = '#fff'; x.lineWidth = 5; x.stroke();
+      if(da > 0.32){ const m = a + da / 2, px = S / 2 + Math.cos(m) * (R + r) / 2, py = S / 2 + Math.sin(m) * (R + r) / 2; x.fillStyle = '#fff'; x.font = '900 34px Arial'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(Math.round(g.tot / tot * 100) + '%', px, py); }
+      a += da; });
+    x.beginPath(); x.arc(S / 2, S / 2, r, 0, Math.PI * 2); x.fillStyle = '#fff'; x.fill();
+    x.fillStyle = '#3a3a3c'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.font = '800 34px Arial'; x.fillText('TOTAL', S / 2, S / 2 - 38);
+    x.font = '900 60px Arial'; x.fillText(dinero(tot), S / 2, S / 2 + 22);
+    return c.toDataURL('image/png');
+  },
+  // barras de cada mes, partidas por lo que has gastado en cada cosa
+  grafMeses(meses, l, max){
+    const W = 1400, H = 640, pad = { l:120, r:20, t:30, b:90 }, c = document.createElement('canvas'); c.width = W; c.height = H; const x = c.getContext('2d');
+    const aw = W - pad.l - pad.r, ah = H - pad.t - pad.b, n = meses.length, bw = Math.min(110, aw / n * 0.62);
+    const paso = (() => { const e = Math.pow(10, Math.floor(Math.log10(max || 1))); return [1, 2, 2.5, 5, 10].map(m => m * e).find(s => max / s <= 5) || e * 10; })(), top = Math.ceil((max || 1) / paso) * paso;
+    x.font = '700 24px Arial'; x.fillStyle = '#6b6b70'; x.textAlign = 'right'; x.textBaseline = 'middle'; x.strokeStyle = '#e3e3e6'; x.lineWidth = 2;
+    for(let v = 0; v <= top + 0.001; v += paso){ const y = pad.t + ah - v / top * ah; x.beginPath(); x.moveTo(pad.l, y); x.lineTo(W - pad.r, y); x.stroke(); x.fillText(Math.round(v) + ' €', pad.l - 12, y); }
+    meses.forEach((m, i) => { const cx = pad.l + aw * (i + 0.5) / n; let y = pad.t + ah;
+      l.forEach(g => { const v = m.por[g.n] || 0; if(!v) return; const h = v / top * ah; x.fillStyle = g.c; x.fillRect(cx - bw / 2, y - h, bw, h); y -= h; });
+      x.fillStyle = '#3a3a3c'; x.textAlign = 'center'; x.textBaseline = 'bottom'; x.font = '900 24px Arial'; if(m.tot) x.fillText(Math.round(m.tot) + ' €', cx, y - 6);
+      x.textBaseline = 'top'; x.font = '800 24px Arial'; x.fillStyle = '#6b6b70'; x.fillText(m.et, cx, pad.t + ah + 14); });
+    return c.toDataURL('image/png');
+  },
+  async resumen(){
+    const res = this.resultados(); if(!res.length) return;
+    const S = this.S, th = this.tema().k === 'app' ? (() => { const c = App.ajustes.colores; return { bg:c.bg, acc:c.accent, soft:c.line, ink:c.ink }; })() : this.tema();
+    const fl = k => deIso(k).toLocaleDateString('es-ES', { day:'numeric', month:'long', year:'numeric' });
+    const crit = S.modo === 'nombre' ? `Búsqueda: «${esc(S.q.trim())}»` : `Del ${fl(S.desde)} al ${fl(S.hasta)}${S.modo === 'ambos' && S.q.trim() ? ` · «${esc(S.q.trim())}»` : ''}`;
+    const conImp = res.filter(t => t.importe != null), tot = conImp.reduce((s, t) => s + t.importe, 0), l = this.grupos(res);
+    if(!tot){ popAviso('Resumen', 'Estos tickets no tienen importe, así que no se puede hacer el gráfico. Pon el importe al guardar el ticket.'); return; }
+    // meses que abarca la búsqueda
+    const ini = S.modo === 'nombre' ? res[0].fecha : S.desde, fin = S.modo === 'nombre' ? res[res.length - 1].fecha : S.hasta, meses = [];
+    for(let d = new Date(+ini.slice(0, 4), +ini.slice(5, 7) - 1, 1); iso(d).slice(0, 7) <= fin.slice(0, 7) && meses.length < 24; d.setMonth(d.getMonth() + 1)){
+      const k = iso(d).slice(0, 7), its = conImp.filter(t => t.fecha.startsWith(k)), por = {};
+      its.forEach(t => { const c = this.categoria(t), g = l.find(x => x.k === c.k) || l.find(x => x.otros); if(g) por[g.n] = (por[g.n] || 0) + t.importe; });
+      meses.push({ k, et:MESES_C[d.getMonth()].slice(0, 3) + (meses.length === 0 || d.getMonth() === 0 ? ' ' + String(d.getFullYear()).slice(2) : ''), tot:its.reduce((s, t) => s + t.importe, 0), por, n:its.length });
+    }
+    const varios = meses.length > 1, maxMes = Math.max(...meses.map(m => m.tot)), conDatos = meses.filter(m => m.tot);
+    const media = conDatos.length ? tot / conDatos.length : tot, mayor = meses.reduce((a, b) => b.tot > a.tot ? b : a, meses[0]);
+    toast('📊 Preparando el resumen…', null, null, 15000);
+    const redondo = this.grafRedondo(l, tot), barras = varios ? this.grafMeses(meses, l, maxMes) : null;
+    const tarjeta = (et, v, fondo, color) => `<div style="flex:1;padding:12px 14px;border-radius:14px;background:${fondo};color:${color || th.ink};border:2px solid ${fondo === '#fff' ? th.soft : fondo}"><div style="font-size:11px;font-weight:800;opacity:.7;letter-spacing:.04em">${et}</div><div style="font-size:22px;font-weight:900;margin-top:2px">${v}</div></div>`;
+    const td = `padding:7px 8px;border-bottom:1px solid ${th.soft}`;
+    // tabla de cada cosa por mes (si son pocos meses)
+    const tablaMeses = varios && meses.length <= 6 ? `<table style="width:100%;border-collapse:collapse;font-size:13px;margin-top:10px"><tr style="font-weight:900;opacity:.75"><td style="${td}"></td>${meses.map(m => `<td style="${td};text-align:right">${m.et}</td>`).join('')}<td style="${td};text-align:right">Total</td></tr>
+        ${l.map(g => `<tr><td style="${td};font-weight:800"><span style="display:inline-block;width:11px;height:11px;border-radius:3px;background:${g.c};margin-right:6px"></span>${esc(g.n)}</td>${meses.map(m => `<td style="${td};text-align:right">${m.por[g.n] ? dinero(m.por[g.n]) : '—'}</td>`).join('')}<td style="${td};text-align:right;font-weight:900">${dinero(g.tot)}</td></tr>`).join('')}
+        <tr style="font-weight:900"><td style="padding:8px">Total</td>${meses.map(m => `<td style="padding:8px;text-align:right">${m.tot ? dinero(m.tot) : '—'}</td>`).join('')}<td style="padding:8px;text-align:right;color:${th.acc}">${dinero(tot)}</td></tr></table>` : '';
+    const html = `<div style="color:${th.ink}">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:20px;padding-bottom:16px;border-bottom:4px solid ${th.acc}">
+        <div style="display:flex;align-items:center;gap:16px"><div style="width:62px;height:62px;border-radius:16px;background:#fff;display:flex;align-items:center;justify-content:center;font-size:38px">📊</div>
+          <div><div style="font-size:28px;font-weight:900;line-height:1.1">¿En qué gasto?</div><div style="margin-top:6px;font-size:14px;font-weight:700;opacity:.75">${crit}</div></div></div>
+        <img src="logo.png" style="width:52px;height:52px;border-radius:13px;object-fit:cover"></div>
+      <div style="display:flex;gap:10px;margin:18px 0 4px">${tarjeta('TOTAL', dinero(tot), th.acc, '#fff')}${tarjeta('TICKETS', res.length, '#fff')}${tarjeta('MEDIA POR TICKET', dinero(tot / conImp.length), '#fff')}${varios ? tarjeta('MEDIA AL MES', dinero(media), '#fff') : ''}</div>
+      <div style="margin-top:16px;padding:18px;border-radius:16px;background:#fff;display:flex;gap:22px;align-items:center">
+        <img src="${redondo}" style="width:300px;height:300px;flex:none">
+        <table style="flex:1;border-collapse:collapse;font-size:14px">${l.map(g => `<tr><td style="padding:6px 4px;width:18px"><span style="display:block;width:15px;height:15px;border-radius:4px;background:${g.c}"></span></td>
+          <td style="padding:6px 4px;font-weight:800">${esc(g.n)}<div style="font-size:11px;font-weight:600;opacity:.6">${g.n2} ${g.n2 === 1 ? 'ticket' : 'tickets'}${g.otros ? ' · ' + esc(g.otros.slice(0, 6).join(', ')) + (g.otros.length > 6 ? '…' : '') : ''}</div></td>
+          <td style="padding:6px 4px;text-align:right;font-weight:900;white-space:nowrap">${dinero(g.tot)}</td><td style="padding:6px 4px;text-align:right;font-weight:800;opacity:.65;width:48px">${Math.round(g.tot / tot * 100)}%</td></tr>`).join('')}</table></div>
+      ${varios ? `<div style="margin-top:16px;padding:16px 18px;border-radius:16px;background:#fff">
+        <div style="display:flex;justify-content:space-between;align-items:baseline"><div style="font-size:18px;font-weight:900">Mes a mes</div><div style="font-size:13px;font-weight:700;opacity:.7">El mes que más: <b>${MESES_C[+mayor.k.slice(5) - 1]} ${mayor.k.slice(0, 4)}</b> (${dinero(mayor.tot)})</div></div>
+        <img src="${barras}" style="width:100%;margin-top:8px">${tablaMeses}</div>` : ''}
+      <div style="margin-top:16px;padding:14px 16px;border-radius:16px;background:#fff">
+        <div style="font-size:18px;font-weight:900;margin-bottom:4px">Todos los tickets</div>
+        <table style="width:100%;border-collapse:collapse;font-size:13px">${res.map(t => { const c = l.find(x => x.k === this.categoria(t).k) || l.find(x => x.otros);
+          return `<tr><td style="${td};white-space:nowrap;opacity:.7;font-weight:700;width:110px">${deIso(t.fecha).toLocaleDateString('es-ES', { day:'numeric', month:'short', year:'2-digit' })}</td>
+          <td style="${td};font-weight:700"><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${t.importe != null && c ? c.c : '#ccc'};margin-right:7px"></span>${esc(t.titulo || 'Ticket')}</td>
+          <td style="${td};text-align:right;font-weight:900;white-space:nowrap;color:${th.acc}">${t.importe != null ? dinero(t.importe) : '—'}</td></tr>`; }).join('')}
+          <tr><td colspan="2" style="padding:10px 8px;text-align:right;font-weight:900">Total</td><td style="padding:10px 8px;text-align:right;font-weight:900;font-size:16px;color:${th.acc}">${dinero(tot)}</td></tr></table>
+        ${conImp.length < res.length ? `<div style="font-size:12px;opacity:.6;margin-top:6px">${res.length - conImp.length} ticket(s) sin importe no cuentan en el gráfico.</div>` : ''}</div>
+      <div style="margin-top:14px;font-size:11px;opacity:.5;text-align:center">PorHacer3 · ${new Date().toLocaleDateString('es-ES', { day:'numeric', month:'long', year:'numeric' })}</div></div>`;
+    cerrarPopMio();
+    await pdfDeHtml(html, 'resumen-gastos-' + (S.modo === 'nombre' ? S.q.trim() : S.desde + '-a-' + S.hasta), th.bg);
   },
   async pdf(){
     const res = this.resultados(); if(!res.length) return;

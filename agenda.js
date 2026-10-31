@@ -7,7 +7,7 @@ const Agenda = {
   modo: lsGet('ph3-ag-modo') || 'mes',
   mes: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
   dia: null, sel: null, NE: null,
-  NOTA_COLORES: ['none','celeste','azul','verdeclaro','verdeoscuro','amarillo','naranja','rosa','rojo','marronclaro','marronoscuro','caqui'],
+  NOTA_COLORES: ['none','amarillo','naranja','verde','azul','marron','negro','rojo'],
 
   /* ---------- Datos ---------- */
   doc(k){ return Mio.uno('agenda', k) || { id:k, color:'none', items:[] }; },
@@ -62,9 +62,15 @@ const Agenda = {
       const its = this.notas(k), cd = this.colorDia(k), cc = this.col(cd);
       const est = cd !== 'none' ? `style="--dc:${cc.bg};--db:${cc.border}"` : '';
       h += `<button class="ag-d ${fuera ? 'fuera' : ''} ${i % 7 > 4 ? 'finde' : ''} ${k === hoy ? 'hoy' : ''} ${k === this.sel ? 'sel' : ''} ${cd !== 'none' ? 'conc' : ''} ${its.length ? 'tiene' : ''}" data-k="${k}" ${est}>
-        <span class="ag-n">${d.getDate()}</span>${mini ? (its.length ? '<i class="ag-pt"></i>' : '') : `<span class="ag-ls">${its.slice(0, 3).map(it => `<span class="ag-l ${it.hecha ? 'hecha' : ''}"><i style="background:${it.color && it.color !== 'none' ? this.col(it.color).bg : '#fff'};border-color:${this.puntoNota(it)}"></i><em>${it.aviso && !it.avisoVisto ? '⏰ ' : ''}${esc(it.texto) || ((it.fotos || []).length ? '📷' : '')}</em></span>`).join('')}${its.length > 3 ? `<span class="ag-mas">+${its.length - 3}</span>` : ''}</span>`}</button>`;
+        <span class="ag-n">${d.getDate()}</span>${mini ? this.puntosAnio(its) : `<span class="ag-ls">${its.slice(0, 3).map(it => `<span class="ag-l ${it.hecha ? 'hecha' : ''}"><i style="background:${it.color && it.color !== 'none' ? this.col(it.color).bg : '#fff'};border-color:${this.puntoNota(it)}"></i><em>${it.aviso && !it.avisoVisto ? '⏰ ' : ''}${esc(it.texto) || ((it.fotos || []).length ? '📷' : '')}</em></span>`).join('')}${its.length > 3 ? `<span class="ag-mas">+${its.length - 3}</span>` : ''}</span>`}</button>`;
     }
     return h + '</div>';
+  },
+  // en la vista de año: un puntito de cada color de las notas del día (como mucho 4)
+  puntosAnio(its){
+    if(!its.length) return '';
+    const cols = []; its.forEach(it => { const c = it.color && it.color !== 'none' && CAL_COLORS[it.color] ? this.col(it.color).dot : '#9a9aa0'; if(!cols.includes(c)) cols.push(c); });
+    return `<span class="ag-pts">${cols.slice(0, 4).map(c => `<i style="background:${c}"></i>`).join('')}</span>`;
   },
   vistaDia(){
     const k = this.dia, d = deIso(k), hoy = hoyIso(), lun = new Date(d.getFullYear(), d.getMonth(), d.getDate() - ((d.getDay() + 6) % 7));

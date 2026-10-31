@@ -242,7 +242,9 @@ var CAL_COLORS={
   rojo:{name:'Rojo',bg:'#fddcdc',border:'#d93a3a',dot:'#d93a3a'},
   marronclaro:{name:'Marrón claro',bg:'#f1e2d1',border:'#c49a6c',dot:'#c49a6c'},
   marronoscuro:{name:'Marrón oscuro',bg:'#e6d5c6',border:'#7a4e2d',dot:'#7a4e2d'},
-  caqui:{name:'Caqui',bg:'#ece8cf',border:'#9a9255',dot:'#9a9255'}
+  caqui:{name:'Caqui',bg:'#ece8cf',border:'#9a9255',dot:'#9a9255'},
+  marron:{name:'Marrón',bg:'#eadbcb',border:'#8a5a33',dot:'#8a5a33'},
+  negro:{name:'Negro',bg:'#e4e4e7',border:'#1c1c1e',dot:'#1c1c1e'}
 };
 var CAL_COLOR_KEYS=Object.keys(CAL_COLORS);
 
