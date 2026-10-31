@@ -1,6 +1,6 @@
 /* PorHacer · app principal: tablero de columnas, tareas y editor */
 
-const VERSION = 'V12.6';
+const VERSION = 'V12.7';
 const $ = (s, r=document) => r.querySelector(s);
 const $$ = (s, r=document) => Array.from(r.querySelectorAll(s));
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -136,30 +136,44 @@ function paginaA(ctx, target, dur, hecho){
 // Con el dedo usa eventos táctiles (más fiables en el iPhone); con el ratón, eventos de puntero.
 function deslizarPaginas(zona, o){
   let D = null, pasando = false;
-  const empezar = (x, y, t) => { if(pasando || (o.ignorar && o.ignorar(t))) return; D = { x, y, ctx:null, lx:x, lt:performance.now(), v:0, no:false }; };
+  const empezar = (x, y, t) => { if(pasando || (o.ignorar && o.ignorar(t))) return; D = { x, y, ctx:null, m:[[x, performance.now()]], v:0, no:false }; };
   const mover = (x, y) => {
     if(!D || D.no) return false;
     const dx = x - D.x, dy = y - D.y;
     if(!D.ctx){
       if(Math.abs(dx) < 8 && Math.abs(dy) < 8) return false;
-      if(Math.abs(dy) > Math.abs(dx)){ D.no = true; return false; }          // va hacia arriba o abajo: es para desplazar
+      if(Math.abs(dy) > Math.abs(dx) * 1.3){ D.no = true; return false; }    // va claramente hacia arriba o abajo: es para desplazar
+      if(Math.abs(dx) < 10) return false;
       const dir = dx < 0 ? 1 : -1;
       if(!o.puede(dir)){ D.no = true; return false; }
       pasando = true;
       D.ctx = paginaEmpieza(o.cont(), dir, o.cambio, o.fondo ? o.fondo() : '#fff'); if(!D.ctx){ pasando = false; D = null; return false; }
       try{ getSelection().removeAllRanges(); }catch(_){}
+      setTimeout(() => { if(pasando && !D) pasando = false; }, 2500);   // por si algo se queda a medias, que no bloquee la siguiente
     }
-    const now = performance.now(); D.v = (x - D.lx) / Math.max(1, now - D.lt); D.lx = x; D.lt = now;
+    // velocidad de los últimos 120 ms (un gesto rápido basta para pasar la hoja)
+    const now = performance.now(); D.m.push([x, now]); while(D.m.length > 2 && now - D.m[0][1] > 120) D.m.shift();
+    D.v = (x - D.m[0][0]) / Math.max(16, now - D.m[0][1]);
     D.ctx.render(Math.max(0, Math.min(1, (D.ctx.dir > 0 ? -dx : dx) / (D.ctx.W * 0.55))));
     return true;
   };
-  const acabar = () => { if(!D) return; const d = D; D = null; if(!d.ctx) return;
-    const golpe = (d.ctx.dir > 0 ? -d.v : d.v) > 0.3;
-    paginaA(d.ctx, (d.ctx.p > 0.25 || (golpe && d.ctx.p > 0.04)) ? 1 : 0, 520, () => { pasando = false; }); };
+  const acabar = e => { if(!D) return; const d = D; D = null; if(!d.ctx) return;
+    const golpe = (d.ctx.dir > 0 ? -d.v : d.v) > 0.2, atras = (d.ctx.dir > 0 ? -d.v : d.v) < -0.25;
+    // si el navegador corta el gesto (touchcancel), se acaba de pasar la hoja si ya iba empezada
+    const pasa = !atras && (d.ctx.p > 0.18 || (golpe && d.ctx.p > 0.02) || (e && e.type === 'touchcancel' && d.ctx.p > 0.06));
+    paginaA(d.ctx, pasa ? 1 : 0, 480, () => { pasando = false; }); };
   // dedo
-  zona.addEventListener('touchstart', e => { if(e.touches.length !== 1){ D = null; return; } const t = e.touches[0]; empezar(t.clientX, t.clientY, e.target); }, { passive:true });
-  zona.addEventListener('touchmove', e => { if(!D) return; const t = e.touches[0]; if(mover(t.clientX, t.clientY) && e.cancelable) e.preventDefault(); }, { passive:false });
-  zona.addEventListener('touchend', acabar); zona.addEventListener('touchcancel', acabar);
+  // OJO: al empezar a pasar la hoja se vuelve a pintar lo que hay debajo del dedo. El navegador sigue mandando
+  // el movimiento y el «soltar» al trozo viejo (ya quitado de la página), así que no llegaban aquí: la hoja se
+  // quedaba a medias y había que deslizar dos veces. Por eso se escuchan en el mismo trozo que se tocó.
+  zona.addEventListener('touchstart', e => {
+    if(e.touches.length !== 1){ D = null; return; }
+    const t = e.touches[0], tg = e.target; empezar(t.clientX, t.clientY, tg);
+    const mv = ev => { if(!D) return; const q = ev.touches[0]; if(q && mover(q.clientX, q.clientY) && ev.cancelable) ev.preventDefault(); };
+    const fin = ev => { tg.removeEventListener('touchmove', mv); tg.removeEventListener('touchend', fin); tg.removeEventListener('touchcancel', fin); if(D) acabar(ev); };
+    tg.addEventListener('touchmove', mv, { passive:false }); tg.addEventListener('touchend', fin); tg.addEventListener('touchcancel', fin);
+  }, { passive:true });
+  if(!getComputedStyle(zona).touchAction || getComputedStyle(zona).touchAction === 'auto') zona.style.touchAction = 'pan-y';   // lo de lado es para pasar la hoja
   // ratón
   if(!o.soloDedo){
     zona.addEventListener('pointerdown', e => { if(e.pointerType !== 'mouse' || e.button > 0) return; empezar(e.clientX, e.clientY, e.target); });

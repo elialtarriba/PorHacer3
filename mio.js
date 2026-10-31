@@ -321,12 +321,86 @@ function elegirFotos(camara, varias){
     i.click();
   });
 }
-// Ver una foto en grande
-function verFotoGrande(src){
+// Ver una foto en grande: con dos dedos se hace grande o pequeña, con un dedo se mueve,
+// dos toques seguidos amplían o vuelven al tamaño normal. Y se puede guardar en el aparato.
+function verFotoGrande(src, nombre){
   if(!src) return;
-  const v = document.createElement('div'); v.className = 'mio-foto-velo';
-  v.innerHTML = `<img src="${src}" alt=""><button aria-label="Cerrar">✕</button>`;
-  v.onclick = () => v.remove(); document.body.appendChild(v);
+  const v = document.createElement('div'); v.className = 'mio-foto-velo vfg';
+  v.innerHTML = `<div class="vfg-zona"><img src="${src}" alt="" draggable="false"></div>
+    <div class="vfg-barra"><button class="vfg-b" data-g aria-label="Guardar la foto">⬇️ Guardar</button><button class="vfg-b" data-menos aria-label="Más pequeña">－</button><button class="vfg-b" data-mas aria-label="Más grande">＋</button><button class="vfg-b vfg-x" data-x aria-label="Cerrar">✕</button></div>
+    <p class="vfg-pista">🤏 Con dos dedos, más grande o más pequeña · dos toques: ampliar</p>`;
+  document.body.appendChild(v);
+  const zona = $('.vfg-zona', v), img = $('img', v);
+  let k = 1, tx = 0, ty = 0;
+  const pon = (anim) => { img.style.transition = anim ? 'transform .2s' : 'none'; img.style.transform = `translate(${tx}px,${ty}px) scale(${k})`; v.classList.toggle('ampliada', k > 1.02); };
+  const limitar = () => { const r = zona.getBoundingClientRect(), w = img.offsetWidth * k, h = img.offsetHeight * k;
+    const mx = Math.max(0, (w - r.width) / 2), my = Math.max(0, (h - r.height) / 2); tx = Math.max(-mx, Math.min(mx, tx)); ty = Math.max(-my, Math.min(my, ty)); };
+  // ampliar hacia un punto (cx, cy relativos al centro de la zona)
+  const zoomA = (nk, cx, cy, anim) => { nk = Math.max(1, Math.min(6, nk)); tx = cx - (cx - tx) * nk / k; ty = cy - (cy - ty) * nk / k; k = nk; if(k <= 1.01){ k = 1; tx = ty = 0; } limitar(); pon(anim); };
+  const centro = (x, y) => { const r = zona.getBoundingClientRect(); return [x - r.left - r.width / 2, y - r.top - r.height / 2]; };
+  const P = new Map(); let ini = null, ultToque = 0, movio = false;
+  zona.addEventListener('pointerdown', e => { e.preventDefault(); try{ zona.setPointerCapture(e.pointerId); }catch(_){} P.set(e.pointerId, { x:e.clientX, y:e.clientY }); movio = false;
+    const ps = [...P.values()];
+    if(ps.length === 2){ const d = Math.hypot(ps[0].x - ps[1].x, ps[0].y - ps[1].y); ini = { d, k, tx, ty, c:centro((ps[0].x + ps[1].x) / 2, (ps[0].y + ps[1].y) / 2) }; }
+    else ini = { x:e.clientX, y:e.clientY, tx, ty }; });
+  zona.addEventListener('pointermove', e => { if(!P.has(e.pointerId) || !ini) return; P.set(e.pointerId, { x:e.clientX, y:e.clientY }); const ps = [...P.values()];
+    if(ps.length >= 2 && ini.d){ const d = Math.hypot(ps[0].x - ps[1].x, ps[0].y - ps[1].y), c = centro((ps[0].x + ps[1].x) / 2, (ps[0].y + ps[1].y) / 2);
+      const nk = Math.max(1, Math.min(6, ini.k * d / Math.max(10, ini.d)));
+      tx = c[0] - (ini.c[0] - ini.tx) * nk / ini.k; ty = c[1] - (ini.c[1] - ini.ty) * nk / ini.k; k = nk; limitar(); pon(false); movio = true; }
+    else if(ps.length === 1 && ini.x != null){ const dx = e.clientX - ini.x, dy = e.clientY - ini.y; if(Math.hypot(dx, dy) > 6) movio = true; if(k > 1){ tx = ini.tx + dx; ty = ini.ty + dy; limitar(); pon(false); } } });
+  const suelta = e => { P.delete(e.pointerId);
+    if(P.size === 1){ const q = [...P.values()][0]; ini = { x:q.x, y:q.y, tx, ty }; return; }
+    if(P.size) return; ini = null; if(k <= 1.01){ k = 1; tx = ty = 0; pon(true); }
+    if(!movio && e.type === 'pointerup'){ const n = Date.now(); if(n - ultToque < 320){ const [cx, cy] = centro(e.clientX, e.clientY); zoomA(k > 1.5 ? 1 : 2.6, cx, cy, true); ultToque = 0; } else ultToque = n; } };
+  zona.addEventListener('pointerup', suelta); zona.addEventListener('pointercancel', suelta);
+  zona.addEventListener('wheel', e => { e.preventDefault(); const [cx, cy] = centro(e.clientX, e.clientY); zoomA(k * (e.deltaY < 0 ? 1.15 : 1 / 1.15), cx, cy, false); }, { passive:false });
+  const cerrarV = () => { v.remove(); document.removeEventListener('keydown', tecla); };
+  const tecla = e => { if(e.key === 'Escape') cerrarV(); };
+  document.addEventListener('keydown', tecla);
+  v.addEventListener('click', async e => { const b = e.target.closest('button'); if(!b) return; e.stopPropagation();
+    if('x' in b.dataset) cerrarV();
+    else if('mas' in b.dataset) zoomA(k * 1.5, 0, 0, true);
+    else if('menos' in b.dataset) zoomA(k / 1.5, 0, 0, true);
+    else if('g' in b.dataset) guardarFoto(src, nombre); });
+}
+// Guardar una foto en el aparato (en el iPhone sale «Guardar imagen»)
+async function guardarFoto(src, nombre){
+  try{
+    const blob = await (await fetch(src)).blob(), ext = /png/.test(blob.type) ? 'png' : 'jpg';
+    const nom = (String(nombre || 'foto').replace(/[\\/:*?"<>|]/g, '').trim() || 'foto') + '.' + ext;
+    const f = new File([blob], nom, { type:blob.type || 'image/jpeg' });
+    if(navigator.canShare && navigator.canShare({ files:[f] }) && /iPhone|iPad|Android/i.test(navigator.userAgent)){
+      try{ await navigator.share({ files:[f] }); }catch(e){} return; }
+    descargar(blob, nom); toast('⬇️ Foto guardada');
+  }catch(e){ console.warn(e); toast('⚠️ No se ha podido guardar la foto'); }
+}
+// Filas que se borran deslizándolas a la IZQUIERDA (sale rojo con «Eliminar»).
+// html de cada fila: <div class="desl-fila" data-id="…"><div class="desl-del"><span>🗑 Eliminar</span></div><button class="desl-cara …">…</button></div>
+function deslizarBorrar(cont, alBorrar){
+  let D = null; const UMBRAL = 100;
+  cont.addEventListener('pointerdown', e => { const cara = e.target.closest('.desl-cara'); if(!cara || e.button > 0) return; D = { cara, fila:cara.closest('.desl-fila'), x:e.clientX, y:e.clientY, dx:0, mov:false, id:e.pointerId }; });
+  cont.addEventListener('pointermove', e => {
+    if(!D || e.pointerId !== D.id) return;
+    const rdx = e.clientX - D.x, dx = Math.min(0, rdx), dy = e.clientY - D.y;
+    if(!D.mov){ if(Math.abs(rdx) < 8) return; if(Math.abs(dy) > Math.abs(rdx)){ D = null; return; } D.mov = true; try{ D.cara.setPointerCapture(e.pointerId); }catch(_){} D.fila.classList.add('desliza'); }
+    D.dx = dx; D.cara.style.transform = `translateX(${dx}px)`; D.fila.classList.toggle('listo', dx < -UMBRAL);
+  });
+  const suelta = () => {
+    if(!D) return; const d = D; D = null; if(!d.mov) return;
+    cont._sinClick = Date.now();
+    if(d.dx < -UMBRAL){
+      d.cara.style.transition = 'transform .2s'; d.cara.style.transform = 'translateX(-110%)';
+      setTimeout(() => { d.fila.style.transition = 'height .2s, opacity .2s, margin .2s'; d.fila.style.height = d.fila.offsetHeight + 'px';
+        requestAnimationFrame(() => { d.fila.style.height = '0'; d.fila.style.opacity = '0'; d.fila.style.marginTop = '0'; });
+        setTimeout(() => d.fila.remove(), 230); alBorrar(d.fila.dataset.id, d.fila); }, 180);
+      return;
+    }
+    d.cara.style.transition = 'transform .25s'; d.cara.style.transform = '';
+    setTimeout(() => { d.fila.classList.remove('desliza', 'listo'); d.cara.style.transition = ''; }, 260);
+  };
+  cont.addEventListener('pointerup', suelta); cont.addEventListener('pointercancel', suelta);
+  // después de deslizar no cuenta como «tocar»
+  cont.addEventListener('click', e => { if(Date.now() - (cont._sinClick || 0) < 400){ e.stopPropagation(); e.preventDefault(); } }, true);
 }
 const icIn = n => `<span class="ic-in">${icono(n)}</span>`;
 const capital = s => s ? s.charAt(0).toUpperCase() + s.slice(1) : s;

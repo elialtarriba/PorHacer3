@@ -1,12 +1,12 @@
 // PorHacer3 · service worker: la app funciona sin conexión
-const CACHE = 'porhacer3-v149';
+const CACHE = 'porhacer3-v150';
 const ARCHIVOS = [
-  './', './index.html', './manifest.json', './estilos.css?v=149', './estilos3.css?v=149',
-  './iconos.js?v=149', './iconos-home.js?v=149', './mio.js?v=149', './agenda.js?v=149', './tickets.js?v=149', './sitios.js?v=149', './grabar.js?v=149', './escribir.js?v=149', './portada.js?v=149', './temas.js?v=149', './db.js?v=149', './firebase-config.js?v=149', './email-config.js?v=149', './nube.js?v=149',
-  './correo.js?v=149', './audio.js?v=149', './fiesta.js?v=149', './avisos.js?v=149', './bloc.js?v=149', './listas.js?v=149', './listas.png', './lame.min.js', './html2canvas.min.js', './jspdf.min.js', './pdf.min.js', './pdf.worker.min.js',
-  './fotos.js?v=149', './videos.js?v=149', './voz.js?v=149', './calendario.js?v=149', './ajustes.js?v=149',
-  './copias.js?v=149', './app.js?v=149',
-  './logo.png', './calculadora.html?v=149', './logo_elibi.jpg', './icon-192.png', './icon-512.png', './apple-touch-icon.png'
+  './', './index.html', './manifest.json', './estilos.css?v=150', './estilos3.css?v=150',
+  './iconos.js?v=150', './iconos-home.js?v=150', './mio.js?v=150', './agenda.js?v=150', './tickets.js?v=150', './sitios.js?v=150', './grabar.js?v=150', './escribir.js?v=150', './portada.js?v=150', './temas.js?v=150', './db.js?v=150', './firebase-config.js?v=150', './email-config.js?v=150', './nube.js?v=150',
+  './correo.js?v=150', './audio.js?v=150', './fiesta.js?v=150', './avisos.js?v=150', './bloc.js?v=150', './listas.js?v=150', './listas.png', './lame.min.js', './html2canvas.min.js', './jspdf.min.js', './pdf.min.js', './pdf.worker.min.js',
+  './fotos.js?v=150', './videos.js?v=150', './voz.js?v=150', './calendario.js?v=150', './ajustes.js?v=150',
+  './copias.js?v=150', './app.js?v=150',
+  './logo.png', './calculadora.html?v=150', './logo_elibi.jpg', './icon-192.png', './icon-512.png', './apple-touch-icon.png'
 ];
 // Librería de Firebase: también se guarda para poder abrir la app sin internet
 const SDK = ['app','auth','firestore'].map(n => `https://www.gstatic.com/firebasejs/10.14.1/firebase-${n}-compat.js`);

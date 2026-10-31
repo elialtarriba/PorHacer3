@@ -129,9 +129,19 @@ const Agenda = {
     const its = this.notas(k);
     if(its.length === 1) return this.editor(k, its[0].id);
     const p = popMio(`<div class="mp-fecha">${fechaBonita(k, true)}</div><h3 class="mp-h">¿Qué nota quieres editar?</h3>
-      <div class="mp-notas">${its.map(it => `<button class="mp-nota ${it.hecha ? 'hecha' : ''}" data-id="${it.id}"><i style="background:${this.puntoNota(it)}"></i><span>${it.aviso && !it.avisoVisto ? '⏰ ' : ''}${it.texto ? esc(it.texto) : '<em>Foto</em>'}${(it.fotos || []).length ? ` <small>📷 ${it.fotos.length}</small>` : ''}</span><b>›</b></button>`).join('')}</div>
+      <div class="mp-notas">${its.map(it => `<div class="desl-fila" data-id="${it.id}"><div class="desl-del"><span>🗑 Eliminar</span></div><button class="mp-nota desl-cara ${it.hecha ? 'hecha' : ''}" data-id="${it.id}"><i style="background:${this.puntoNota(it)}"></i><span>${it.aviso && !it.avisoVisto ? '⏰ ' : ''}${it.texto ? esc(it.texto) : '<em>Foto</em>'}${(it.fotos || []).length ? ` <small>📷 ${it.fotos.length}</small>` : ''}</span><b>›</b></button></div>`).join('')}</div>
+      <p class="desl-pista">👈 Desliza una nota a la izquierda para eliminarla</p>
       <button class="mp-cancelar" data-volver>‹ Volver</button>`);
-    p.onclick = e => { const b = e.target.closest('[data-id]'); if(b) this.editor(k, b.dataset.id); else if(e.target.closest('[data-volver]')) this.elegirDia(k); };
+    deslizarBorrar($('.mp-notas', p), id => this.borrarConDeshacer(k, id, () => { if(!$('.desl-fila', p)) this.elegirDia(k); }));
+    p.onclick = e => { const b = e.target.closest('button[data-id]'); if(b) this.editor(k, b.dataset.id); else if(e.target.closest('[data-volver]')) this.elegirDia(k); };
+  },
+  // Borrar una nota sin preguntar (al deslizarla), con «Deshacer» durante 5 segundos
+  async borrarConDeshacer(k, id, despues){
+    const it = this.notas(k).find(x => x.id === id); if(!it) return;
+    await this.guardarDia(k, this.notas(k).filter(x => x.id !== id)); this.pintar();
+    toast('🗑 Nota eliminada', 'Deshacer', async () => { await this.guardarDia(k, [...this.notas(k), it]); this.pintar(); toast('↩️ La nota vuelve a estar'); }, 5000);
+    setTimeout(() => { if(!this.notas(k).some(x => x.id === id)) Mio.quitarFotos(it.fotos || []); }, 7000);
+    despues && despues();
   },
 
   /* ---------- Editor de una nota ---------- */
@@ -179,7 +189,7 @@ const Agenda = {
       else if('ical' in d){ this.leerEd(); this.alCalendario(N.texto, N.aviso, N.nk); }
       else if('dictar' in d) Voz.empezar($('#neTexto'), b, null);
       else if('foto' in d) this.anadirFoto();
-      else if(d.quitarfoto){ this.leerEd(); N.fotos = N.fotos.filter(x => x !== d.quitarfoto); this.pintarEditor(false); }
+      else if(d.quitarfoto) this.quitarFotoNota(d.quitarfoto);
       else if('hecha' in d){ this.leerEd(); N.hecha = !N.hecha; this.pintarEditor(false); }
       else if('borrar' in d) this.borrarNota();
       else if('cancelar' in d) this.cancelar();
@@ -187,6 +197,21 @@ const Agenda = {
     };
     const di = $('#neDia'); if(di) di.onchange = () => { if(di.value){ this.leerEd(); N.nk = di.value; N.panel = null; this.pintarEditor(false); } };
     if(foco) setTimeout(() => { const t = $('#neTexto'); if(t){ t.focus(); t.setSelectionRange(t.value.length, t.value.length); } }, 150);
+  },
+  // Quitar una foto de la nota: primero pregunta; si la nota ya estaba guardada, se quita ya (no hace falta pulsar Guardar)
+  async quitarFotoNota(f){
+    const N = this.NE; if(!N) return; this.leerEd();
+    const ok = await confirmarMio('Borrar foto', '¿Seguro que quieres borrar esta foto de la nota?', 'Borrar');
+    if(!this.NE){ return; }
+    if(ok){
+      N.fotos = N.fotos.filter(x => x !== f);
+      if(N.id){ const its = this.notas(N.k).map(x => ({ ...x })), it = its.find(x => x.id === N.id);
+        if(it && (it.fotos || []).includes(f)){ it.fotos = it.fotos.filter(x => x !== f); await this.guardarDia(N.k, its); N.orig = N.orig.filter(x => x !== f); }
+      }
+      await Mio.quitarFotos([f]); N.nuevas = N.nuevas.filter(x => x !== f);
+      toast('🗑 Foto borrada');
+    }
+    this.pintarEditor(false);
   },
   async anadirFoto(){
     this.leerEd();

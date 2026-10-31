@@ -176,25 +176,27 @@ const Escribir = {
     this.pintarSel();
   },
   pintarSel(){
+    // (además de las esquinas, la bolita de arriba con ↻ gira la figura con el dedo)
     $$('#esDelante .es-sel, #esDelante .es-mbar').forEach(x => x.remove());
     const f = this.figSel(); $('#esForma').classList.toggle('on', !!f);
     if(!f){ this.sel = null; return; }
     const s = document.createElement('div'); s.className = 'es-sel'; this.ponerCaja(s, f);
-    s.innerHTML = ['nw', 'ne', 'sw', 'se'].map(k => `<i class="es-h es-h-${k}" data-h="${k}"></i>`).join('');
+    s.innerHTML = ['nw', 'ne', 'sw', 'se'].map(k => `<i class="es-h es-h-${k}" data-h="${k}"></i>`).join('') + '<i class="es-rot" data-rot aria-label="Girar"><b>↻</b></i><span class="es-gv"></span>';
     const b = document.createElement('div'); b.className = 'es-mbar';
     b.innerHTML = `<button data-capa="delante" class="${f.capa !== 'detras' ? 'on' : ''}">⬆️ Delante</button><button data-capa="detras" class="${f.capa === 'detras' ? 'on' : ''}">⬇️ Detrás</button><button data-quitar aria-label="Quitar la figura">🗑️</button>`;
+    if(this.caja(f).y < 50) s.classList.add('rot-abajo');      // arriba del todo: la bolita de girar va abajo
     $('#esDelante').append(s, b); this.ponerBarra(b, f);
   },
   ponerBarra(b, f){
     if(!b) return; const r = this.caja(f), W = $('#esPapel').clientWidth, bw = b.offsetWidth || 220;
-    let top = r.y - 52; if(top < 2) top = r.y + r.h + 10;
+    const H = $('#esPapel').clientHeight; let top = r.y + r.h + 14; if(top > H - 50 && r.y > 110) top = r.y - 100;
     b.style.left = Math.max(4, Math.min(W - bw - 4, r.x + r.w / 2 - bw / 2)) + 'px'; b.style.top = top + 'px';
   },
   seleccionar(id){
     this.sel = id; this.pintarSel();
     if(id){ const a = document.activeElement; if(a && a.id === 'esTexto') a.blur();
-      const n = +(lsGet('ph3-es-pista') || 0); if(n < 3){ try{ localStorage.setItem('ph3-es-pista', n + 1); }catch(e){}
-        toast('Arrástrala para moverla · tira de las esquinas para el tamaño · «◻︎ Figura» para los colores', null, null, 4500); } }
+      const n = +(lsGet('ph3-es-pista2') || 0); if(n < 3){ try{ localStorage.setItem('ph3-es-pista2', n + 1); }catch(e){}
+        toast('Arrástrala para moverla · esquinas: tamaño · ↻ azul: girarla · «◻︎ Figura»: colores', null, null, 4500); } }
   },
   punto(ev){ const r = $('#esPapel').getBoundingClientRect(); return { x:ev.clientX - r.left, y:ev.clientY - r.top }; },
   // las figuras de detrás quedan debajo del texto: se cogen tocando su borde
@@ -222,15 +224,16 @@ const Escribir = {
     if(ev.button > 0) return;
     const t = ev.target, P = $('#esPapel');
     if(t.closest('.es-mbar')) return;
-    const p0 = this.punto(ev), hh = t.closest('.es-h');
+    const p0 = this.punto(ev), hh = t.closest('.es-h'), rot = t.closest('.es-rot');
     let f = null, modo = 'mover';
-    if(hh){ f = this.figSel(); modo = 'tam'; }
+    if(rot){ f = this.figSel(); modo = 'girar'; }
+    else if(hh){ f = this.figSel(); modo = 'tam'; }
     else if(t.closest('.es-fg')) f = this.figs.find(x => x.id === t.closest('.es-fg').dataset.id);
     else if(t.closest('.es-sel')) f = this.figSel();
     else f = this.figEnBorde(p0);
     if(!f){ if(this.sel) this.seleccionar(null); return; }
     ev.preventDefault(); ev.stopPropagation();
-    const ya = this.sel === f.id, sobreSel = !!t.closest('.es-sel') && !hh;
+    const ya = this.sel === f.id, sobreSel = !!t.closest('.es-sel') && !hh && !rot;
     if(!ya) this.seleccionar(f.id);
     const ini = { ...f }, h = hh ? hh.dataset.h : ''; let movido = false;
     const el = () => $(`.es-fg[data-id="${f.id}"]`, P);
@@ -238,7 +241,14 @@ const Escribir = {
       const p = this.punto(e), dx = p.x - p0.x, dy = p.y - p0.y;
       if(!movido && Math.hypot(dx, dy) < 5) return;
       movido = true; if(e.cancelable) e.preventDefault();
-      if(modo === 'mover'){ f.x = Math.round(Math.max(-f.w / 2, Math.min($('#esPapel').clientWidth - f.w / 2, ini.x + dx))); f.y = Math.round(Math.max(0, ini.y + dy)); }
+      if(modo === 'girar'){
+        // el ángulo entre el centro de la figura y el dedo; se «engancha» a 0°, 45°, 90°… si estás muy cerca
+        const cx = ini.x + ini.w / 2, cy = ini.y + ini.h / 2, a0 = Math.atan2(p0.y - cy, p0.x - cx), a1 = Math.atan2(p.y - cy, p.x - cx);
+        let g = ini.giro + (a1 - a0) * 180 / Math.PI; g = ((g + 180) % 360 + 360) % 360 - 180;
+        const im = Math.round(g / 45) * 45; if(Math.abs(g - im) < 4) g = im;
+        f.giro = Math.round(g); const gv = $('.es-gv', P); if(gv){ gv.textContent = f.giro + '°'; gv.style.opacity = 1; gv.style.transform = `translate(-50%,-50%) rotate(${-f.giro}deg)`; }
+      }
+      else if(modo === 'mover'){ f.x = Math.round(Math.max(-f.w / 2, Math.min($('#esPapel').clientWidth - f.w / 2, ini.x + dx))); f.y = Math.round(Math.max(0, ini.y + dy)); }
       else {
         const g = (f.giro || 0) * Math.PI / 180, cs = Math.cos(g), sn = Math.sin(g);
         const lx = dx * cs + dy * sn, ly = -dx * sn + dy * cs, sx = h.includes('e') ? 1 : -1, sy = h.includes('s') ? 1 : -1;
@@ -252,6 +262,7 @@ const Escribir = {
     const noScroll = e => { if(e.cancelable) e.preventDefault(); };
     const fin = e => {
       removeEventListener('pointermove', mover); removeEventListener('pointerup', fin); removeEventListener('pointercancel', fin); document.removeEventListener('touchmove', noScroll);
+      const gv = $('.es-gv', P); if(gv) gv.style.opacity = 0;
       if(movido) this.cambioFigs();
       else if(ya && sobreSel && e.type === 'pointerup'){ this.seleccionar(null); this.cursorEn(e.clientX, e.clientY); }   // tocarla otra vez: el cursor va ahí
     };

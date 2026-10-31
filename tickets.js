@@ -156,11 +156,11 @@ const Tickets = {
     const f = t.foto && Mio.foto(t.foto), fp = t.fotoProd && Mio.foto(t.fotoProd);
     const p = popMio(`<div class="tk-arriba"><b>${esc(t.titulo || 'Ticket')}</b>${t.importe != null ? `<span class="tk-imp">${dinero(t.importe)}</span>` : ''}</div>
       <div class="tk-vfecha">📅 ${fechaBonita(t.fecha, true)}</div>
-      ${f ? `<div class="tk-vimg"><img src="${f}" alt="Ticket" data-grande><span>🔍 Tocar para ampliar</span></div>` : t.foto ? '<div class="tk-vacio">La foto aún se está bajando de la nube…</div>' : '<div class="tk-vacio">Sin foto del ticket</div>'}
+      ${f ? `<div class="tk-vimg"><img src="${f}" alt="Ticket" data-grande><span>🔍 Tócalo para verlo en grande, ampliarlo y guardarlo</span></div>` : t.foto ? '<div class="tk-vacio">La foto aún se está bajando de la nube…</div>' : '<div class="tk-vacio">Sin foto del ticket</div>'}
       ${fp ? `<div class="tk-vprod"><img src="${fp}" alt="" data-grande><span>Lo que es</span></div>` : ''}
       <div class="mp-fila"><button class="mp-b mp-borrar" data-borrar aria-label="Borrar">🗑️</button><button class="mp-b" data-editar>✏️ Editar</button><button class="mp-b mp-pri" data-x>Cerrar</button></div>`, 'tk-pop');
     p.onclick = e => { const b = e.target.closest('button,img[data-grande]'); if(!b) return;
-      if(b.tagName === 'IMG'){ verFotoGrande(b.src); return; }
+      if(b.tagName === 'IMG'){ verFotoGrande(b.src, 'Ticket ' + (t.titulo || '') + ' ' + t.fecha); return; }
       if('borrar' in b.dataset) this.borrar(id); else if('editar' in b.dataset) this.editar(id); else cerrarPopMio(); };
   },
   editar(id){
