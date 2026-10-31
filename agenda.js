@@ -28,7 +28,9 @@ const Agenda = {
   pintar(){
     if(!this.activa()) return;
     const c = $('#agCuerpo'), sc = c.scrollTop;
-    const modos = `<div class="ag-modos"><div class="seg">${[['dia','Día'],['mes','Mes'],['anio','Año']].map(([m, t]) => `<button data-m="${m}" class="${this.modo === m ? 'on' : ''}">${t}</button>`).join('')}</div></div>`;
+    const nf0 = this.fotosDe(this.prefFotos()).length;
+    const modos = `<div class="ag-modos"><div class="seg">${[['dia','Día'],['mes','Mes'],['anio','Año']].map(([m, t]) => `<button data-m="${m}" class="${this.modo === m ? 'on' : ''}">${t}</button>`).join('')}</div>
+      <div class="ag-acc"><button class="ag-acc-b ag-acc-hoy" data-hoy>📅 Hoy</button><button class="ag-acc-b ag-nfotos ${nf0 ? '' : 'cero'}" data-fotos title="Fotos de ${this.modo === 'anio' ? 'este año' : 'este mes'}">📷 Fotos${nf0 ? ' <small>' + nf0 + '</small>' : ''}</button><button class="ag-acc-b" data-colores>🔎 Buscar</button></div></div>`;
     let cab, cuerpo;
     if(this.modo === 'anio'){
       const y = this.mes.getFullYear();
@@ -42,11 +44,9 @@ const Agenda = {
       cab = `<div class="ag-titulo">${MESES_C[m]} <span>${y}</span></div>`;
       cuerpo = this.rejilla(y, m, false);
     }
-    const nf = this.fotosDe(this.prefFotos()).length;
     c.innerHTML = `<div class="ag-card ag-m-${this.modo}">${modos}
       <div class="ag-cab"><button class="flecha" data-mv="-1" aria-label="Anterior">‹</button>${cab}<button class="flecha" data-mv="1" aria-label="Siguiente">›</button></div>
       ${cuerpo}
-      <div class="ag-pie"><button class="hoy-btn" data-hoy>Fecha actual</button><button class="mini-btn ag-nfotos ${nf ? '' : 'cero'}" data-fotos title="Fotos de ${this.modo === 'anio' ? 'este año' : 'este mes'}">📷 ${nf}</button><button class="mini-btn" data-colores>🔎 Colores</button></div>
     </div>`;
     c.scrollTop = sc;
     $('#agSub').textContent = this.modo === 'mes' ? this.resumenMes() : this.modo === 'dia' ? (this.notas(this.dia).length ? this.notas(this.dia).length + (this.notas(this.dia).length === 1 ? ' nota' : ' notas') : 'Día libre') : 'Todo el año';
@@ -432,6 +432,50 @@ const Agenda = {
       <button class="mp-cancelar" data-x>Cerrar</button>`);
     p.onclick = e => { const b = e.target.closest('[data-f]'); if(b){ verFotoGrande(Mio.foto(b.dataset.f)); return; } if(e.target.closest('[data-x]')) cerrarPopMio(); };
   },
+  /* Buscar en la Agenda: por color, por palabras y por cuándo (todo, un año, un mes o entre dos fechas) */
+  buscar(){
+    const hoy = hoyIso(), B = this._bus = this._bus || { c:'', q:'', cuando:'todo', y:+hoy.slice(0, 4), m:hoy.slice(0, 7), d1:sumaDias(hoy, -30), d2:hoy };
+    const anios = [...new Set([...Mio.todos('agenda').map(d => +d.id.slice(0, 4)).filter(Boolean), +hoy.slice(0, 4)])].sort((a, b) => b - a);
+    const p = popMio(`<div class="ts-cab"><h3 class="mp-h">🔎 Buscar en la Agenda</h3><button class="mp-b mp-pri ts-listo" data-x>✓ Listo</button></div>
+      <div class="gx-buscar ab-q"><span>🔍</span><input id="abQ" type="search" placeholder="Palabras (opcional)…" autocomplete="off" value="${esc(B.q)}"></div>
+      <div class="ab-tit">Color</div>
+      <div class="mp-colores mp-colores-b ab-cols"><button data-c="" class="${!B.c ? 'on' : ''}"><i class="ab-todos"></i>Todos</button>${CAL_COLOR_KEYS.filter(k => k !== 'none').map(k => `<button data-c="${k}" class="${k === B.c ? 'on' : ''}"><i style="background:${this.col(k).bg};border-color:${this.col(k).border}"></i>${this.col(k).name}</button>`).join('')}</div>
+      <div class="ab-tit">Cuándo</div>
+      <div class="seg ab-cuando" id="abCuando">${[['todo','Todo'],['anio','Un año'],['mes','Un mes'],['entre','Entre fechas']].map(([v, t]) => `<button data-cu="${v}" class="${B.cuando === v ? 'on' : ''}">${t}</button>`).join('')}</div>
+      <div class="ab-fechas" id="abFechas"></div>
+      <div id="abRes"></div>`, 'ab-pop');
+    const fechas = () => {
+      const f = $('#abFechas', p);
+      f.innerHTML = B.cuando === 'anio' ? `<select id="abY">${anios.map(y => `<option ${y === B.y ? 'selected' : ''}>${y}</option>`).join('')}</select>`
+        : B.cuando === 'mes' ? `<input type="month" id="abM" value="${B.m}">`
+        : B.cuando === 'entre' ? `<label>Desde<input type="date" id="abD1" value="${B.d1}"></label><label>Hasta<input type="date" id="abD2" value="${B.d2}"></label>` : '';
+      const y = $('#abY', p), m = $('#abM', p), d1 = $('#abD1', p), d2 = $('#abD2', p);
+      if(y) y.onchange = () => { B.y = +y.value; res(); };
+      if(m) m.onchange = () => { if(m.value) B.m = m.value; res(); };
+      if(d1) d1.onchange = () => { if(d1.value) B.d1 = d1.value; res(); };
+      if(d2) d2.onchange = () => { if(d2.value) B.d2 = d2.value; res(); };
+    };
+    const rango = () => B.cuando === 'anio' ? [B.y + '-01-01', B.y + '-12-31'] : B.cuando === 'mes' ? [B.m + '-01', B.m + '-31']
+      : B.cuando === 'entre' ? [B.d1 <= B.d2 ? B.d1 : B.d2, B.d1 <= B.d2 ? B.d2 : B.d1] : ['0000', '9999'];
+    const res = () => {
+      const [ini, fin] = rango(), q = norm(B.q.trim()), out = [];
+      Mio.todos('agenda').filter(d => d.id >= ini && d.id <= fin).sort((a, b) => a.id < b.id ? 1 : -1).forEach(d => {
+        if(B.c && !q && d.color === B.c) out.push({ k:d.id, dia:true, color:d.color });
+        (d.items || []).forEach(it => { if((!B.c || it.color === B.c) && (!q || norm(it.texto || '').includes(q))) out.push({ k:d.id, it, color:it.color }); });
+      });
+      const nada = !B.c && !q && B.cuando === 'todo';
+      $('#abRes', p).innerHTML = nada ? '<p class="mp-p ab-pista">Elige un color, escribe una palabra o di cuándo: verás aquí los días y las notas.</p>'
+        : `<div class="ab-n">${out.length ? out.length + (out.length === 1 ? ' resultado' : ' resultados') : 'No hay nada con esto'}</div>`
+          + (out.length ? `<div class="mp-notas">${out.slice(0, 200).map(x => `<button class="mp-nota" data-k="${x.k}"><i style="background:${x.color && x.color !== 'none' ? this.col(x.color).dot : '#c8c8cc'}"></i><span><b>${fechaCortaB(x.k)} ${deIso(x.k).getFullYear()}</b> · ${x.dia ? 'Color del día' : (x.it.texto ? esc(x.it.texto) : '📷 Foto')}</span><b>›</b></button>`).join('')}</div>` : '');
+    };
+    fechas(); res();
+    const q = $('#abQ', p); q.oninput = () => { B.q = q.value; res(); };
+    p.onclick = e => { const b = e.target.closest('[data-c],[data-k],[data-x],[data-cu]'); if(!b) return;
+      if(b.dataset.cu){ B.cuando = b.dataset.cu; $$('#abCuando button', p).forEach(x => x.classList.toggle('on', x === b)); fechas(); res(); }
+      else if(b.dataset.c !== undefined && b.closest('.ab-cols')){ B.c = b.dataset.c; $$('.ab-cols button', p).forEach(x => x.classList.toggle('on', x === b)); res(); }
+      else if(b.dataset.k){ cerrarPopMio(); this.irDia(b.dataset.k); }
+      else if('x' in b.dataset) cerrarPopMio(); };
+  },
   buscarColores(c){
     const lista = c ? (() => { const out = [];
       Mio.todos('agenda').sort((a, b) => a.id < b.id ? 1 : -1).forEach(d => {
@@ -498,7 +542,7 @@ const Agenda = {
       else if(d.mv) this.pasar(+d.mv);
       else if('hoy' in d) this.irHoy();
       else if('fotos' in d) this.verFotosMes();
-      else if('colores' in d) this.buscarColores(null);
+      else if('colores' in d) this.buscar();
       else if(d.mes != null && b.classList.contains('ag-mini-t')){ this.mes = new Date(this.mes.getFullYear(), +d.mes, 1); this.ponerModo('mes'); }
       else if(d.k) this.elegirDia(d.k);
       else if(d.dia){ this.dia = d.dia; this.pintar(); }

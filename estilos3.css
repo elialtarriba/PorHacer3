@@ -1210,3 +1210,38 @@ ul.aj-lista b{display:inline;font-size:inherit;margin:0}
 .po-der .po-tema-b svg{width:28px;height:28px}
 .po-der .po-nube svg{width:30px;height:24px}
 .aj-sel-tab{width:100%;font:inherit;font-size:16px;font-weight:800;padding:12px 14px;border-radius:14px;border:1.5px solid var(--line);background:var(--colbg);color:var(--dark)}
+
+/* V15.4 · Agenda: Hoy · Fotos · Buscar arriba, bien alineados */
+.ag-modos{flex-direction:column;align-items:stretch;gap:8px}
+.ag-modos .seg{max-width:none}
+.ag-acc{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.ag-acc-b{height:42px;border-radius:13px;border:1.5px solid var(--line);background:var(--colbg);font:inherit;font-size:14.5px;font-weight:900;color:var(--dark);display:flex;align-items:center;justify-content:center;gap:5px;white-space:nowrap;box-shadow:0 3px 0 rgba(0,0,0,.06);margin:0}
+.ag-acc-b small{font-size:11px;font-weight:900;background:var(--accent);color:var(--accentInk);border-radius:9px;padding:1px 6px}
+.ag-acc-hoy{background:var(--accent);border-color:var(--accent);color:var(--accentInk);box-shadow:0 3px 0 color-mix(in srgb,var(--accent) 60%,#000)}
+.ag-acc .ag-nfotos{margin:0}
+.ag-acc .ag-nfotos.cero{opacity:.75}
+/* Buscar en la Agenda */
+.ab-q{margin-bottom:6px}
+.ab-tit{font-size:12px;font-weight:900;text-transform:uppercase;letter-spacing:.5px;color:var(--ink2);margin:10px 2px 6px}
+.ab-cols{margin-bottom:4px}
+.ab-todos{background:conic-gradient(#f6d365,#f5a25d,#7cc35a,#5aa9e6,#c49a6c,#e85a5a,#f6d365)!important;border-color:var(--line)!important}
+.ab-cuando{width:100%}
+.ab-cuando button{flex:1;font-size:13px}
+.ab-fechas{display:flex;gap:8px;margin-top:8px}
+.ab-fechas:empty{display:none}
+.ab-fechas select,.ab-fechas input{flex:1;min-width:0;height:44px;border-radius:12px;border:1.5px solid var(--line);background:var(--colbg);font:inherit;font-size:16px;font-weight:700;padding:0 10px;color:var(--ink)}
+.ab-fechas label{flex:1;display:flex;flex-direction:column;gap:3px;font-size:12px;font-weight:800;color:var(--ink2)}
+.ab-n{font-size:13px;font-weight:900;color:var(--dark);margin:14px 2px 6px}
+.ab-pista{text-align:center;margin-top:14px}
+/* V15.4 · Gastos: buscar encima de las pestañas, en todas */
+.gx-buscar-arriba{flex:none;margin:2px 12px 4px}
+.gx-tabde{display:inline-block;font-size:11.5px;font-weight:900;color:#3b3340;background:var(--tc);border-radius:9px 9px 0 0;padding:2px 9px;margin:0 0 4px}
+.gx-bus-pista{font-size:13px;font-weight:800;color:var(--ink2);text-align:center;margin:6px 8px 10px}
+.gx-fila.gx-brilla .gx-cara{animation:gxBrilla 1.1s ease-in-out 2}
+@keyframes gxBrilla{50%{box-shadow:0 0 0 4px color-mix(in srgb,var(--accent) 55%,transparent)}}
+.ab-pop{padding-top:0}
+.ab-cols{grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:6px!important}
+.ab-cols button{min-height:0!important;height:38px;padding:0 8px!important;font-size:12.5px!important;gap:6px!important;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.ab-cols i{width:16px!important;height:16px!important;flex:none}
+.ab-fechas label{min-width:0}
+.ab-fechas label input{width:100%;flex:none}

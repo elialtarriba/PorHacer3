@@ -125,7 +125,7 @@ const Gastos = {
     this._olvidar(); for(const id of ids) await Mio.quitar('gastos', id); await Mio.quitarFotos(fs); lsSet('ph3-gx-nombre', null);
   },
   ordenados(){
-    const t = this.deTab(), q = norm(this.q.trim());
+    const q = norm(this.q.trim()), t = q ? this.todos() : this.deTab();   // al buscar: en todas las pestañas
     const ok = x => (!this.filtro || x.color === this.filtro) && (!q || norm((x.texto || '') + ' ' + this.importes(x).map(i => dinero(i.imp)).join(' ')).includes(q));
     const pend = t.filter(x => !x.ok && ok(x)).sort((a, b) => (b.orden || b.creado || 0) - (a.orden || a.creado || 0));
     const hechos = t.filter(x => x.ok && ok(x)).sort((a, b) => (b.hecho || 0) - (a.hecho || 0));
@@ -143,9 +143,9 @@ const Gastos = {
           <input class="gx-tit" id="gxTit" maxlength="40" aria-label="Nombre de la lista" autocomplete="off">
           <button class="gx-mas" data-nueva aria-label="Añadir una nota">＋</button>
         </div>
+        <div class="gx-buscar gx-buscar-arriba"><span>🔍</span><input id="gxQ" type="search" placeholder="Buscar en todas las pestañas…" autocomplete="off" enterkeyhint="search"></div>
         <div class="gx-tabs" id="gxTabs"></div>
         <div class="gx-filtros">
-          <div class="gx-buscar"><span>🔍</span><input id="gxQ" type="search" placeholder="Buscar…" autocomplete="off" enterkeyhint="search"></div>
           <div class="gx-cols" id="gxCols"></div>
         </div>
         <div class="gx-total" id="gxTotal" hidden></div>
@@ -315,7 +315,7 @@ const Gastos = {
       <div class="desl-cara gx-cara">
         <button class="gx-check" data-check aria-label="${x.ok ? 'Desmarcar' : 'Marcar como hecha'}"></button>
         <div class="gx-cont">
-          ${tots}
+          ${tots}${this.q.trim() && this.tabs().length ? (tb => tb ? `<span class="gx-tabde" style="--tc:${this.colorTab(tb, this.tabs().indexOf(tb))}">📑 ${esc(tb.nombre)}</span>` : '')(this.tabs().find(t => t.id === this.tabDe(x))) : ''}
           ${ed ? `<div class="gx-erow ${x.okTit ? 'tach' : ''}"><textarea class="gx-t1" id="gxT1" rows="1" placeholder="¿Qué es?" enterkeyhint="next">${esc(tit)}</textarea>
                  <label class="gx-impw"><input class="gx-imp-in" id="gxImp" inputmode="decimal" enterkeyhint="next" placeholder="0,00" value="${x.importe != null ? x.importe.toFixed(2).replace('.', ',') : ''}" autocomplete="off"><span>€</span></label>
                  <button class="gx-tick ${x.okTit ? 'on' : ''}" data-etick id="gxTickT" aria-label="Marcar (tachar)" ${x.importe == null ? 'hidden' : ''}>${x.okTit ? '✓' : ''}</button></div>
@@ -344,7 +344,9 @@ const Gastos = {
     if(!$('#gx')) return;
     const c = $('#gxCuerpo'), sc = c.scrollTop, { pend, hechos } = this.ordenados(), total = this.deTab().length;
     this.pintarTabs(); this.pintarCols();
-    c.innerHTML = (pend.length ? pend.map(x => this.fila(x)).join('') : `<p class="gx-nada">${total ? 'No hay notas con esto.' : 'Pulsa <b>＋</b> para añadir tu primera nota.'}</p>`)
+    const busc = !!this.q.trim(), nRes = pend.length + hechos.length;
+    c.innerHTML = (busc ? `<p class="gx-bus-pista">🔎 ${nRes ? nRes + (nRes === 1 ? ' nota' : ' notas') + ' en todas las pestañas · toca una para ir a ella' : 'No hay ninguna nota con esto en ninguna pestaña'}</p>` : '')
+      + (pend.length ? pend.map(x => this.fila(x)).join('') : busc ? '' : `<p class="gx-nada">${total ? 'No hay notas con esto.' : 'Pulsa <b>＋</b> para añadir tu primera nota.'}</p>`)
       + (hechos.length ? `<div class="gx-sep">✓ Hechas · ${hechos.length}</div>` + hechos.map(x => this.fila(x)).join('') : '')
       + (total ? '<p class="desl-pista">👈 Desliza una nota a la izquierda para eliminarla</p>' : '');
     c.scrollTop = sc;
@@ -352,6 +354,15 @@ const Gastos = {
     // arriba: la suma de todo lo que se ve y lo que falta (lo no tachado de las notas sin hacer)
     const vis = [...pend, ...hechos], todo = vis.reduce((a, x) => a + this.sumas(x).todo, 0), falta = pend.reduce((a, x) => a + this.sumas(x).pend, 0), hay = vis.some(x => this.sumas(x).n);
     const tt = $('#gxTotal'); if(tt){ tt.hidden = !hay; tt.innerHTML = hay ? `Total: <b>${dinero(todo)}</b>${falta !== todo ? ` · sin tachar: <b>${dinero(falta)}</b>` : ''}` : ''; }
+  },
+  // desde la búsqueda: ir a la pestaña de la nota, quitar la búsqueda y señalarla
+  irANota(id){
+    const x = this.uno(id); if(!x) return;
+    const tb = this.tabDe(x); if(tb) lsSet('ph3-gx-tab', tb);
+    this.q = ''; $('#gxQ').value = ''; this.filtro = ''; this._tabVisto = false; this.pintar();
+    const f = $(`#gxCuerpo .gx-fila[data-id="${id}"]`);
+    if(f){ f.scrollIntoView({ block:'center', behavior:'smooth' }); f.classList.add('gx-brilla'); setTimeout(() => f.classList.remove('gx-brilla'), 2200); }
+    const t = this.tabs().find(t => t.id === tb); if(t) toast('📑 ' + t.nombre, null, null, 1300);
   },
   auto(t){ t.style.height = 'auto'; t.style.height = (t.scrollHeight + 2) + 'px'; },
 
@@ -521,7 +532,7 @@ const Gastos = {
       else if('check' in d) this.marcar(id);
       else if(d.tachar !== undefined) this.tachar(id, d.tachar);
       else if('etick' in d){ b.classList.toggle('on'); b.textContent = b.classList.contains('on') ? '✓' : ''; b.closest('.gx-lrow, .gx-erow').classList.toggle('tach', b.classList.contains('on')); }
-      else if('editar' in d){ await this.guardarEdicion(); this.editar(id); }
+      else if('editar' in d){ await this.guardarEdicion(); if(this.q.trim()) this.irANota(id); else this.editar(id); }
       else if('bandera' in d) this.banderaTap(id);
       else if('intro' in d){ const f = this.foco(); if(f) this.teclas({ key:'Enter', target:f, preventDefault(){} }); }
       else if('foto' in d) this.foto(id);
