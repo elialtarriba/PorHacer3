@@ -315,7 +315,7 @@ const Calc = {
     this._carga = new Promise(ok => {
       const f = $('#calcFrame');
       f.addEventListener('load', () => setTimeout(() => ok(this.win()), 60), { once:true });
-      f.src = 'calculadora.html?v=164';
+      f.src = 'calculadora.html?v=165';
     });
     return this._carga;
   },
@@ -379,12 +379,13 @@ const TemaSec = {
   enlazar(cont, sec, alCambiar){ $$('[data-ts]', cont).forEach(b => b.onclick = async () => { await this.poner(sec, b.dataset.ts); $$('[data-ts]', cont).forEach(x => x.classList.toggle('on', x === b)); alCambiar && alCambiar(); }); },
   // ventana desde el propio apartado (botón 🎨 de arriba)
   elegir(sec){
-    const p = popMio(`<h3 class="mp-h">🎨 Colores de ${this.NOMBRES[sec]}</h3>
+    const p = popMio(`<div class="ts-cab"><h3 class="mp-h">🎨 Colores de ${this.NOMBRES[sec]}</h3><button class="mp-b mp-pri ts-listo" data-x2>✓ Listo</button></div>
       <p class="mp-p">Solo cambian <b>${this.NOMBRES[sec]}</b>. «Como la app» = el tema de toda la app.</p>
       ${this.rejilla(sec)}
       <div class="mp-fila"><button class="mp-b" data-toda>🎨 Tema de toda la app</button><button class="mp-b mp-pri" data-x>Listo</button></div>`, 'ts-pop');
     this.enlazar(p, sec);
     p.querySelector('[data-x]').onclick = () => cerrarPopMio();
+    p.querySelector('[data-x2]').onclick = () => cerrarPopMio();
     p.querySelector('[data-toda]').onclick = () => { cerrarPopMio(); Ajustes.abrir('temas'); };
   }
 };

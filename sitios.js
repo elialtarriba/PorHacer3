@@ -320,16 +320,17 @@ const Sitios = {
   autoIcono(nombre, tipo){
     const q = norm(nombre).trim(); if(q.length < 2) return null;
     if(tipo === 'casa'){ let best = null, bl = 0; HOUSE_SVG_ICONS.forEach(f => f.k.forEach(k => { const nk = norm(k); if(q.includes(nk) && nk.length > bl){ best = f; bl = nk.length; } })); return best ? { img:best.src } : null; }
-    let best = null, bl = 0; FURNITURE_ICONS.forEach(f => f.k.forEach(k => { const nk = norm(k); if(nk && q.includes(nk) && nk.length > bl){ best = f; bl = nk.length; } }));
+    let best = null, bl = 0; [...ROOM_ICONS, ...FURNITURE_ICONS].forEach(f => f.k.forEach(k => { const nk = norm(k); if(nk && q.includes(nk) && nk.length > bl){ best = f; bl = nk.length; } }));
     if(best) return { img:best.src };
     const low = nombre.toLowerCase().trim();
     for(const { k, e } of EMOJI_MAP) if(k.some(w => low.includes(w))) return { img:null, emoji:e };
     const f = ALL_EMOJIS.find(({ l }) => norm(l).includes(q)); return f ? { img:null, emoji:f.e } : null;
   },
-  pestanas(){ return this.ED.tipo === 'casa' ? ['Casas', 'Casa', 'Objetos', 'Exterior', 'Mi imagen'] : ['Muebles', 'Casa', 'Objetos', 'Exterior', 'Comida', 'Mi imagen']; },
+  pestanas(){ return this.ED.tipo === 'casa' ? ['Casas', 'Casa', 'Objetos', 'Exterior', 'Mi imagen'] : ['Muebles', 'Estancias', 'Casa', 'Objetos', 'Exterior', 'Comida', 'Mi imagen']; },
   iconosDe(t){
     if(t === 'Casas') return [...HOUSE_SVG_ICONS.map(f => ({ img:f.src, l:f.l, k:f.k })), ...HOUSE_EMOJI_ICONS.map(x => ({ emoji:x.e, l:x.l }))];
     if(t === 'Muebles') return FURNITURE_ICONS.map(f => ({ img:f.src, l:f.l, k:f.k }));
+    if(t === 'Estancias') return ROOM_ICONS.map(f => ({ img:f.src, l:f.l, k:f.k }));
     return (EMOJI_TABS[t] || []).map(x => ({ emoji:x.e, l:x.l }));
   },
   elegirIcono(pest){

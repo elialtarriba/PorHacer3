@@ -1,12 +1,12 @@
 // PorHacer3 · service worker: la app funciona sin conexión
-const CACHE = 'porhacer3-v164';
+const CACHE = 'porhacer3-v165';
 const ARCHIVOS = [
-  './', './index.html', './manifest.json', './estilos.css?v=164', './estilos3.css?v=164',
-  './iconos.js?v=164', './iconos-home.js?v=164', './mio.js?v=164', './agenda.js?v=164', './tickets.js?v=164', './gastos.js?v=164', './guardar.js?v=164', './sitios.js?v=164', './grabar.js?v=164', './escribir.js?v=164', './portada.js?v=164', './temas.js?v=164', './db.js?v=164', './firebase-config.js?v=164', './email-config.js?v=164', './nube.js?v=164',
-  './correo.js?v=164', './audio.js?v=164', './fiesta.js?v=164', './avisos.js?v=164', './bloc.js?v=164', './listas.js?v=164', './listas.png', './lame.min.js', './html2canvas.min.js', './jspdf.min.js', './pdf.min.js', './pdf.worker.min.js',
-  './fotos.js?v=164', './videos.js?v=164', './voz.js?v=164', './calendario.js?v=164', './ajustes.js?v=164',
-  './copias.js?v=164', './app.js?v=164',
-  './logo.png', './calculadora.html?v=164', './logo_elibi.jpg', './icon-192.png', './icon-512.png', './apple-touch-icon.png'
+  './', './index.html', './manifest.json', './estilos.css?v=165', './estilos3.css?v=165',
+  './iconos.js?v=165', './iconos-home.js?v=165', './mio.js?v=165', './agenda.js?v=165', './tickets.js?v=165', './gastos.js?v=165', './guardar.js?v=165', './sitios.js?v=165', './grabar.js?v=165', './escribir.js?v=165', './portada.js?v=165', './temas.js?v=165', './db.js?v=165', './firebase-config.js?v=165', './email-config.js?v=165', './nube.js?v=165',
+  './correo.js?v=165', './audio.js?v=165', './fiesta.js?v=165', './avisos.js?v=165', './bloc.js?v=165', './listas.js?v=165', './listas.png', './lame.min.js', './html2canvas.min.js', './jspdf.min.js', './pdf.min.js', './pdf.worker.min.js',
+  './fotos.js?v=165', './videos.js?v=165', './voz.js?v=165', './calendario.js?v=165', './ajustes.js?v=165',
+  './copias.js?v=165', './app.js?v=165',
+  './logo.png', './calculadora.html?v=165', './logo_elibi.jpg', './icon-192.png', './icon-512.png', './apple-touch-icon.png'
 ];
 // Librería de Firebase: también se guarda para poder abrir la app sin internet
 const SDK = ['app','auth','firestore'].map(n => `https://www.gstatic.com/firebasejs/10.14.1/firebase-${n}-compat.js`);

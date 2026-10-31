@@ -1,6 +1,6 @@
 /* PorHacer · app principal: tablero de columnas, tareas y editor */
 
-const VERSION = 'V15.2';
+const VERSION = 'V15.3';
 const $ = (s, r=document) => r.querySelector(s);
 const $$ = (s, r=document) => Array.from(r.querySelectorAll(s));
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -1149,3 +1149,23 @@ async function iniciar(){
   if('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('sw.js').catch(()=>{});
 }
 document.addEventListener('DOMContentLoaded', iniciar);
+
+/* V15.3 · iPhone: después de escribir con el teclado, a veces la página se queda «subida» un poco.
+   Se ve bien, pero los toques caen más abajo de donde tocas: los botones de arriba (y «Fecha actual»)
+   parecen no hacer nada. Aquí se vuelve a poner la página en su sitio en cuanto se cierra el teclado. */
+(function(){
+  const editando = () => { const a = document.activeElement; return !!(a && (/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName) || a.isContentEditable)); };
+  const recolocar = () => {
+    if(editando()) return;
+    const se = document.scrollingElement || document.documentElement;
+    if(window.scrollY || window.scrollX || se.scrollTop || document.body.scrollTop){ window.scrollTo(0, 0); se.scrollTop = 0; document.body.scrollTop = 0; }
+  };
+  addEventListener('focusout', () => { setTimeout(recolocar, 80); setTimeout(recolocar, 400); });
+  if(window.visualViewport) visualViewport.addEventListener('resize', () => setTimeout(recolocar, 120));
+  addEventListener('scroll', () => { if(!editando()) setTimeout(recolocar, 150); }, { passive:true });
+  addEventListener('pageshow', recolocar);
+  addEventListener('orientationchange', () => setTimeout(recolocar, 350));
+  document.addEventListener('visibilitychange', () => { if(!document.hidden) setTimeout(recolocar, 150); });
+  // por si acaso: al tocar la pantalla sin teclado abierto
+  addEventListener('touchstart', () => { if(!editando()) recolocar(); }, { passive:true, capture:true });
+})();

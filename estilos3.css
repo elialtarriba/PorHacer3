@@ -1195,3 +1195,18 @@ ul.aj-lista b{display:inline;font-size:inherit;margin:0}
   .po-b b{font-size:22px}
   .po-b small{font-size:15px}
 }
+
+/* V15.3 · Colores: el «Listo» de arriba siempre a la vista */
+.ts-pop{padding-top:0}
+.ts-cab{position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:10px;margin:0 -18px 8px;padding:16px 18px 10px;background:var(--card);border-bottom:1px solid var(--line)}
+.ts-cab .mp-h{flex:1;margin:0}
+.ts-listo{flex:none;width:auto!important;padding:0 16px;min-height:40px}
+
+/* V15.3 · Portada: versión arriba (ancho de los dos botones) y nube + colores del mismo tamaño */
+.po-der{display:grid;grid-template-columns:44px 44px;gap:8px;align-items:center;justify-items:stretch}
+.po-der .ver{grid-column:1 / -1;display:block;text-align:center;width:auto;margin:0;padding:3px 0}
+.po-der-f{display:contents}
+.po-der .po-nube,.po-der .po-tema-b{width:44px;height:44px;border-radius:14px;padding:0;margin:0;display:grid;place-items:center;background:var(--card);border:1px solid var(--line);box-shadow:0 4px 0 rgba(0,0,0,.08),0 6px 14px var(--sombra)}
+.po-der .po-tema-b svg{width:28px;height:28px}
+.po-der .po-nube svg{width:30px;height:24px}
+.aj-sel-tab{width:100%;font:inherit;font-size:16px;font-weight:800;padding:12px 14px;border-radius:14px;border:1.5px solid var(--line);background:var(--colbg);color:var(--dark)}

@@ -443,14 +443,31 @@ const Ajustes = {
     };
   },
 
+  /* Cada tablero tiene sus columnas: arriba se elige de qué tablero son las que se ven y se cambian */
+  nomTablero(){ return (typeof Nube !== 'undefined' && Nube.activa && Nube.tablero) ? Nube.nombreTablero(Nube.tablero) : ''; },
+  selTablero(){
+    if(typeof Nube === 'undefined' || !Nube.activa) return `<div class="aj-sec"><h4>📋 Tablero</h4><p class="aj-ayuda">Estas son las columnas de las tareas de este aparato. Si entras con tu cuenta, cada tablero tiene las suyas.</p></div>`;
+    const ts = [...Nube.misTableros(), ...Nube.compartidos()];
+    return `<div class="aj-sec"><h4>📋 ¿De qué tablero?</h4><select id="ajColTab" class="aj-sel-tab">${ts.map(t => `<option value="${t.id}" ${t.id === Nube.tid ? 'selected' : ''}>${esc(Nube.nombreTablero(t))}${Nube.esDueno(t) ? '' : ' (compartido)'}</option>`).join('')}</select>
+      <p class="aj-ayuda" style="margin-top:6px">Cada tablero tiene sus propias columnas. Al elegir otro, también se abre ese tablero en Tareas.</p></div>`;
+  },
   /* Columnas: mostrar/ocultar, nombre, color del borde, orden, nuevas */
   columnas(){
     const a = App.ajustes, cont = $('#ajColumnas');
-    cont.innerHTML = `<div class="aj-sec"><h4>Borde de las tareas</h4>
+    cont.innerHTML = `${this.selTablero()}<div class="aj-sec"><h4>Borde de las tareas</h4>
         <label class="check" style="margin-top:0"><input type="checkbox" id="ajBorde" ${a.bordeColumna?'checked':''}><span class="caja"></span><span>El borde de cada tarea toma el color de su columna<small>Ej.: Nueva = rojo, En curso = azul, En pausa = naranja, Acabada = verde</small></span></label></div>
-      <div class="aj-sec"><h4>Columnas</h4><p class="aj-ayuda">👁 muestra u oculta · ↑↓ cambia el orden · ✓ = las tareas de esa columna cuentan como «acabadas» (se tachan y no salen como vencidas).</p><div id="ajListaCols"></div>
+      <div class="aj-sec"><h4>Columnas${this.nomTablero() ? ' de «' + esc(this.nomTablero()) + '»' : ''}</h4><p class="aj-ayuda">👁 muestra u oculta · ↑↓ cambia el orden · ✓ = las tareas de esa columna cuentan como «acabadas» (se tachan y no salen como vencidas).</p><div id="ajListaCols"></div>
       <button class="btn-pri btn-ancho" id="ajNuevaCol">＋ Nueva columna</button></div>`;
     $('#ajBorde').onchange = async e => { a.bordeColumna = e.target.checked; await this.guardar(); pintarTodo(); };
+    const st = $('#ajColTab'); if(st) st.onchange = async () => {
+      const tid = st.value; if(!tid || tid === Nube.tid) return;
+      st.disabled = true; toast('📋 Abriendo «' + st.selectedOptions[0].textContent + '»…', null, null, 3000);
+      try{ await Nube.conectar(tid); }catch(e){ console.warn(e); }
+      // espera a que lleguen las columnas de ese tablero
+      const antes = JSON.stringify(a.columnas); let n = 0;
+      await new Promise(ok => { const t = setInterval(() => { n++; if(JSON.stringify(App.ajustes.columnas) !== antes || n > 20){ clearInterval(t); ok(); } }, 150); });
+      this.columnas(); toast('🗂️ Columnas de «' + this.nomTablero() + '»', null, null, 1800);
+    };
     const l = $('#ajListaCols');
     a.columnas.forEach((c, i) => {
       const n = App.tareas.filter(t => t.colId === c.id).length;
@@ -482,14 +499,14 @@ const Ajustes = {
       });
     });
     $('#ajNuevaCol').onclick = async () => {
-      const v = await popup({ tit:'Nueva columna', html:'<input id="ncNom" placeholder="Nombre (p. ej. Esperando respuesta)" maxlength="30">',
+      const v = await popup({ tit:'Nueva columna' + (this.nomTablero() ? ' en «' + this.nomTablero() + '»' : ''), html:'<input id="ncNom" placeholder="Nombre (p. ej. Esperando respuesta)" maxlength="30">',
         botones:[{txt:'Cancelar', val:null}, {txt:'Crear', cls:'btn-pri', val:cx => $('#ncNom',cx).value.trim()}],
         alAbrir: cx => setTimeout(() => $('#ncNom',cx).focus(), 200) });
       if(!v) return;
       const usados = a.columnas.map(c => c.color);
       const libre = ['#8b5cf6','#14b8a6','#e0708f','#b9875a','#0ea5e9','#84cc16','#d4cc9e'].find(c => !usados.includes(c)) || '#8b5cf6';
       a.columnas.push({ id:nuevoId('c'), nombre:v, color:libre, visible:true, hecha:false });
-      await this.guardar(); this.columnas(); pintarTodo(); toast('🗂️ Columna «'+v+'» creada');
+      await this.guardar(); this.columnas(); pintarTodo(); toast('🗂️ Columna «'+v+'» creada' + (this.nomTablero() ? ' en «' + this.nomTablero() + '»' : ''));
     };
   },
 
