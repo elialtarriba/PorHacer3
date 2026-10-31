@@ -17,8 +17,8 @@ const Grabar = {
   },
   async tx(modo, fn){ const db = await this.idb(); return new Promise((ok, mal) => { const t = db.transaction('g', modo), st = t.objectStore('g'); let out; const r = fn(st); if(r) r.onsuccess = () => { out = r.result; }; t.oncomplete = () => ok(out); t.onerror = () => mal(t.error); }); },
   async cargar(){ try{ this.lista = ((await this.tx('readonly', st => st.getAll())) || []).sort((a, b) => a.fecha - b.fecha); }catch(e){ this.lista = []; } Mio.avisar('grabar'); },
-  async poner(n){ await this.tx('readwrite', st => st.put(n)); const i = this.lista.findIndex(x => x.id === n.id); if(i >= 0) this.lista[i] = n; else this.lista.push(n); Mio.avisar('grabar'); },
-  async quitar(id){ await this.tx('readwrite', st => st.delete(id)); this.lista = this.lista.filter(x => x.id !== id); Mio.avisar('grabar'); },
+  async poner(n){ n.cambiado = Date.now(); await this.tx('readwrite', st => st.put(n)); if(typeof Guardar !== 'undefined') Guardar.cambioGrabar(n); const i = this.lista.findIndex(x => x.id === n.id); if(i >= 0) this.lista[i] = n; else this.lista.push(n); Mio.avisar('grabar'); },
+  async quitar(id){ await this.tx('readwrite', st => st.delete(id)); if(typeof Guardar !== 'undefined') Guardar.cambioGrabar(null, id); this.lista = this.lista.filter(x => x.id !== id); Mio.avisar('grabar'); },
 
   /* ---------- Pantalla ---------- */
   abrir(){ soloVista('vGrabar'); this.pintar(); },

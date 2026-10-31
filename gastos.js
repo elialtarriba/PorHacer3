@@ -9,20 +9,20 @@ const Gastos = {
   q: '', filtro: '', editando: null,
 
   /* ---------- Datos ---------- */
-  meta(){ return Mio.uno('tickets', 'gx__meta') || { id:'gx__meta', tipo:'gastos-meta', nombre:'Gastos' }; },
+  meta(){ return Mio.uno('gastos', 'gx__meta') || { id:'gx__meta', tipo:'gastos-meta', nombre:'Gastos' }; },
   nombre(){ return (this.meta().nombre || '').trim() || 'Gastos'; },
-  todos(){ return Mio.todos('tickets').filter(x => x.tipo === 'gasto'); },
+  todos(){ return Mio.todos('gastos').filter(x => x.tipo === 'gasto'); },
   /* Pestañas (por ejemplo, los 12 meses): cada nota es de una pestaña; las de antes, de la primera */
   tabs(){ return this.meta().tabs || []; },
   tabDe(x){ const ts = this.tabs(); return x.tab && ts.some(t => t.id === x.tab) ? x.tab : (ts[0] ? ts[0].id : ''); },
   tabActiva(){ const ts = this.tabs(), a = lsGet('ph3-gx-tab'); return ts.some(t => t.id === a) ? a : (ts[0] ? ts[0].id : ''); },
   deTab(){ const a = this.tabActiva(); return this.todos().filter(x => !a || this.tabDe(x) === a); },
-  uno(id){ const x = Mio.uno('tickets', id); return x && x.tipo === 'gasto' ? x : null; },
-  async poner(x){ x.cambiado = Date.now(); await Mio.poner('tickets', x.id, x); },
+  uno(id){ const x = Mio.uno('gastos', id); return x && x.tipo === 'gasto' ? x : null; },
+  async poner(x){ x.cambiado = Date.now(); await Mio.poner('gastos', x.id, x); },
   color(c){ return (this.COLORES.find(x => x[0] === (c || '')) || this.COLORES[0]); },
   ordenados(){
     const t = this.deTab(), q = norm(this.q.trim());
-    const ok = x => (!this.filtro || x.color === this.filtro) && (!q || norm(x.texto || '').includes(q));
+    const ok = x => (!this.filtro || x.color === this.filtro) && (!q || norm((x.texto || '') + ' ' + this.importes(x).map(i => dinero(i.imp)).join(' ')).includes(q));
     const pend = t.filter(x => !x.ok && ok(x)).sort((a, b) => (b.orden || b.creado || 0) - (a.orden || a.creado || 0));
     const hechos = t.filter(x => x.ok && ok(x)).sort((a, b) => (b.hecho || 0) - (a.hecho || 0));
     return { pend, hechos };
@@ -43,6 +43,7 @@ const Gastos = {
           <div class="gx-buscar"><span>🔍</span><input id="gxQ" type="search" placeholder="Buscar…" autocomplete="off" enterkeyhint="search"></div>
           <div class="gx-cols" id="gxCols"></div>
         </div>
+        <div class="gx-total" id="gxTotal" hidden></div>
         <div class="gx-cuerpo" id="gxCuerpo"></div>`;
       document.body.appendChild(v);
       this.enlazar(v);
@@ -50,6 +51,7 @@ const Gastos = {
     this.q = ''; this.filtro = ''; this.editando = null;
     $('#gxQ').value = ''; $('#gxTit').value = this.nombre();
     v.classList.add('abierto'); this.pintar();
+    if(Mio.todos('tickets').some(x => x.tipo === 'gasto' || x.tipo === 'gastos-meta')) this.migrar();   // por si quedaba alguna de antes
   },
   abierto(){ const v = $('#gx'); return !!(v && v.classList.contains('abierto')); },
   async cerrar(){ await this.guardarEdicion(); const v = $('#gx'); if(v) v.classList.remove('abierto'); Tickets.pintar && Tickets.pintar(); },
@@ -84,11 +86,11 @@ const Gastos = {
     const n = await this.pedirNombreTab('＋ Nueva pestaña', ''); if(!n) return;
     const m = this.meta(), ts = [...(m.tabs || [])];
     if(n === '__12'){ for(const mes of MESES_C) if(!ts.some(t => norm(t.nombre) === norm(mes))) ts.push({ id:'tb_' + nuevoId('t'), nombre:mes });
-      m.tabs = ts; await Mio.poner('tickets', m.id, m);
+      m.tabs = ts; await Mio.poner('gastos', m.id, m);
       const hoy = ts.find(t => norm(t.nombre) === norm(MESES_C[new Date().getMonth()])); if(hoy) lsSet('ph3-gx-tab', hoy.id);
       this.pintar(); toast('📅 Pestañas de los 12 meses creadas'); return; }
     if(ts.some(t => norm(t.nombre) === norm(n))){ toast('Ya hay una pestaña «' + n + '»'); return; }
-    const t = { id:'tb_' + nuevoId('t'), nombre:n }; ts.push(t); m.tabs = ts; await Mio.poner('tickets', m.id, m);
+    const t = { id:'tb_' + nuevoId('t'), nombre:n }; ts.push(t); m.tabs = ts; await Mio.poner('gastos', m.id, m);
     lsSet('ph3-gx-tab', t.id); this._tabVisto = false; this.pintar(); toast('📑 Pestaña «' + n + '» creada');
   },
   async opcionesTab(id){
@@ -102,14 +104,14 @@ const Gastos = {
       <div class="mp-fila"><button class="mp-b" data-a="x">Cerrar</button></div>`);
     p.onclick = async e => { const b = e.target.closest('[data-a]'); if(!b) return; const a = b.dataset.a; cerrarPopMio();
       const m = this.meta(), ts = [...(m.tabs || [])], i = ts.findIndex(x => x.id === id);
-      if(a === 'nom'){ const v = await this.pedirNombreTab('✏️ Nombre de la pestaña', t.nombre); if(v && v !== '__12'){ ts[i] = { ...ts[i], nombre:v }; m.tabs = ts; await Mio.poner('tickets', m.id, m); this.pintar(); } }
-      else if(a === 'izq' || a === 'der'){ const j = a === 'izq' ? i - 1 : i + 1; if(j < 0 || j >= ts.length) return; [ts[i], ts[j]] = [ts[j], ts[i]]; m.tabs = ts; await Mio.poner('tickets', m.id, m); this.pintar(); }
+      if(a === 'nom'){ const v = await this.pedirNombreTab('✏️ Nombre de la pestaña', t.nombre); if(v && v !== '__12'){ ts[i] = { ...ts[i], nombre:v }; m.tabs = ts; await Mio.poner('gastos', m.id, m); this.pintar(); } }
+      else if(a === 'izq' || a === 'der'){ const j = a === 'izq' ? i - 1 : i + 1; if(j < 0 || j >= ts.length) return; [ts[i], ts[j]] = [ts[j], ts[i]]; m.tabs = ts; await Mio.poner('gastos', m.id, m); this.pintar(); }
       else if(a === 'borrar'){
         if(!await confirmarMio('Borrar pestaña', n ? `¿Borrar la pestaña «${esc(t.nombre)}» y sus ${n} ${n === 1 ? 'nota' : 'notas'}?` : `¿Borrar la pestaña «${esc(t.nombre)}»?`, 'Borrar')) return;
         const notas = this.todos().filter(x => this.tabDe(x) === id), copiaTabs = [...ts];
-        for(const x of notas) await Mio.quitar('tickets', x.id);
-        m.tabs = ts.filter(x => x.id !== id); await Mio.poner('tickets', m.id, m); this.pintar();
-        toast('🗑 Pestaña borrada', 'Deshacer', async () => { const m2 = this.meta(); m2.tabs = copiaTabs; await Mio.poner('tickets', m2.id, m2); for(const x of notas) await Mio.poner('tickets', x.id, x); lsSet('ph3-gx-tab', id); this.pintar(); toast('↩️ La pestaña vuelve a estar'); }, 6000);
+        for(const x of notas) await Mio.quitar('gastos', x.id);
+        m.tabs = ts.filter(x => x.id !== id); await Mio.poner('gastos', m.id, m); this.pintar();
+        toast('🗑 Pestaña borrada', 'Deshacer', async () => { const m2 = this.meta(); m2.tabs = copiaTabs; await Mio.poner('gastos', m2.id, m2); for(const x of notas) await Mio.poner('gastos', x.id, x); lsSet('ph3-gx-tab', id); this.pintar(); toast('↩️ La pestaña vuelve a estar'); }, 6000);
         setTimeout(() => { notas.forEach(x => { if(!this.uno(x.id)) Mio.quitarFotos(x.fotos || []); }); }, 8000);
       } };
   },
@@ -118,15 +120,37 @@ const Gastos = {
     $('#gxCols').innerHTML = `<button data-f="" class="${!this.filtro ? 'on' : ''}">Todas</button>` + this.COLORES.slice(1).map(([c, t, h]) =>
       `<button data-f="${c}" class="${this.filtro === c ? 'on' : ''}" aria-label="${t}"><i style="background:${h}"></i>${n(c) || ''}</button>`).join('');
   },
+  /* ---------- Cada nota: «¿Qué es?» (con su importe) y debajo sus líneas; cada importe con su casilla para tacharlo ---------- */
+  RE_IMP: /^(.*?)\s*(\d+(?:[.,]\d{1,2})?)\s*€\s*$/,
+  titulo(x){ return ((x.texto || '').split('\n')[0] || ''); },
+  lineasDe(x){
+    if(Array.isArray(x.lineas)) return x.lineas;
+    return (x.texto || '').split('\n').slice(1).map(t => { const m = t.match(this.RE_IMP); return m ? { t:m[1], imp:this.numero(m[2]), ok:false } : { t, imp:null, ok:false }; });   // las notas de antes
+  },
+  importes(x){ const out = []; if(x.importe != null) out.push({ imp:x.importe, ok:!!x.okTit }); this.lineasDe(x).forEach(l => { if(l.imp != null) out.push({ imp:l.imp, ok:!!l.ok }); }); return out; },
+  sumas(x){ const l = this.importes(x); return { n:l.length, todo:l.reduce((a, i) => a + i.imp, 0), pend:l.filter(i => !i.ok).reduce((a, i) => a + i.imp, 0) }; },
+  casilla(k, imp, ok, ed){ return `<span class="gx-imp">${dinero(imp)}</span><button class="gx-tick ${ok ? 'on' : ''}" ${ed ? 'data-etick' : `data-tachar="${k}"`} aria-label="${ok ? 'Quitar la marca' : 'Marcar (tachar)'}">${ok ? '✓' : ''}</button>`; },
+  filaEd(l){
+    return `<div class="gx-lrow ${l.ok ? 'tach' : ''}"><textarea class="gx-lt" rows="1" placeholder="Otra línea…" enterkeyhint="next">${esc(l.t || '')}</textarea>
+      <label class="gx-impw"><input class="gx-limp" inputmode="decimal" enterkeyhint="next" placeholder="0,00" value="${l.imp != null ? l.imp.toFixed(2).replace('.', ',') : ''}" autocomplete="off"><span>€</span></label>
+      <button class="gx-tick ${l.ok ? 'on' : ''}" data-etick aria-label="Marcar (tachar)" ${l.imp == null ? 'hidden' : ''}>${l.ok ? '✓' : ''}</button></div>`;
+  },
   fila(x){
-    const lineas = (x.texto || '').split('\n'), c = this.color(x.color), fotos = (x.fotos || []).map(f => ({ f, s:Mio.foto(f) })).filter(o => o.s);
-    const ed = this.editando === x.id;
+    const tit = this.titulo(x), ls = this.lineasDe(x), c = this.color(x.color), fotos = (x.fotos || []).map(f => ({ f, s:Mio.foto(f) })).filter(o => o.s);
+    const ed = this.editando === x.id, S = this.sumas(x);
+    const tots = S.n >= 2 ? `<div class="gx-tots"><small>Total ${dinero(S.todo)}</small><b>${dinero(S.pend)}</b></div>` : '';
     return `<div class="desl-fila gx-fila ${x.ok ? 'ok' : ''} ${ed ? 'ed' : ''}" data-id="${x.id}"><div class="desl-del"><span>🗑 Eliminar</span></div>
       <div class="desl-cara gx-cara">
         <button class="gx-check" data-check aria-label="${x.ok ? 'Desmarcar' : 'Marcar como hecha'}"></button>
         <div class="gx-cont">
-          ${ed ? `<textarea class="gx-txt" id="gxTxt" rows="1" placeholder="Escribe aquí… (puedes poner varias líneas)">${esc(x.texto || '')}</textarea>`
-               : `<div class="gx-ver" data-editar>${lineas[0] ? `<b>${esc(lineas[0])}</b>` : '<b class="gx-vacia">Nota vacía</b>'}${lineas.slice(1).map(l => `<span>${esc(l) || '&nbsp;'}</span>`).join('')}</div>`}
+          ${tots}
+          ${ed ? `<div class="gx-erow ${x.okTit ? 'tach' : ''}"><textarea class="gx-t1" id="gxT1" rows="1" placeholder="¿Qué es?" enterkeyhint="next">${esc(tit)}</textarea>
+                 <label class="gx-impw"><input class="gx-imp-in" id="gxImp" inputmode="decimal" enterkeyhint="next" placeholder="0,00" value="${x.importe != null ? x.importe.toFixed(2).replace('.', ',') : ''}" autocomplete="off"><span>€</span></label>
+                 <button class="gx-tick ${x.okTit ? 'on' : ''}" data-etick id="gxTickT" aria-label="Marcar (tachar)" ${x.importe == null ? 'hidden' : ''}>${x.okTit ? '✓' : ''}</button></div>
+                 <div class="gx-lineas" id="gxLineas">${[...ls, { t:'', imp:null, ok:false }].map(l => this.filaEd(l)).join('')}</div>`
+               : `<div class="gx-ver" data-editar>
+                   <div class="gx-l1 ${x.okTit && x.importe != null ? 'tach' : ''}">${tit ? `<b>${esc(tit)}</b>` : '<b class="gx-vacia">Nota vacía</b>'}${x.importe != null ? this.casilla('t', x.importe, x.okTit) : ''}</div>
+                   ${ls.map((l, i) => `<div class="gx-li ${l.ok && l.imp != null ? 'tach' : ''}"><span class="gx-ltx">${esc(l.t) || '&nbsp;'}</span>${l.imp != null ? this.casilla(i, l.imp, l.ok) : ''}</div>`).join('')}</div>`}
           ${fotos.length ? `<div class="gx-fotos">${fotos.map(o => `<span class="gx-foto"><img src="${o.s}" alt="" data-ver="${o.f}">${ed ? `<button data-quitarfoto="${o.f}" aria-label="Quitar foto">✕</button>` : ''}</span>`).join('')}</div>` : ''}
           ${ed ? `<div class="gx-herr">
               <button class="gx-hb" data-hoy aria-label="Poner la fecha de hoy">📅</button>
@@ -151,31 +175,80 @@ const Gastos = {
       + (hechos.length ? `<div class="gx-sep">✓ Hechas · ${hechos.length}</div>` + hechos.map(x => this.fila(x)).join('') : '')
       + (total ? '<p class="desl-pista">👈 Desliza una nota a la izquierda para eliminarla</p>' : '');
     c.scrollTop = sc;
-    const t = $('#gxTxt'); if(t){ this.auto(t); }
+    $$('#gxCuerpo textarea').forEach(t => this.auto(t));
+    // arriba: la suma de todo lo que se ve y lo que falta (lo no tachado de las notas sin hacer)
+    const vis = [...pend, ...hechos], todo = vis.reduce((a, x) => a + this.sumas(x).todo, 0), falta = pend.reduce((a, x) => a + this.sumas(x).pend, 0), hay = vis.some(x => this.sumas(x).n);
+    const tt = $('#gxTotal'); if(tt){ tt.hidden = !hay; tt.innerHTML = hay ? `Total: <b>${dinero(todo)}</b>${falta !== todo ? ` · sin tachar: <b>${dinero(falta)}</b>` : ''}` : ''; }
   },
   auto(t){ t.style.height = 'auto'; t.style.height = (t.scrollHeight + 2) + 'px'; },
 
   /* ---------- Editar ---------- */
   async nueva(){
     await this.guardarEdicion();
-    const x = { id:'gx_' + nuevoId('g'), tipo:'gasto', texto:'', ok:false, color:'', fotos:[], creado:Date.now(), orden:Date.now() };
+    const x = { id:'gx_' + nuevoId('g'), tipo:'gasto', texto:'', lineas:[], ok:false, color:'', fotos:[], creado:Date.now(), orden:Date.now() };
     const tb = this.tabActiva(); if(tb) x.tab = tb;
     await this.poner(x);
     this.q = ''; $('#gxQ').value = ''; this.filtro = '';
     this.editar(x.id); $('#gxCuerpo').scrollTop = 0;
   },
-  editar(id){
+  editar(id, foco){
     if(this.editando === id) return;
     this.editando = id; this.pintar();
-    const t = $('#gxTxt'); if(t){ t.focus(); t.setSelectionRange(t.value.length, t.value.length); }
+    const t1 = $('#gxT1'), lts = $$('#gxLineas .gx-lt'), conTexto = lts.filter(t => t.value.trim());
+    const f = foco || (t1 && !t1.value.trim() ? t1 : conTexto.length ? conTexto[conTexto.length - 1] : t1);
+    if(f){ f.focus(); try{ f.setSelectionRange(f.value.length, f.value.length); }catch(e){} this._focoEl = f; }
   },
   async guardarEdicion(){
     const id = this.editando; if(!id) return;
-    const t = $('#gxTxt'), x = this.uno(id); this.editando = null;
-    if(!x) return;
-    const texto = t ? t.value.replace(/\s+$/, '') : x.texto;
-    if(!texto.trim() && !(x.fotos || []).length){ await Mio.quitar('tickets', x.id); return; }     // nota vacía: fuera
-    if(texto !== x.texto){ x.texto = texto; await this.poner(x); }
+    const x = this.uno(id); if(!x) { this.editando = null; return; }
+    const v = this.leerCampos(x); this.editando = null;
+    if(!v.texto.trim() && v.importe == null && !v.lineas.some(l => l.imp != null) && !(x.fotos || []).length){ await Mio.quitar('gastos', x.id); return; }     // nota vacía: fuera
+    if(this.aplicar(x, v)) await this.poner(x);
+  },
+  aplicar(x, v){
+    const antes = JSON.stringify([x.texto, x.importe != null ? x.importe : null, !!x.okTit, x.lineas || null]);
+    x.texto = v.texto; if(v.importe == null){ delete x.importe; delete x.okTit; } else { x.importe = v.importe; x.okTit = v.okTit; } x.lineas = v.lineas;
+    return antes !== JSON.stringify([x.texto, x.importe != null ? x.importe : null, !!x.okTit, x.lineas]);
+  },
+  // lo que hay escrito en la nota que se edita
+  leerCampos(x){
+    const t1 = $('#gxT1');
+    if(!t1) return { texto:x.texto || '', importe:x.importe != null ? x.importe : null, okTit:!!x.okTit, lineas:this.lineasDe(x) };
+    const tit = t1.value.replace(/\n/g, ' ').trim(), imp = this.numero($('#gxImp').value);
+    const lineas = $$('#gxLineas .gx-lrow').map(r => ({ t:$('.gx-lt', r).value.replace(/\n/g, ' ').replace(/\s+$/, ''), imp:this.numero($('.gx-limp', r).value), ok:$('.gx-tick', r).classList.contains('on') }))
+      .filter(l => l.t.trim() || l.imp != null).map(l => ({ ...l, ok:l.imp != null && l.ok }));
+    const texto = [tit, ...lineas.map(l => l.t + (l.imp != null ? ' ' + l.imp.toFixed(2).replace('.', ',') + ' €' : ''))].join('\n').replace(/\s+$/, '');
+    return { texto, importe:imp, okTit:imp != null && $('#gxTickT').classList.contains('on'), lineas };
+  },
+  numero(v){ v = String(v || '').replace(/[€\s]/g, ''); if(!v) return null; if(/,/.test(v)) v = v.replace(/\./g, '').replace(',', '.'); const n = parseFloat(v); return isNaN(n) ? null : Math.round(n * 100) / 100; },
+  formatoImp(im){ const n = this.numero(im.value); im.value = n == null ? '' : n.toFixed(2).replace('.', ',');
+    const tk = im.closest('.gx-lrow, .gx-erow').querySelector('.gx-tick'); if(tk){ tk.hidden = n == null; if(n == null){ tk.classList.remove('on'); tk.textContent = ''; } } },
+  // Intro: del texto salta a su importe; del importe (con o sin número) baja a la línea siguiente
+  teclas(e){
+    const t = e.target, fila = t.closest && t.closest('.gx-lrow');
+    if(e.key === 'Backspace' && t.classList.contains('gx-lt') && !t.value && fila && $$('#gxLineas .gx-lrow').length > 1 && !$('.gx-limp', fila).value){
+      e.preventDefault(); const prev = fila.previousElementSibling; fila.remove(); const f = prev ? $('.gx-lt', prev) : $('#gxT1'); f.focus(); f.setSelectionRange(f.value.length, f.value.length); this._focoEl = f; return; }
+    if(e.key !== 'Enter' || e.isComposing) return;
+    e.preventDefault();
+    if(t.id === 'gxT1'){ const im = $('#gxImp'); if(t.value.trim()){ im.focus(); im.select(); } else this.irA($('#gxLineas .gx-lt')); }
+    else if(t.id === 'gxImp'){ this.formatoImp(t); this.irA($('#gxLineas .gx-lt')); }
+    else if(t.classList.contains('gx-lt')){ const im = $('.gx-limp', fila); im.focus(); im.select(); }
+    else if(t.classList.contains('gx-limp')){
+      this.formatoImp(t);
+      let sig = fila.nextElementSibling;
+      if(!sig || $('.gx-lt', sig).value.trim()){
+        const m = $('.gx-lt', fila).value.match(this.RE_NUM), pre = m ? (+m[1] + 1) + '. ' : this.RE_PTO.test($('.gx-lt', fila).value) ? '• ' : '';   // la lista sigue
+        fila.insertAdjacentHTML('afterend', this.filaEd({ t:pre, imp:null, ok:false })); sig = fila.nextElementSibling;
+      }
+      this.irA($('.gx-lt', sig));
+    }
+  },
+  irA(t){ if(!t) return; t.focus(); t.setSelectionRange(t.value.length, t.value.length); this._focoEl = t; this.auto(t); },
+  async tachar(id, k){
+    const x = this.uno(id); if(!x) return;
+    if(k === 't') x.okTit = !x.okTit;
+    else { const ls = this.lineasDe(x).map(l => ({ ...l })), l = ls[+k]; if(!l) return; l.ok = !l.ok; x.lineas = ls; }
+    await this.poner(x); this.pintar();
   },
   async marcar(id){
     await this.guardarEdicion();
@@ -185,7 +258,7 @@ const Gastos = {
   },
   async bandera(id){
     const x = this.uno(id); if(!x) return;
-    const t = $('#gxTxt'); if(t) x.texto = t.value;
+    this.aplicar(x, this.leerCampos(x));
     const i = this.COLORES.findIndex(c => c[0] === (x.color || '')); x.color = this.COLORES[(i + 1) % this.COLORES.length][0];
     await this.poner(x);
     const b = $('#gxCuerpo .gx-band'); if(b){ const c = this.color(x.color); b.innerHTML = this.svgBandera(c[2]); b.style.setProperty('--bc', c[2]); }
@@ -193,74 +266,54 @@ const Gastos = {
     toast(x.color ? '🚩 ' + this.color(x.color)[1] : 'Sin color', null, null, 900);
   },
   // poner un texto donde está el cursor
+  foco(){ const f = this._focoEl; return f && document.body.contains(f) ? f : ($('#gxLineas .gx-lt') || $('#gxT1')); },
   insertar(txt){
-    const t = $('#gxTxt'); if(!t) return;
+    const t = this.foco(); if(!t) return;
     const a = t.selectionStart != null ? t.selectionStart : t.value.length, b = t.selectionEnd != null ? t.selectionEnd : a;
-    t.value = t.value.slice(0, a) + txt + t.value.slice(b); t.focus(); t.setSelectionRange(a + txt.length, a + txt.length); this.auto(t);
+    t.value = t.value.slice(0, a) + txt + t.value.slice(b); t.focus(); t.setSelectionRange(a + txt.length, a + txt.length); if(t.tagName === 'TEXTAREA') this.auto(t);
   },
   ponerHoy(){ const d = new Date(); this.insertar(String(d.getDate()).padStart(2, '0') + '/' + String(d.getMonth() + 1).padStart(2, '0') + '/' + String(d.getFullYear()).slice(2)); },
   iconos(){
-    const t = $('#gxTxt'); const sel = t ? [t.selectionStart, t.selectionEnd] : null;
+    const t = this.foco(); const sel = t ? [t.selectionStart, t.selectionEnd] : null;
     const hj = hojaMio('✅ Poner un icono', `<div class="es-iconos">${Escribir.ICONOS.map(i => `<button data-i="${i}">${i}</button>`).join('')}</div><button class="sh-btn" data-a="x">Cerrar</button>`, 'es-ico');
     hj.onclick = ev => { const b = ev.target.closest('[data-i],[data-a]'); if(!b) return;
-      if(b.dataset.i){ const t2 = $('#gxTxt'); if(t2 && sel){ t2.setSelectionRange(sel[0], sel[1]); } this.insertar(b.dataset.i); const t3 = $('#gxTxt'); if(t3){ sel[0] = sel[1] = t3.selectionStart; t3.blur(); } toast(b.dataset.i + ' puesto', null, null, 900); }
-      else { cerrarHojaMio(); const t4 = $('#gxTxt'); if(t4) t4.focus(); } };
+      if(b.dataset.i){ const t2 = this.foco(); if(t2 && sel) t2.setSelectionRange(sel[0], sel[1]); this.insertar(b.dataset.i); const t3 = this.foco(); if(t3){ sel[0] = sel[1] = t3.selectionStart; t3.blur(); } toast(b.dataset.i + ' puesto', null, null, 900); }
+      else { cerrarHojaMio(); const t4 = this.foco(); if(t4) t4.focus(); } };
   },
-  // Lista: 1.ª vez números (1. 2. 3.), 2.ª vez puntos (•), 3.ª vez nada. En las líneas elegidas o, si no hay nada elegido, en todas menos la primera (el título)
+  // Lista en las líneas de debajo: 1.ª vez números (1. 2. 3.), 2.ª vez puntos (•), 3.ª vez nada
   RE_NUM: /^(\d+)\.\s/, RE_PTO: /^•\s/,
   lista(){
-    const t = $('#gxTxt'); if(!t) return;
-    const v = t.value, a = t.selectionStart, b = t.selectionEnd, ls = v.split('\n');
-    let ini, fin;
-    if(a !== b){ ini = v.slice(0, a).split('\n').length - 1; fin = v.slice(0, b).split('\n').length - 1; }
-    else if(ls.length > 1){ ini = 1; fin = ls.length - 1; }
-    else { ini = fin = 0; }
-    const zona = ls.slice(ini, fin + 1).filter(l => l.trim());
-    const modo = zona.length && zona.every(l => this.RE_NUM.test(l)) ? 'pto' : zona.length && zona.every(l => this.RE_PTO.test(l)) ? 'nada' : 'num';
-    let n = 0;
-    for(let i = ini; i <= fin; i++){
-      const limpio = ls[i].replace(this.RE_NUM, '').replace(this.RE_PTO, '');
-      if(!limpio.trim()){ ls[i] = limpio; continue; }
-      ls[i] = modo === 'num' ? (++n) + '. ' + limpio : modo === 'pto' ? '• ' + limpio : limpio;
-    }
-    t.value = ls.join('\n'); this.auto(t); t.focus();
-    const fl = ls.slice(0, fin + 1).join('\n').length; t.setSelectionRange(fl, fl);
+    const ts = $$('#gxLineas .gx-lt').filter(t => t.value.replace(this.RE_NUM, '').replace(this.RE_PTO, '').trim());
+    if(!ts.length){ toast('Escribe primero alguna línea debajo'); return; }
+    const modo = ts.every(t => this.RE_NUM.test(t.value)) ? 'pto' : ts.every(t => this.RE_PTO.test(t.value)) ? 'nada' : 'num';
+    ts.forEach((t, i) => { const l = t.value.replace(this.RE_NUM, '').replace(this.RE_PTO, ''); t.value = modo === 'num' ? (i + 1) + '. ' + l : modo === 'pto' ? '• ' + l : l; this.auto(t); });
+    const f = this.foco(); if(f) f.focus();
     toast(modo === 'num' ? '1. 2. 3. Lista con números' : modo === 'pto' ? '• Lista con puntos' : 'Sin lista', null, null, 1100);
   },
-  // al pulsar Intro en una línea de la lista, la siguiente sigue la lista
-  intro(e){
-    const t = e.target; if(e.key !== 'Enter' || t.selectionStart !== t.selectionEnd) return;
-    const v = t.value, a = t.selectionStart, ini = v.lastIndexOf('\n', a - 1) + 1, linea = v.slice(ini, a);
-    let m = linea.match(this.RE_NUM), sig = m ? (+m[1] + 1) + '. ' : this.RE_PTO.test(linea) ? '• ' : null;
-    if(!sig) return;
-    e.preventDefault();
-    if(!linea.replace(this.RE_NUM, '').replace(this.RE_PTO, '').trim()){ t.value = v.slice(0, ini) + v.slice(a); t.setSelectionRange(ini, ini); this.auto(t); return; }   // línea vacía: se acaba la lista
-    this.insertar('\n' + sig);
-  },
   async foto(id){
-    const x = this.uno(id); if(!x) return; const t = $('#gxTxt'); if(t) x.texto = t.value;
+    const x = this.uno(id); if(!x) return; this.aplicar(x, this.leerCampos(x));
     const fs = await elegirFotos(false, true); if(!fs.length) return;
     toast('📷 Guardando foto…');
-    for(const f of fs){ try{ const fid = await Mio.ponerFoto(await aligerarImg(f, 1400, .75), null, 'tickets'); x.fotos = [...(x.fotos || []), fid]; }catch(e){ toast('⚠️ No se ha podido añadir esa imagen'); } }
+    for(const f of fs){ try{ const fid = await Mio.ponerFoto(await aligerarImg(f, 1400, .75), null, 'gastos'); x.fotos = [...(x.fotos || []), fid]; }catch(e){ toast('⚠️ No se ha podido añadir esa imagen'); } }
     await this.poner(x); this.pintar();
   },
   async quitarFoto(id, f){
-    const x = this.uno(id); if(!x) return; const t = $('#gxTxt'); if(t) x.texto = t.value;
+    const x = this.uno(id); if(!x) return; this.aplicar(x, this.leerCampos(x));
     if(!await confirmarMio('Borrar foto', '¿Seguro que quieres borrar esta foto de la nota?', 'Borrar')){ return; }
     x.fotos = (x.fotos || []).filter(o => o !== f); await this.poner(x); await Mio.quitarFotos([f]); this.pintar();
   },
   async borrar(id){
     if(this.editando === id) this.editando = null;
     const x = this.uno(id); if(!x) return;
-    await Mio.quitar('tickets', id); this.pintarCols();
-    toast('🗑 Nota eliminada', 'Deshacer', async () => { await Mio.poner('tickets', x.id, x); this.pintar(); toast('↩️ La nota vuelve a estar'); }, 5000);
+    await Mio.quitar('gastos', id); this.pintarCols();
+    toast('🗑 Nota eliminada', 'Deshacer', async () => { await Mio.poner('gastos', x.id, x); this.pintar(); toast('↩️ La nota vuelve a estar'); }, 5000);
     setTimeout(() => { if(!this.uno(id)) Mio.quitarFotos(x.fotos || []); }, 7000);
     setTimeout(() => this.pintar(), 260);
   },
   async renombrar(){
     const i = $('#gxTit'), n = i.value.trim() || 'Gastos'; i.value = n;
     if(n === this.nombre()) return;
-    const m = this.meta(); m.nombre = n; await Mio.poner('tickets', m.id, m);
+    const m = this.meta(); m.nombre = n; await Mio.poner('gastos', m.id, m);
     this.pintarBoton(); toast('✏️ La lista se llama «' + n + '»', null, null, 1500);
   },
   pintarBoton(){ const b = $('#tkGastos'); if(b) b.innerHTML = `💶 <span>${esc(this.nombre())}</span>`; },
@@ -275,6 +328,8 @@ const Gastos = {
       else if('nueva' in d) this.nueva();
       else if(d.f !== undefined && b.closest('#gxCols')){ this.filtro = d.f; await this.guardarEdicion(); this.pintar(); }
       else if('check' in d) this.marcar(id);
+      else if(d.tachar !== undefined) this.tachar(id, d.tachar);
+      else if('etick' in d){ b.classList.toggle('on'); b.textContent = b.classList.contains('on') ? '✓' : ''; b.closest('.gx-lrow, .gx-erow').classList.toggle('tach', b.classList.contains('on')); }
       else if('editar' in d){ await this.guardarEdicion(); this.editar(id); }
       else if('bandera' in d) this.bandera(id);
       else if('foto' in d) this.foto(id);
@@ -289,8 +344,11 @@ const Gastos = {
     });
     // tocar fuera de la nota que se edita: se guarda
     v.addEventListener('pointerdown', async e => { if(this.editando && !e.target.closest('.gx-fila.ed, .gx-mas, [data-gxcerrar]') && !$('#mioVelo')){ await this.guardarEdicion(); if(!e.target.closest('.gx-fila, #gxCols, #gxQ, #gxTabs')) this.pintar(); } });
-    c.addEventListener('input', e => { if(e.target.id === 'gxTxt') this.auto(e.target); });
-    c.addEventListener('keydown', e => { if(e.target.id === 'gxTxt') this.intro(e); });
+    c.addEventListener('input', e => { const t = e.target; if(t.tagName === 'TEXTAREA'){ if(/\n/.test(t.value)) t.value = t.value.replace(/\n/g, ' '); this.auto(t); }
+      if(t.id === 'gxImp' || t.classList.contains('gx-limp')){ const tk = t.closest('.gx-lrow, .gx-erow').querySelector('.gx-tick'); if(tk) tk.hidden = this.numero(t.value) == null; } });
+    c.addEventListener('focusin', e => { if(e.target.closest('.gx-fila.ed') && /TEXTAREA|INPUT/.test(e.target.tagName)) this._focoEl = e.target; });
+    c.addEventListener('focusout', e => { if(e.target.id === 'gxImp' || e.target.classList.contains('gx-limp')) this.formatoImp(e.target); });
+    c.addEventListener('keydown', e => this.teclas(e));
     // los botones de debajo de la nota no quitan el cursor del texto (así el teclado no se esconde)
     c.addEventListener('pointerdown', e => { const b = e.target.closest('.gx-herr button'); if(b && !b.matches('[data-listo],[data-foto]')) e.preventDefault(); });
     c.addEventListener('mousedown', e => { if(e.target.closest('.gx-herr button')) e.preventDefault(); });
@@ -298,10 +356,28 @@ const Gastos = {
     const q = $('#gxQ', v); q.oninput = () => { this.q = q.value; this.pintar(); };
     const t = $('#gxTit', v); t.onchange = () => this.renombrar(); t.onkeydown = e => { if(e.key === 'Enter') t.blur(); };
     document.addEventListener('keydown', e => { if(e.key === 'Escape' && this.abierto() && !$('#mioPop') && !$('.vfg')) this.cerrar(); });
-    Mio.al('tickets', () => { this.pintarBoton(); if(this.abierto() && !this.editando) this.pintar(); });
+    Mio.al('gastos', () => { this.pintarBoton(); if(this.abierto() && !this.editando) this.pintar(); });
+    Mio.al('tickets', () => this.migrar());
     Mio.al('fotos', () => { if(this.abierto() && !this.editando) this.pintar(); });
   },
+  // antes, las notas de Gastos se guardaban con los Tickets: se pasan a su propio apartado (con sus fotos)
+  async migrar(){
+    if(this._migrando) return;
+    const viejas = Mio.todos('tickets').filter(x => x.tipo === 'gasto' || x.tipo === 'gastos-meta'); if(!viejas.length) return;
+    this._migrando = true;
+    try{
+      for(const x of viejas){
+        const ya = Mio.uno('gastos', x.id);
+        if(x.tipo === 'gastos-meta' && ya){ /* ya hay una lista: se queda la nueva */ }
+        else if(!ya || (x.cambiado || 0) > (ya.cambiado || 0)) await Mio.poner('gastos', x.id, x);
+        for(const f of x.fotos || []){ const fo = Mio.uno('fotos', f); if(fo && fo.de !== 'gastos') await Mio.poner('fotos', f, { ...fo, de:'gastos' }); }
+        await Mio.quitar('tickets', x.id);
+      }
+    }catch(e){ console.warn('gastos migrar', e); }
+    this._migrando = false; this.pintarBoton(); if(this.abierto() && !this.editando) this.pintar();
+  },
   iniciar(){
+    setTimeout(() => this.migrar(), 2500);
     const caja = $('#vTickets .tk-buscar'); if(!caja || $('#tkGastos')) return;
     const b = document.createElement('button'); b.id = 'tkGastos'; b.className = 'tk-gastos-b'; b.title = 'Lista de gastos';
     caja.insertBefore(b, $('#tkTema')); b.onclick = () => this.abrir();

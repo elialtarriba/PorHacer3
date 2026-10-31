@@ -10,6 +10,7 @@ const Ajustes = {
     { k:'general', ico:'portada',    t:'General',              s:'Qué se ve al abrir · micrófono' },
     { k:'tema',    ico:'paleta',     t:'Tema y colores',       s:'Los colores de toda la app' },
     { k:'cuenta',  ico:'ajustes',    t:'Cuenta y nube',        s:'Tu cuenta, tus tableros y dónde se guarda cada cosa' },
+    { k:'donde',   ico:'guardar',    t:'Guardar: nube o aparato', s:'Dónde se guarda cada apartado' },
     { k:'copias',  ico:'copia',      t:'Copias de seguridad',  s:'Exportar e importar tus datos' },
     { grupo:'Cada apartado' },
     { k:'porhacer', ico:'tablero',    t:'Tareas',   s:'Colores, columnas, personas, al acabar, fotos y emails' },
@@ -54,7 +55,7 @@ const Ajustes = {
     const sc = $('#ajPagina').scrollTop;
     this.pagina = p; $('#ajustes').classList.add('en-pagina'); $('#ajTit').textContent = P.t;
     // en las páginas donde solo se exporta, se importa o se hace algo al momento, no hay nada que «Guardar»
-    $('#ajGuardar').hidden = ['copias', 'bloc', 'cuenta'].includes(p);
+    $('#ajGuardar').hidden = ['copias', 'bloc', 'cuenta', 'donde'].includes(p);
     $$('#ajMenu .aj-m').forEach(b => b.classList.toggle('on', b.dataset.p === p));
     const cont = $('#ajPagina');
     cont.innerHTML = `<div class="aj-pcab"><span class="aj-m-ico">${icono(P.ico)}</span><div><h3>${P.t}</h3><small>${P.s}</small></div></div>` + this['p_' + p]();
@@ -137,19 +138,33 @@ const Ajustes = {
   /* ---------- CUENTA Y NUBE ---------- */
   p_cuenta(){
     return this.tarjeta('👤 Tu cuenta y tus tableros', '<div id="ajNube"></div>')
-      + this.tarjeta('☁️ ¿Dónde se guarda cada cosa?', `<div class="gen-donde">${[['agenda','📒 Agenda'],['tickets','🧾 Tickets'],['sitios','🏡 Sitios'],['listas','📝 Listas']].map(([k, t]) => { const d = k === 'listas' ? Listas.donde() : Mio.donde(k);
-          return `<div class="gen-donde-f"><b>${t}</b><div class="seg" data-donde="${k}"><button data-v="nube" class="${d === 'nube' ? 'on' : ''}">☁️ Nube</button><button data-v="aparato" class="${d === 'aparato' ? 'on' : ''}">📱 Este aparato</button></div></div>`; }).join('')}</div>`,
-        `<b>Nube</b>: en tu cuenta de Firebase; solo lo ves tú y lo tienes en todos tus aparatos. <b>Este aparato</b>: no sale de este móvil u ordenador (para pasarlo a otro, haz una copia en ${this.enlace('copias', '💾 Copias')}).${Mio.uid ? '' : ' <b>Ahora no has entrado con tu cuenta</b>: lo de «nube» se guarda en el aparato y se sube al entrar.'} Las tareas siempre van con su tablero.`);
+      + this.nota('☁️ Dónde se guarda cada apartado (nube o este aparato): ' + this.enlace('donde', '☁️ Guardar ›'));
   },
   e_cuenta(cont){
     Nube.pintarTableros($('#ajNube'));
     this.enlazarEnlaces(cont);
+  },
+
+
+  /* ---------- GUARDAR: nube o este aparato, para cada apartado ---------- */
+  DONDE: [['agenda','📒','Agenda'],['tickets','🧾','Tickets'],['gastos','💶','Gastos (de Tickets)'],['sitios','🏡','Sitios'],['listas','📝','Listas'],['grabar','🎙️','Grabar'],['escribir','✍️','Escribir'],['bloc','🔒','Notas secretas']],
+  dondeDe(k){ return k === 'listas' ? Listas.donde() : Guardar.NUEVOS[k] ? Guardar.donde(k) : Mio.donde(k); },
+  p_donde(){
+    const fila = ([k, ic, t]) => { const d = this.dondeDe(k);
+      return `<div class="gen-donde-f"><b>${ic} ${k === 'gastos' ? esc(Gastos.nombre()) + ' <small>(de Tickets)</small>' : t}</b><div class="seg" data-donde="${k}"><button data-v="nube" class="${d === 'nube' ? 'on' : ''}">☁️ Nube</button><button data-v="aparato" class="${d === 'aparato' ? 'on' : ''}">📱 Este aparato</button></div></div>`; };
+    return this.tarjeta('☁️ Siempre en la nube', `<div class="gd-fijos">${[['✅','Tareas'],['📅','Calendario Tareas'],['🧮','Calculadora'],['📖','Manual']].map(([i, t]) => `<span>${i} ${t}</span>`).join('')}</div>`,
+        'Las tareas van con su tablero (para compartirlas y verlas en todos tus aparatos). La calculadora y el manual son parte de la app.')
+      + this.tarjeta('📱 Tú eliges', `<div class="gen-donde">${this.DONDE.map(fila).join('')}</div>`,
+        `<b>☁️ Nube</b>: en tu cuenta; solo lo ves tú y lo tienes en todos tus aparatos (las notas secretas van <b>cifradas</b> también en la nube). <b>📱 Este aparato</b>: no sale de este móvil u ordenador; para pasarlo a otro, haz una ${this.enlace('copias', '💾 copia')}. Siempre queda una copia en el aparato, para que funcione sin internet.${Mio.uid ? '' : ' <b>Ahora no has entrado con tu cuenta</b>: lo de «nube» se subirá al entrar.'}`);
+  },
+  e_donde(cont){
+    this.enlazarEnlaces(cont);
     $$('[data-donde] button', cont).forEach(b => b.onclick = async () => {
-      const sec = b.parentNode.dataset.donde, a = b.dataset.v, nom = { agenda:'la Agenda', tickets:'los Tickets', sitios:'los Sitios', listas:'las Listas' }[sec], n = sec === 'agenda' ? '' : 'n';
-      const ahora = sec === 'listas' ? Listas.donde() : Mio.donde(sec); if(ahora === a) return;
+      const sec = b.parentNode.dataset.donde, a = b.dataset.v, nom = { agenda:'la Agenda', tickets:'los Tickets', gastos:'«' + Gastos.nombre() + '»', sitios:'los Sitios', listas:'las Listas', grabar:'Grabar', escribir:'Escribir', bloc:'las Notas secretas' }[sec], n = ['agenda','gastos','grabar','escribir'].includes(sec) ? '' : 'n';
+      const ahora = this.dondeDe(sec); if(ahora === a) return;
       let borrar = false;
       if(a === 'aparato'){
-        const enNube = sec === 'listas' ? Listas.modo === 'nube' : Mio.enNube(sec);
+        const enNube = sec === 'listas' ? Listas.modo === 'nube' : Guardar.NUEVOS[sec] ? Guardar.enNube(sec) : Mio.enNube(sec);
         if(enNube){
           const v = await popup({ tit:'📱 Guardar ' + nom + ' en este aparato', html:`<p>Desde ahora ${nom} se guardará${n} solo en este aparato. ¿Qué hago con lo que hay en la nube?</p>
             <button class="opcion" data-v="dejar">☁️ Dejar también una copia en la nube</button><button class="opcion" data-v="borrar">🗑 Quitarlo de la nube</button>
@@ -157,20 +172,20 @@ const Ajustes = {
             botones:[{ txt:'Cancelar', val:null }], alAbrir:(c, fin) => $$('[data-v]', c).forEach(x => x.onclick = () => fin(x.dataset.v)) });
           if(!v) return; borrar = v === 'borrar';
         }
-      } else if(!Mio.uid){
+      } else if(!Mio.uid && !Guardar.uid()){
         if(!await popConfirmar('☁️ Guardar ' + nom + ' en la nube', 'Ahora no has entrado con tu cuenta. Se guardará' + n + ' en el aparato y se subirá' + n + ' a la nube cuando entres.', 'De acuerdo')) return;
       }
       toast('⏳ Pasando ' + nom + '…', null, null, 20000);
-      try{ await Mio.cambiarDonde(sec, a, borrar); toast(a === 'nube' ? '☁️ ' + capital(nom) + ' se guarda' + n + ' en la nube' : '📱 ' + capital(nom) + ' se guarda' + n + ' en este aparato'); }
+      try{ if(Guardar.NUEVOS[sec]) await Guardar.cambiar(sec, a, borrar); else await Mio.cambiarDonde(sec, a, borrar); toast(a === 'nube' ? '☁️ ' + capital(nom) + ' se guarda' + n + ' en la nube' : '📱 ' + capital(nom) + ' se guarda' + n + ' en este aparato'); }
       catch(e){ console.warn(e); popAviso('No se ha podido cambiar', e.message || 'Inténtalo otra vez.'); }
-      this.ir('cuenta', null, true); Portada.pintar();
+      this.ir('donde', null, true); Portada.pintar();
     });
   },
 
   /* ---------- COPIAS DE SEGURIDAD ---------- */
   p_copias(){
     const nNotas = Mio.todos('agenda').reduce((n, d) => n + (d.items || []).length, 0), nCasas = Mio.todos('sitios').filter(x => x.tipo === 'casa').length;
-    const mia = `<div class="gen-que">${[['agenda','📒 Agenda', nNotas + (nNotas === 1 ? ' nota' : ' notas')],['tickets','🧾 Tickets', Mio.todos('tickets').filter(t => !t.tipo).length + (Mio.todos('tickets').some(t => t.tipo === 'gasto') ? ' + Gastos' : '')],['sitios','🏡 Sitios', nCasas + (nCasas === 1 ? ' casa' : ' casas')],['listas','📝 Listas', Listas.datos.length + '']].map(([k, t, n]) =>
+    const mia = `<div class="gen-que">${[['agenda','📒 Agenda', nNotas + (nNotas === 1 ? ' nota' : ' notas')],['tickets','🧾 Tickets', Mio.todos('tickets').filter(t => !t.tipo).length + ''],['gastos','💶 ' + esc(Gastos.nombre()), Gastos.todos().length + ''],['sitios','🏡 Sitios', nCasas + (nCasas === 1 ? ' casa' : ' casas')],['listas','📝 Listas', Listas.datos.length + '']].map(([k, t, n]) =>
         `<label class="check" style="margin-top:0"><input type="checkbox" data-que="${k}" checked><span class="caja"></span><span>${t}<small>${n}</small></span></label>`).join('')}</div>
       <div class="gen-btns"><button class="btn-pri" id="genExp">⬇️ Exportar copia</button><button class="btn-sec" id="genImp">⬆️ Importar copia</button></div>
       <input type="file" id="genImpIn" accept=".json,application/json" hidden>
@@ -185,11 +200,16 @@ const Ajustes = {
       + todo
       + '<p class="cc-o">O, si solo quieres una parte:</p>'
       + this.acord('tareas', '✅', 'Tareas de PorHacer', 'Las tareas, personas, fotos, vídeos y audios · espacio usado', '<div id="ajCopias"></div>')
-      + this.acord('mio', '📒', 'Agenda, Tickets, Sitios y Listas', 'En un solo archivo, con sus fotos', mia)
+      + this.acord('mio', '📒', 'Agenda, Tickets, Gastos, Sitios y Listas', 'En un solo archivo, con sus fotos', mia)
+      + this.acord('gastos', '💶', esc(Gastos.nombre()) + ' (de Tickets)', 'Solo esta lista, cifrada con una contraseña', `<p class="aj-ayuda">Se guarda <b>gastos-cifrado-fecha.json</b>, cifrado como las Notas secretas: <b>sin la contraseña nadie lo puede abrir</b>. Para recuperarlo, «Importar» y escribe esa contraseña.</p>
+          <div class="gen-btns"><button class="btn-pri" id="cgExp">⬇️ Exportar (cifrada)</button><button class="btn-sec" id="cgImp">⬆️ Importar</button></div><input type="file" id="cgImpIn" accept=".json,application/json" hidden>`)
       + this.acord('bloc', '🔒', 'Notas secretas', 'Van cifradas, con tu contraseña', `<p class="aj-ayuda">La copia del bloc se hace desde su página, porque va cifrada.</p>${this.enlace('bloc', '🔒 Ir a Notas secretas')}`);
   },
   e_copias(cont){
     this.enlazarEnlaces(cont);
+    $('#cgExp', cont).onclick = () => CopiaGastos.exportar();
+    $('#cgImp', cont).onclick = () => $('#cgImpIn', cont).click();
+    $('#cgImpIn', cont).onchange = e => { const f = e.target.files[0]; e.target.value = ''; if(f) CopiaGastos.importar(f); };
     $('#ccExp', cont).onclick = ev => Completa.exportar($('#ccVid', cont).checked, ev.currentTarget);
     $('#ccImp', cont).onclick = () => $('#ccImpIn', cont).click();
     $('#ccImpIn', cont).onchange = e => { const f = e.target.files[0]; e.target.value = ''; if(f) Completa.importar(f); };
@@ -208,7 +228,7 @@ const Ajustes = {
       let obj; try{ obj = JSON.parse(await f.text()); }catch(err){ popAviso('Importar', 'Este archivo no es una copia válida.'); return; }
       if(obj && obj.app === 'Hogar'){ await this.importarHome(obj); return; }
       if(!obj || obj.tipo !== 'copia-mia'){ popAviso('Importar', 'Este archivo no es una copia de Agenda, Tickets, Sitios y Listas de PorHacer3. (Si es una copia de las tareas, impórtala en «Tareas de PorHacer»).'); return; }
-      const modo = await popup({ tit:'⬆️ Importar copia', html:`<p>Copia del ${new Date(obj.fecha).toLocaleDateString('es-ES')}: ${['agenda','tickets','sitios','listas'].filter(k => obj[k]).map(k => ({ agenda:'📒 Agenda', tickets:'🧾 Tickets', sitios:'🏡 Sitios', listas:'📝 Listas' })[k]).join(', ')}.</p>
+      const modo = await popup({ tit:'⬆️ Importar copia', html:`<p>Copia del ${new Date(obj.fecha).toLocaleDateString('es-ES')}: ${['agenda','tickets','gastos','sitios','listas'].filter(k => obj[k]).map(k => ({ agenda:'📒 Agenda', tickets:'🧾 Tickets', gastos:'💶 Gastos', sitios:'🏡 Sitios', listas:'📝 Listas' })[k]).join(', ')}.</p>
         <button class="opcion" data-v="juntar">➕ Juntar con lo que ya tengo</button><button class="opcion" data-v="cambiar">♻️ Cambiar lo que tengo por la copia</button>`,
         botones:[{ txt:'Cancelar', val:null }], alAbrir:(c, fin) => $$('[data-v]', c).forEach(b => b.onclick = () => fin(b.dataset.v)) });
       if(!modo) return;

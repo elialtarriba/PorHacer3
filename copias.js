@@ -115,7 +115,7 @@ const Completa = {
       c.tareas = await Copias.datos(true, conVideos);
       // todos los tableros de la nube (los tuyos y los compartidos), con sus fotos y audios
       if(Nube.user && Nube.listos >= 2){ const av = t => toast('⏳ Copiando ' + t + '…', null, null, 20000); c.tableros = await Nube.copiaTableros(conVideos, av); c.cuenta = Nube.email(); }
-      c.mio = await Mio.exportar({ agenda:true, tickets:true, sitios:true, listas:true });
+      c.mio = await Mio.exportar({ agenda:true, tickets:true, gastos:true, sitios:true, listas:true });
       c.grabaciones = [];
       for(const g of await this.grabaciones()) c.grabaciones.push({ ...g, blob:await blobADatos(g.blob) });
       try{ c.bloc = await Bloc.leerPaq(); }catch(e){}
@@ -135,7 +135,7 @@ const Completa = {
     const tb = c.tableros || [], tbFotos = tb.reduce((n, b) => n + (b.media || []).filter(x => x.tipo === 'fotos').length, 0), tbVid = tb.reduce((n, b) => n + (b.media || []).filter(x => x.tipo === 'videos').length, 0);
     return [['📋 Tableros', tb.length ? tb.length + ' (' + tb.map(b => esc(b.nombre)).join(', ') + ')' : 0], ['✅ Tareas', tb.length ? tb.reduce((n, b) => n + (b.tareas || []).length, 0) : (t.tareas || []).length],
       ['📷 Fotos', (tb.length ? tbFotos : (t.fotos || []).length) + Object.keys(m.fotos || {}).length], ['🎬 Vídeos', tb.length ? tbVid : (t.videos || []).length],
-      ['📒 Notas de la agenda', notas], ['🧾 Tickets', (m.tickets || []).filter(t => !t.tipo).length], ['💶 Notas de Gastos', (m.tickets || []).filter(t => t.tipo === 'gasto').length], ['🏡 Sitios', (m.sitios || []).length], ['📝 Listas', (m.listas || []).length],
+      ['📒 Notas de la agenda', notas], ['🧾 Tickets', (m.tickets || []).filter(t => !t.tipo).length], ['💶 Notas de Gastos', (m.gastos || []).concat(m.tickets || []).filter(t => t.tipo === 'gasto').length], ['🏡 Sitios', (m.sitios || []).length], ['📝 Listas', (m.listas || []).length],
       ['🎙️ Grabaciones', (c.grabaciones || []).length], ['📄 Escritos', nEsc], ['🌐 Webs personales', webs], ['🔒 Notas secretas', c.bloc ? 'sí' : 0]].filter(([, n]) => n);
   },
   async importar(f){
@@ -183,5 +183,50 @@ const Completa = {
     }catch(e){ console.warn(e); fallos.push('escritos y webs'); }
     if(fallos.length) popAviso('Copia restaurada… casi', 'No se ha podido restaurar: ' + fallos.join(', ') + '. Lo demás sí.');
     else { toast('✅ Copia restaurada. La app se vuelve a abrir…', null, null, 4000); setTimeout(() => location.reload(), 1600); }
+  }
+};
+
+/* ---------- Copia de la lista «Gastos» (de Tickets), cifrada con una contraseña como las Notas secretas ---------- */
+const CopiaGastos = {
+  async exportar(){
+    const notas = Mio.todos('gastos'); if(!notas.filter(x => x.tipo === 'gasto').length){ popAviso('Copia de Gastos', 'Todavía no hay notas en Gastos.'); return; }
+    const ok = (a, b) => !a ? 'Escribe una contraseña' : a.length < 4 ? 'Pon al menos 4 caracteres' : a !== b ? 'Las dos contraseñas no son iguales' : '';
+    const v = await Bloc.pedir('🔒 Contraseña de la copia', 'La copia de <b>' + esc(Gastos.nombre()) + '</b> irá <b>cifrada</b>: sin esta contraseña nadie la puede abrir. Escríbela dos veces y no la olvides.',
+      [['cgP1', 'Contraseña'], ['cgP2', 'Repítela']], async ([a, b]) => ok(a, b));
+    if(!v) return;
+    toast('🔒 Cifrando la copia…', null, null, 15000);
+    try{
+      const fotos = {}; notas.forEach(x => (x.fotos || []).forEach(f => { const fo = Mio.uno('fotos', f); if(fo) fotos[f] = fo; }));
+      const sal = crypto.getRandomValues(new Uint8Array(16)), clave = await Bloc.derivar(v[0], sal);
+      const paq = await Bloc.cifrar({ gastos:notas, fotos, nombre:Gastos.nombre(), fecha:new Date().toISOString(), version:VERSION }, clave, sal);
+      paq.app = 'PorHacer3-gastos';
+      const blob = new Blob([JSON.stringify(paq)], { type:'application/json' });
+      descargar(blob, 'gastos-cifrado-' + hoyIso() + '.json');
+      toast('💾 Copia de ' + Gastos.nombre() + ' guardada (cifrada, ' + tamTxt(blob.size) + ')', null, null, 4000);
+    }catch(e){ console.warn(e); popAviso('Copia de Gastos', 'No se ha podido hacer la copia.'); }
+  },
+  async importar(f){
+    let paq; try{ paq = JSON.parse(await f.text()); }catch(e){ popAviso('Importar', 'Este archivo no es una copia válida.'); return; }
+    if(!paq || paq.app !== 'PorHacer3-gastos'){ popAviso('Importar', 'Este archivo no es una copia cifrada de Gastos (gastos-cifrado-….json).'); return; }
+    let r = null;
+    const v = await Bloc.pedir('🔒 Abrir la copia', 'Escribe la contraseña <b>con la que se hizo</b> esta copia.', [['cgP', 'Contraseña de la copia']], async ([p]) => {
+      if(!p) return 'Escribe la contraseña';
+      try{ r = await Bloc.descifrar(paq, p); return ''; }catch(e){ return 'Contraseña incorrecta'; } });
+    if(!v || !r) return;
+    const o = r.obj, n = (o.gastos || []).filter(x => x.tipo === 'gasto').length;
+    const modo = await popup({ tit:'💶 Importar ' + n + (n === 1 ? ' nota' : ' notas'), html:`<p>Copia de «${esc(o.nombre || 'Gastos')}» del ${new Date(o.fecha).toLocaleDateString('es-ES', { dateStyle:'long' })}.</p>
+        <button class="opcion opc2" data-v="cambiar">♻️ Dejarlo como en la copia<small>Las notas de Gastos que tienes ahora se cambian por las de la copia</small></button>
+        <button class="opcion opc2" data-v="juntar">➕ Juntarla con lo que tengo<small>No se borra nada; se añade lo que falta</small></button>`,
+      botones:[{ txt:'Cancelar', val:null }], alAbrir:(c, fin) => $$('[data-v]', c).forEach(b => b.onclick = () => fin(b.dataset.v)) });
+    if(!modo) return;
+    try{
+      if(modo === 'cambiar') for(const x of Mio.todos('gastos')) await Mio.quitar('gastos', x.id);
+      for(const [id, fo] of Object.entries(o.fotos || {})) if(!Mio.uno('fotos', id)) await Mio.poner('fotos', id, { ...fo, de:'gastos' });
+      for(const x of o.gastos || []){ if(!x || !x.id) continue; const ya = Mio.uno('gastos', x.id);
+        if(x.tipo === 'gastos-meta' && ya && modo === 'juntar'){ const t = [...(ya.tabs || [])]; (x.tabs || []).forEach(tb => { if(!t.some(y => y.id === tb.id)) t.push(tb); }); await Mio.poner('gastos', x.id, { ...ya, tabs:t }); continue; }
+        if(!ya || modo === 'cambiar' || (x.cambiado || 0) > (ya.cambiado || 0)) await Mio.poner('gastos', x.id, x); }
+      Gastos.pintarBoton(); if(Gastos.abierto()) Gastos.pintar();
+      toast('✅ ' + n + (n === 1 ? ' nota' : ' notas') + ' de Gastos importada' + (n === 1 ? '' : 's'));
+    }catch(e){ console.warn(e); popAviso('Importar', 'No se ha podido importar: ' + e.message); }
   }
 };

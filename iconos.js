@@ -46,6 +46,7 @@ const ICO = {
   </svg>`,
 
   // Copia de seguridad: caja con flecha roja
+  guardar: `<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M18 48h30a11 11 0 0 0 1-22 15 15 0 0 0-29-3 12 12 0 0 0-2 25z" fill="#fff" stroke="var(--dark)" stroke-width="4.5" stroke-linejoin="round"/><path d="M32 27v16m-7-7 7 7 7-7" fill="none" stroke="var(--accent)" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
   copia: `<svg viewBox="0 0 64 64" aria-hidden="true">
     <path d="M10 30h44v20a6 6 0 0 1-6 6H16a6 6 0 0 1-6-6z" fill="#fff" stroke="var(--dark)" stroke-width="4.5" stroke-linejoin="round"/>
     <path d="M10 30l7-12h30l7 12" fill="none" stroke="var(--dark)" stroke-width="4.5" stroke-linejoin="round"/>

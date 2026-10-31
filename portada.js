@@ -44,7 +44,8 @@ const Portada = {
     { k:'teams',   t:'Reunión de Teams', ico:'teams',    c:'var(--dark)' },
     { k:'web1',    t:'Personal',   ico:'web',        c:'var(--accent)' },
     { k:'web2',    t:'Personal 2', ico:'web',        c:'var(--dark)' },
-    { k:'manual',  t:'Manual',     ico:'manual',     c:'var(--accent)' }
+    { k:'manual',  t:'Manual',     ico:'manual',     c:'var(--accent)' },
+    { k:'guardar', t:'Guardar',    ico:'guardar',    c:'var(--dark)' }
   ],
   saludo(){
     const h = new Date().getHours(), n = (typeof Nube !== 'undefined' && Nube.perfil && Nube.perfil.nombre) || '';
@@ -76,6 +77,7 @@ const Portada = {
       if(k === 'teams') return Teams.proxima();
       if(k === 'web1' || k === 'web2') return Webs.info(k);
       if(k === 'manual') return 'Cómo funciona todo';
+      if(k === 'guardar'){ const n = ['agenda','tickets','gastos','sitios'].filter(s => Mio.donde(s) === 'nube').length + (Listas.donde() === 'nube' ? 1 : 0) + Object.keys(Guardar.NUEVOS).filter(s => Guardar.donde(s) === 'nube').length; return '☁️ ' + n + ' en la nube · 📱 ' + (8 - n) + ' aquí'; }
       if(k === 'escribir'){ const n = Escribir.lista().length; return n ? pl(n, 'escrito', 'escritos') : 'Escribe o dicta'; }
       if(k === 'grabar'){ const n = Grabar.lista.length; return n ? pl(n, 'nota de voz', 'notas de voz') : 'Notas de voz'; }
       if(k === 'sitios'){ const s = Mio.todos('sitios'), casas = s.filter(x => x.tipo === 'casa').length, cosas = s.reduce((n, x) => n + Object.keys(x.cosas || {}).length, 0);
@@ -137,7 +139,7 @@ const Portada = {
       </button>`)(this.SECC.find(x => x.k === k));
     g.innerHTML = this.orden().map(baldosa).join('');
     $('#poCajaSitio').innerHTML = '';
-    $$('#vPortada [data-ir]').forEach(b => b.onclick = e => { if(Date.now() - (this._soltado || 0) < 600) return; if(b.dataset.ir === 'teams') Teams.nueva(); else if(b.dataset.ir.startsWith('web')) Webs.abrir(b.dataset.ir); else if(b.dataset.ir === 'manual') abrirManual(); else this.entrarEn(b.dataset.ir, b); });
+    $$('#vPortada [data-ir]').forEach(b => b.onclick = e => { if(Date.now() - (this._soltado || 0) < 600) return; if(b.dataset.ir === 'teams') Teams.nueva(); else if(b.dataset.ir.startsWith('web')) Webs.abrir(b.dataset.ir); else if(b.dataset.ir === 'manual') abrirManual(); else if(b.dataset.ir === 'guardar') Ajustes.abrir('donde'); else this.entrarEn(b.dataset.ir, b); });
     $('#vPortada [data-conf]').onclick = e => { if(Date.now() - (this._soltado || 0) < 600) return; const b = e.currentTarget; b.classList.add('girando'); setTimeout(() => { b.classList.remove('girando'); Ajustes.abrir(); }, 420); };
     const bc = $('#vPortada [data-bloc]'); if(bc) bc.onclick = () => { if(Date.now() - (this._soltado || 0) < 600) return; this.abrirCaja(bc); };
     if(entrar){ const v = $('#vPortada'); v.classList.remove('entra'); void v.offsetWidth; v.classList.add('entra'); }
@@ -253,7 +255,7 @@ const Calc = {
     this._carga = new Promise(ok => {
       const f = $('#calcFrame');
       f.addEventListener('load', () => setTimeout(() => ok(this.win()), 60), { once:true });
-      f.src = 'calculadora.html?v=155';
+      f.src = 'calculadora.html?v=158';
     });
     return this._carga;
   },

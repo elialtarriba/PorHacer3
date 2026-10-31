@@ -25,8 +25,8 @@ const Bloc = {
     if(!v){ const ls = lsGet(this.K); if(ls){ await this.ponerPaq(ls); lsSet(this.K, null); v = ls; } }   // pasar lo de antes (localStorage)
     this._hay = !!v; return v;
   },
-  async ponerPaq(str){ await this._op('readwrite', st => st.put(str, 'paq')); this._hay = true; try{ navigator.storage && navigator.storage.persist && navigator.storage.persist(); }catch(e){} },
-  async borrarPaq(){ await this._op('readwrite', st => st.delete('paq')); this._hay = false; },
+  async ponerPaq(str){ await this._op('readwrite', st => st.put(str, 'paq')); this._hay = true; if(typeof Guardar !== 'undefined') Guardar.cambioBloc(str); try{ navigator.storage && navigator.storage.persist && navigator.storage.persist(); }catch(e){} },
+  async borrarPaq(){ await this._op('readwrite', st => st.delete('paq')); this._hay = false; if(typeof Guardar !== 'undefined') Guardar.cambioBloc(null); },
 
   /* ---------- Cifrado ---------- */
   b64(buf){ const u = new Uint8Array(buf); let s = ''; for(let i = 0; i < u.length; i += 0x8000) s += String.fromCharCode.apply(null, u.subarray(i, i + 0x8000)); return btoa(s); },

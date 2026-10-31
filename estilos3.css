@@ -1036,3 +1036,44 @@ ul.aj-lista b{display:inline;font-size:inherit;margin:0}
 .gx-meses button.usado{opacity:.4}
 .gx-herr{flex-wrap:wrap;gap:8px}
 .gx-hbt{font:inherit;font-size:19px;font-weight:900}
+
+/* Gastos: «¿Qué es?» con el importe a la derecha */
+.gx-erow{display:flex;align-items:flex-end;gap:8px}
+.gx-t1{flex:1;min-width:0;min-height:26px;border:0;outline:0;resize:none;background:transparent;font:inherit;font-size:17px;font-weight:600;line-height:1.35;color:var(--ink);padding:0;overflow:hidden}
+.gx-impw{flex:none;display:flex;align-items:center;gap:3px;border-bottom:2px solid var(--line);padding:0 2px 1px;margin-bottom:1px}
+.gx-impw:focus-within{border-bottom-color:var(--accent)}
+.gx-imp-in{width:78px;border:0;outline:0;background:transparent;font:inherit;font-size:17px;font-weight:800;text-align:right;color:var(--ink);padding:0}
+.gx-impw span{font-size:16px;font-weight:800;color:var(--ink2)}
+.gx-txt{margin-top:4px;font-size:15.5px;color:var(--ink2)}
+.gx-l1{display:flex;align-items:flex-end;gap:10px}
+.gx-l1 b{flex:1;min-width:0}
+.gx-imp{flex:none;font-size:16.5px;font-weight:800;color:var(--ink);white-space:nowrap}
+.gx-fila.ok .gx-imp{text-decoration:line-through;color:var(--ink2)}
+.gx-total{flex:none;padding:8px 14px;font-size:14px;font-weight:700;color:var(--ink2);text-align:right;border-bottom:1px solid var(--line)}
+.gx-total b{color:var(--ink);font-weight:900}
+.gx-ver .gx-l1 .gx-imp{font-size:16.5px;font-weight:800;color:var(--ink);white-space:nowrap}.gx-fila.ok .gx-ver .gx-l1 .gx-imp{text-decoration:line-through;color:var(--ink2)}
+
+/* Guardar: nube o aparato */
+.gd-fijos{display:flex;flex-wrap:wrap;gap:6px}
+.gd-fijos span{padding:8px 12px;border-radius:12px;background:color-mix(in srgb,var(--accent) 10%,var(--card));border:1.5px solid color-mix(in srgb,var(--accent) 30%,var(--line));font-size:14px;font-weight:800;color:var(--dark)}
+.gen-donde-f b small{font-weight:700;color:var(--ink2);font-size:12px}
+.gen-donde-f{flex-wrap:wrap;row-gap:8px}.gen-donde-f .seg{margin-left:auto;flex:none}
+/* Gastos: líneas con importe y casilla para tachar; totales arriba a la derecha */
+.gx-tots{float:right;display:flex;flex-direction:column;align-items:flex-end;margin:0 0 4px 10px;line-height:1.15}
+.gx-tots small{font-size:12px;font-weight:700;color:var(--ink2)}
+.gx-tots b{font-size:19px;font-weight:900;color:var(--accent)}
+.gx-ver .gx-li{display:flex;align-items:center;gap:8px;min-height:24px}
+.gx-ver .gx-li .gx-ltx{flex:1;min-width:0;font-size:15px;color:var(--ink2);font-weight:500;white-space:pre-wrap;word-break:break-word}
+.gx-ver .gx-li .gx-imp{font-size:15px;font-weight:800;color:var(--ink);white-space:nowrap}
+.gx-tick{flex:none;width:24px;height:24px;border-radius:7px;border:2px solid color-mix(in srgb,var(--ink2) 55%,transparent);background:var(--card);color:#fff;font-size:15px;font-weight:900;line-height:1;display:grid;place-items:center;padding:0}
+.gx-tick.on{background:#3fae5a;border-color:#3fae5a}
+.gx-tick[hidden]{display:none}
+.tach .gx-ltx,.tach > b,.tach .gx-imp,.gx-lrow.tach .gx-lt,.gx-lrow.tach .gx-limp,.gx-erow.tach .gx-t1,.gx-erow.tach .gx-imp-in{text-decoration:line-through;opacity:.55}
+.gx-l1{align-items:center}
+.gx-erow{align-items:center}
+.gx-lineas{display:flex;flex-direction:column;gap:4px;margin-top:6px}
+.gx-lrow{display:flex;align-items:center;gap:8px}
+.gx-lt{flex:1;min-width:0;min-height:24px;border:0;outline:0;resize:none;background:transparent;font:inherit;font-size:15.5px;line-height:1.35;color:var(--ink2);padding:0;overflow:hidden}
+.gx-limp{width:70px;border:0;outline:0;background:transparent;font:inherit;font-size:15.5px;font-weight:800;text-align:right;color:var(--ink);padding:0}
+.gx-lrow .gx-impw{border-bottom-width:1.5px}
+.gx-tots{float:none;margin:0 0 2px 0;width:100%}

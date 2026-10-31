@@ -1,6 +1,6 @@
 /* PorHacer · app principal: tablero de columnas, tareas y editor */
 
-const VERSION = 'V14.3';
+const VERSION = 'V14.6';
 const $ = (s, r=document) => r.querySelector(s);
 const $$ = (s, r=document) => Array.from(r.querySelectorAll(s));
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -1142,7 +1142,7 @@ async function iniciar(){
   setTimeout(() => document.body.classList.add('ya'), 1800);
   pedirPersistencia();
   Nube.iniciar();
-  Calc.iniciar(); Mio.iniciar(); Grabar.iniciar(); Escribir.iniciar(); Agenda.iniciar(); Tickets.iniciar(); Sitios.iniciar(); Portada.iniciar();
+  Calc.iniciar(); Mio.iniciar(); Grabar.iniciar(); Escribir.iniciar(); if(typeof Guardar !== 'undefined') Guardar.iniciar(); Agenda.iniciar(); Tickets.iniciar(); Sitios.iniciar(); Portada.iniciar();
   let ini = App.ajustes.inicio; try{ const c = localStorage.getItem('ph3-inicio'); if(c && (!ini || ini === 'portada')) ini = c; }catch(e){}
   irA({ tablero:'tareas' }[ini] || ini || 'portada', true);
   $('#nubeEstado').onclick = () => { if(!Nube.user) Nube.pantallaEntrar(); else Nube.explicarEstado(); };

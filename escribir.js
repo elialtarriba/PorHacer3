@@ -6,7 +6,7 @@
 const Escribir = {
   TAM: { peq:'15px', normal:'18px', grande:'24px', titulo:'32px' },
   lista(){ try{ return JSON.parse(lsGet('ph3-escritos') || '[]') || []; }catch(e){ return []; } },
-  ponerLista(l){ try{ localStorage.setItem('ph3-escritos', JSON.stringify(l)); }catch(e){ toast('⚠️ No cabe más en este aparato: guarda alguno en .docx y bórralo'); } },
+  ponerLista(l){ try{ localStorage.setItem('ph3-escritos', JSON.stringify(l)); }catch(e){ toast('⚠️ No cabe más en este aparato: guarda alguno en .docx y bórralo'); } if(typeof Guardar !== 'undefined') Guardar.cambioEscribir(); },
   nombre(){ return ((App.ajustes && App.ajustes.nombreEscribir) || '').trim() || 'Escribir'; },
   actual(){ return this.lista().find(d => d.id === this.id) || null; },
 

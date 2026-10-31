@@ -8,13 +8,16 @@
    Las fotos van aparte (colección «fotos»), aligeradas, y cada una sabe de qué apartado es (campo «de»). */
 
 const Mio = {
-  SECC: ['agenda', 'tickets', 'sitios'],
-  COLS: ['agenda', 'tickets', 'sitios', 'fotos'],
-  datos: { agenda:{}, tickets:{}, sitios:{}, fotos:{} },
+  SECC: ['agenda', 'tickets', 'gastos', 'sitios'],
+  COLS: ['agenda', 'tickets', 'gastos', 'sitios', 'fotos'],
+  datos: { agenda:{}, tickets:{}, gastos:{}, sitios:{}, fotos:{} },
   uid: null, falla: false, _subs: [], _oyentes: {}, _listo: false, _clave: null,
 
   /* ---------- ¿Dónde se guarda cada apartado? ---------- */
-  donde(sec){ return lsGet('ph3-donde-' + sec) === 'aparato' ? 'aparato' : 'nube'; },
+  donde(sec){
+    const v = lsGet('ph3-donde-' + sec);
+    if(sec === 'gastos' && !v) return lsGet('ph3-donde-tickets') === 'aparato' ? 'aparato' : 'nube';   // al principio, Gastos va donde iban los Tickets
+    return v === 'aparato' ? 'aparato' : 'nube'; },
   enNube(sec){ return this.donde(sec) === 'nube' && !!this.uid && !this.falla; },
   // dueño de los datos en el almacén del aparato: «aparato» (elegido), el uid (copia de la nube) o «local» (sin sesión, se subirá)
   duenoDe(sec){ return this.donde(sec) === 'aparato' ? 'aparato' : (this.uid || 'local'); },
@@ -155,7 +158,7 @@ const Mio = {
       if(estabaEnNube && borrarNube){ for(const d of docs) await this.ref(sec).doc(d.id).delete().catch(() => {}); for(const id of idsF) await this.ref('fotos').doc(id).delete().catch(() => {}); }
       lsSet('ph3-donde-' + sec, 'aparato');
     } else {
-      lsSet('ph3-donde-' + sec, null);
+      lsSet('ph3-donde-' + sec, sec === 'gastos' ? 'nube' : null);
       const nuevo = this.duenoDe(sec), subir = !!this.uid && !this.falla;
       for(const d of docs){ await this.guardarAparato(nuevo, sec, d.id, d); if(subir) await this.ref(sec).doc(d.id).set(limpioFS(d)); }
       for(const id of idsF){ const f = this.datos.fotos[id]; await this.guardarAparato(nuevo, 'fotos', id, f); if(subir) await this.ref('fotos').doc(id).set(limpioFS(f)); }
@@ -191,7 +194,8 @@ const Mio = {
     const fotosUsadas = new Set();
     const usa = ids => (ids || []).forEach(i => i && fotosUsadas.add(i));
     if(que.agenda){ out.agenda = this.todos('agenda'); out.agenda.forEach(d => (d.items || []).forEach(it => usa(it.fotos))); }
-    if(que.tickets){ out.tickets = this.todos('tickets'); out.tickets.forEach(t => usa([t.foto, t.fotoProd, ...(t.fotos || [])])); }   // con la lista de Gastos
+    if(que.tickets){ out.tickets = this.todos('tickets'); out.tickets.forEach(t => usa([t.foto, t.fotoProd, ...(t.fotos || [])])); }
+    if(que.gastos){ out.gastos = this.todos('gastos'); out.gastos.forEach(t => usa(t.fotos)); }
     if(que.sitios){ out.sitios = this.todos('sitios'); out.sitios.forEach(s => { usa(s.fotos); usa([s.fotoCasa]); Object.values(s.cosas || {}).forEach(c => usa(c.fotos)); }); }
     if(que.listas && typeof Listas !== 'undefined'){ out.listas = Listas.datos; out.fondos = Listas.fondos; }
     if(fotosUsadas.size){ out.fotos = {}; fotosUsadas.forEach(id => { const f = this.uno('fotos', id); if(f) out.fotos[id] = f; }); }
@@ -260,7 +264,7 @@ const Mio = {
   },
   async importar(obj, modo){       // modo: 'juntar' (añade y actualiza) o 'cambiar' (borra lo de antes)
     if(!obj || obj.tipo !== 'copia-mia') throw new Error('No es una copia de PorHacer3');
-    for(const col of ['agenda', 'tickets', 'sitios']){
+    for(const col of ['agenda', 'tickets', 'gastos', 'sitios']){
       if(!obj[col]) continue;
       if(modo === 'cambiar') for(const id of Object.keys(this.datos[col])) await this.quitar(col, id);
       for(const d of obj[col]) if(d && d.id) await this.poner(col, d.id, d);
@@ -268,6 +272,7 @@ const Mio = {
     const deFoto = {};
     (obj.agenda || []).forEach(d => (d.items || []).forEach(it => (it.fotos || []).forEach(f => deFoto[f] = 'agenda')));
     (obj.tickets || []).forEach(t => [t.foto, t.fotoProd].forEach(f => { if(f) deFoto[f] = 'tickets'; }));
+    (obj.gastos || []).forEach(t => (t.fotos || []).forEach(f => { if(f) deFoto[f] = 'gastos'; }));
     (obj.sitios || []).forEach(x => [...(x.fotos || []), x.fotoCasa, ...Object.values(x.cosas || {}).flatMap(c => c.fotos || [])].forEach(f => { if(f) deFoto[f] = 'sitios'; }));
     for(const [id, f] of Object.entries(obj.fotos || {})) await this.poner('fotos', id, { ...f, de:f.de || deFoto[id] || 'agenda' });
     let nl = 0;
@@ -279,6 +284,7 @@ const Mio = {
       if(Listas.modo !== 'nube') Listas.lsGuardar();
       Listas.pintar && Listas.pintar();
     }
+    if(typeof Gastos !== 'undefined') setTimeout(() => Gastos.migrar(), 300);
     return { agenda:(obj.agenda || []).length, tickets:(obj.tickets || []).length, sitios:(obj.sitios || []).length, listas:nl };
   },
 
