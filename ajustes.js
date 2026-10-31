@@ -170,7 +170,7 @@ const Ajustes = {
   /* ---------- COPIAS DE SEGURIDAD ---------- */
   p_copias(){
     const nNotas = Mio.todos('agenda').reduce((n, d) => n + (d.items || []).length, 0), nCasas = Mio.todos('sitios').filter(x => x.tipo === 'casa').length;
-    const mia = `<div class="gen-que">${[['agenda','📒 Agenda', nNotas + (nNotas === 1 ? ' nota' : ' notas')],['tickets','🧾 Tickets', Mio.todos('tickets').length + ''],['sitios','🏡 Sitios', nCasas + (nCasas === 1 ? ' casa' : ' casas')],['listas','📝 Listas', Listas.datos.length + '']].map(([k, t, n]) =>
+    const mia = `<div class="gen-que">${[['agenda','📒 Agenda', nNotas + (nNotas === 1 ? ' nota' : ' notas')],['tickets','🧾 Tickets', Mio.todos('tickets').filter(t => !t.tipo).length + (Mio.todos('tickets').some(t => t.tipo === 'gasto') ? ' + Gastos' : '')],['sitios','🏡 Sitios', nCasas + (nCasas === 1 ? ' casa' : ' casas')],['listas','📝 Listas', Listas.datos.length + '']].map(([k, t, n]) =>
         `<label class="check" style="margin-top:0"><input type="checkbox" data-que="${k}" checked><span class="caja"></span><span>${t}<small>${n}</small></span></label>`).join('')}</div>
       <div class="gen-btns"><button class="btn-pri" id="genExp">⬇️ Exportar copia</button><button class="btn-sec" id="genImp">⬆️ Importar copia</button></div>
       <input type="file" id="genImpIn" accept=".json,application/json" hidden>

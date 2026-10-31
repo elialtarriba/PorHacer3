@@ -135,7 +135,7 @@ const Completa = {
     const tb = c.tableros || [], tbFotos = tb.reduce((n, b) => n + (b.media || []).filter(x => x.tipo === 'fotos').length, 0), tbVid = tb.reduce((n, b) => n + (b.media || []).filter(x => x.tipo === 'videos').length, 0);
     return [['📋 Tableros', tb.length ? tb.length + ' (' + tb.map(b => esc(b.nombre)).join(', ') + ')' : 0], ['✅ Tareas', tb.length ? tb.reduce((n, b) => n + (b.tareas || []).length, 0) : (t.tareas || []).length],
       ['📷 Fotos', (tb.length ? tbFotos : (t.fotos || []).length) + Object.keys(m.fotos || {}).length], ['🎬 Vídeos', tb.length ? tbVid : (t.videos || []).length],
-      ['📒 Notas de la agenda', notas], ['🧾 Tickets', (m.tickets || []).length], ['🏡 Sitios', (m.sitios || []).length], ['📝 Listas', (m.listas || []).length],
+      ['📒 Notas de la agenda', notas], ['🧾 Tickets', (m.tickets || []).filter(t => !t.tipo).length], ['💶 Notas de Gastos', (m.tickets || []).filter(t => t.tipo === 'gasto').length], ['🏡 Sitios', (m.sitios || []).length], ['📝 Listas', (m.listas || []).length],
       ['🎙️ Grabaciones', (c.grabaciones || []).length], ['📄 Escritos', nEsc], ['🌐 Webs personales', webs], ['🔒 Notas secretas', c.bloc ? 'sí' : 0]].filter(([, n]) => n);
   },
   async importar(f){
