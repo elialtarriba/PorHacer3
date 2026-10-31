@@ -747,6 +747,7 @@ const Nube = {
       'auth/weak-password':'La contraseña tiene que tener al menos 6 letras o números.',
       'auth/too-many-requests':'Demasiados intentos. Espera un poco y vuelve a probar.',
       'auth/network-request-failed':'No hay conexión a internet.',
+      'auth/requires-recent-login':'Por seguridad, cierra sesión, vuelve a entrar y prueba otra vez.',
       'permission-denied':'Firebase no da permiso. ¿Están pegadas las reglas nuevas de la V4? (mira NOTAS.md)'
     })[c] || ('Algo ha fallado: ' + (e && e.message || e));
   },

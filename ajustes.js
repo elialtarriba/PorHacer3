@@ -98,7 +98,8 @@ const Ajustes = {
       + this.tarjeta('↕️ Orden de la portada', '<button class="btn-sec btn-ancho" id="ajOrden">↺ Volver al orden de siempre</button>', 'Para cambiar de sitio un botón de la portada, <b>mantenlo pulsado</b> un momento y <b>arrástralo</b> donde quieras.')
       + this.tarjeta('🎤 Idioma del micrófono', this.seg('ajVoz', [['es-ES','Castellano'],['ca-ES','Català'],['en-GB','English']], a.idiomaVoz),
         'Para dictar en las tareas, la agenda y las notas. Puedes decir «coma», «punto», «punto y aparte», «nueva línea».')
-      + this.nota('Los <b>colores</b> de toda la app están en ' + this.enlace('tema', '🎨 Tema y colores') + ' · Tu <b>cuenta</b> y <b>dónde se guarda</b> cada cosa, en ' + this.enlace('cuenta', '☁️ Cuenta y nube'));
+      + this.nota('Los <b>colores</b> de toda la app están en ' + this.enlace('tema', '🎨 Tema y colores') + ' · Tu <b>cuenta</b> y <b>dónde se guarda</b> cada cosa, en ' + this.enlace('cuenta', '☁️ Cuenta y nube'))
+      + this.tarjeta('👤 Mis datos', '<button class="btn-sec btn-ancho" id="ajMisDatos">👤 Ver mis datos · cambiar la contraseña</button>', 'Tu usuario de entrada y tu contraseña (no se ve). Desde aquí puedes cambiarla o pedir un correo si la has olvidado.');
   },
   e_general(cont){
     const a = App.ajustes;
@@ -110,6 +111,7 @@ const Ajustes = {
       toast((c.checked ? '👁 Se ve: ' : '🙈 Escondido: ') + c.closest('label').textContent.trim()); });
     TemaSec.enlazar(cont, 'portada');
     $('#ajOrden').onclick = () => { Portada.ordenDeSiempre(); toast('↺ La portada vuelve al orden de siempre'); };
+    $('#ajMisDatos').onclick = () => MisDatos.abrir();
     this.enlazarEnlaces(cont);
   },
 
@@ -185,7 +187,7 @@ const Ajustes = {
   /* ---------- COPIAS DE SEGURIDAD ---------- */
   p_copias(){
     const nNotas = Mio.todos('agenda').reduce((n, d) => n + (d.items || []).length, 0), nCasas = Mio.todos('sitios').filter(x => x.tipo === 'casa').length;
-    const mia = `<div class="gen-que">${[['agenda','📒 Agenda', nNotas + (nNotas === 1 ? ' nota' : ' notas')],['tickets','🧾 Tickets', Mio.todos('tickets').filter(t => !t.tipo).length + ''],['gastos','💶 ' + esc(Gastos.nombre()), Gastos.todos().length + ''],['sitios','🏡 Sitios', nCasas + (nCasas === 1 ? ' casa' : ' casas')],['listas','📝 Listas', Listas.datos.length + '']].map(([k, t, n]) =>
+    const mia = `<div class="gen-que">${[['agenda','📒 Agenda', nNotas + (nNotas === 1 ? ' nota' : ' notas')],['tickets','🧾 Tickets', Mio.todos('tickets').filter(t => !t.tipo).length + ''],['gastos','💶 ' + esc(Gastos.nombre()), Gastos.cerrado() ? '🔒' : Gastos.todos().length + ''],['sitios','🏡 Sitios', nCasas + (nCasas === 1 ? ' casa' : ' casas')],['listas','📝 Listas', Listas.datos.length + '']].map(([k, t, n]) =>
         `<label class="check" style="margin-top:0"><input type="checkbox" data-que="${k}" checked><span class="caja"></span><span>${t}<small>${n}</small></span></label>`).join('')}</div>
       <div class="gen-btns"><button class="btn-pri" id="genExp">⬇️ Exportar copia</button><button class="btn-sec" id="genImp">⬆️ Importar copia</button></div>
       <input type="file" id="genImpIn" accept=".json,application/json" hidden>
@@ -370,9 +372,10 @@ const Ajustes = {
   p_tickets(){
     const act = Tickets.tema().k;
     return this.tarjeta('🎨 Colores de los tickets', `<div class="tk-temas">${Tickets.TEMAS.map(t => `<button data-tkt="${t.k}" class="${t.k === act ? 'on' : ''}"><span class="tk-tm" style="${t.k === 'app' ? 'background:linear-gradient(135deg,var(--bg),var(--card));border-color:var(--accent)' : `background:linear-gradient(135deg,${t.bg},${t.soft});border-color:${t.acc}`}"><i style="background:${t.k === 'app' ? 'var(--accent)' : t.acc}"></i></span>${t.name}</button>`).join('')}</div>`,
-      'Solo cambian la pantalla de los tickets y su PDF. «Como la app» = el tema de toda la app.');
+      'Solo cambian la pantalla de los tickets y su PDF. «Como la app» = el tema de toda la app.')
+      + this.tarjeta('🔒 Cifrado de «' + esc(Gastos.nombre()) + '»', '<div id="ajGxCif"></div>');
   },
-  e_tickets(cont){ $$('[data-tkt]', cont).forEach(b => b.onclick = () => { lsSet('ph3-tk-tema', b.dataset.tkt); Tickets.ponerTema(); this.ir('tickets', null, true); }); },
+  e_tickets(cont){ $$('[data-tkt]', cont).forEach(b => b.onclick = () => { lsSet('ph3-tk-tema', b.dataset.tkt); Tickets.ponerTema(); this.ir('tickets', null, true); }); GxCifra.pintar($('#ajGxCif', cont)); },
 
   /* ---------- SITIOS ---------- */
   p_sitios(){
@@ -541,5 +544,165 @@ const Ajustes = {
     $$('#fsSeg button').forEach(b => b.onclick = () => { f.segundos = +b.dataset.v; g(); this.fiesta(); });
     $$('#fsMail button').forEach(b => b.onclick = () => { f.email = b.dataset.v; g(); this.fiesta(); });
     $('#fsProbar').onclick = () => { f.mensaje = $('#fsMsg').value.trim(); g(); cerrar('ajustes'); Fiesta.despertar(); if(f.activa) Fiesta.confeti(f.segundos); else Fiesta.soloMensaje(); if(f.musica) Fiesta.musica(); };
+  }
+};
+
+
+/* ---------- MIS DATOS: usuario, contraseña (oculta), cambiarla o recuperarla ----------
+   Firebase nunca guarda la contraseña de forma que se pueda ver: por eso sale como ●●●●●●●●.
+   Para cambiarla pide la actual (así nadie con tu móvil desbloqueado puede cambiártela).
+   Si la olvidas, Firebase envía su correo oficial con un enlace para poner una nueva. */
+const MisDatos = {
+  usuario(){ return (typeof Nube !== 'undefined' && Nube.user) ? Nube.user : null; },
+  ojo(id){ return `<span class="md-pass"><input id="${id}" type="password" autocomplete="${id === 'mdAct' ? 'current-password' : 'new-password'}"><button type="button" class="md-ojo" data-ojo="${id}" title="Ver / ocultar">👁</button></span>`; },
+  enlazarOjos(c){ $$('[data-ojo]', c).forEach(b => b.onclick = () => { const i = $('#' + b.dataset.ojo, c); i.type = i.type === 'password' ? 'text' : 'password'; b.textContent = i.type === 'password' ? '👁' : '🙈'; }); },
+  async abrir(){
+    const u = this.usuario();
+    if(!u){ await popAviso('👤 Mis datos', 'No has iniciado sesión. Entra con tu email y contraseña en «Cuenta y nube» para ver tus datos.'); return; }
+    const p = Nube.perfil, nom = p ? (p.nombre + (p.apellidos ? ' ' + p.apellidos : '')) : '';
+    const v = await popup({ tit:'👤 Mis datos', html:`<div class="md-datos">
+        ${nom ? `<div class="md-fila"><small>Nombre</small><b>${esc(nom)}</b></div>` : ''}
+        <div class="md-fila"><small>Usuario de entrada (email)</small><b>${esc(u.email || '')}</b>${u.emailVerified === false ? '<em class="md-aviso">Sin verificar</em>' : '<em class="md-ok">✔ Verificado</em>'}</div>
+        <div class="md-fila"><small>Contraseña</small><b class="md-puntos">●●●●●●●●</b></div>
+        <p class="aj-ayuda" style="margin-top:6px">La contraseña no se puede ver: ni la app ni Google la guardan a la vista, solo una «huella» cifrada. Puedes cambiarla cuando quieras.</p>
+        <button class="nube-link suave" id="mdOlvido">¿La has olvidado? Te enviamos un correo</button>
+      </div>`,
+      botones:[{ txt:'Cerrar', val:null }, { txt:'🔑 Cambiar', cls:'btn-pri', val:'cambiar' }],
+      alAbrir:(c, fin) => { $('#mdOlvido', c).onclick = () => fin('olvido'); } });
+    if(v === 'cambiar') this.cambiar();
+    else if(v === 'olvido') this.olvido();
+  },
+  cambiar(){
+    const u = this.usuario(); if(!u) return;
+    popup({ tit:'🔑 Cambiar la contraseña', html:`<div class="md-form">
+        <label>Contraseña actual</label>${this.ojo('mdAct')}
+        <label>Contraseña nueva <small>(mínimo 6 letras o números)</small></label>${this.ojo('mdNue')}
+        <label>Repite la nueva</label>${this.ojo('mdNue2')}
+        <div class="nube-error" id="mdErr"></div>
+        <button class="btn-pri btn-ancho" id="mdOk">Guardar la contraseña nueva</button>
+        <button class="nube-link suave" id="mdOlv">No me acuerdo de la actual</button>
+      </div>`,
+      botones:[{ txt:'Cancelar', val:null }],
+      alAbrir:(c, fin) => {
+        this.enlazarOjos(c);
+        const err = t => $('#mdErr', c).textContent = t;
+        $('#mdOlv', c).onclick = () => { fin(null); this.olvido(); };
+        $('#mdNue2', c).onkeydown = e => { if(e.key === 'Enter') $('#mdOk', c).click(); };
+        setTimeout(() => $('#mdAct', c).focus(), 150);
+        $('#mdOk', c).onclick = async () => {
+          const a = $('#mdAct', c).value, n = $('#mdNue', c).value, n2 = $('#mdNue2', c).value;
+          if(!a){ err('Escribe tu contraseña actual.'); return; }
+          if(n.length < 6){ err('La nueva tiene que tener al menos 6 letras o números.'); return; }
+          if(n !== n2){ err('Las dos contraseñas nuevas no son iguales.'); return; }
+          if(n === a){ err('La nueva es igual que la actual.'); return; }
+          $('#mdOk', c).disabled = true; err('');
+          try{
+            const cred = firebase.auth.EmailAuthProvider.credential(u.email, a);
+            await u.reauthenticateWithCredential(cred);
+            await u.updatePassword(n);
+            fin(true);
+            toast('🔑 Contraseña cambiada. La próxima vez entra con la nueva.', null, null, 5000);
+          }catch(e){
+            console.warn(e); $('#mdOk', c).disabled = false;
+            const code = e && e.code || '';
+            err(/wrong-password|invalid-credential|invalid-login/.test(code) ? 'La contraseña actual no es correcta.' : Nube.textoError(e));
+          }
+        };
+      } });
+  },
+  async olvido(){
+    const u = this.usuario(); if(!u || !u.email) return;
+    const m = u.email;
+    if(!await popConfirmar('📧 ¿Te envío el correo?', 'Te llegará un correo a ' + m + ' con un enlace para poner una contraseña nueva.', 'Enviar el correo')) return;
+    try{
+      const vuelta = { url: location.origin + location.pathname };
+      try{ await Nube.auth.sendPasswordResetEmail(m, vuelta); }
+      catch(e1){ if(/continue-uri|unauthorized-domain|invalid-continue/.test(e1.code || '')) await Nube.auth.sendPasswordResetEmail(m); else throw e1; }
+      popup({ tit:'📧 Revisa tu correo', html:`<p>Te hemos enviado un correo a <b>${esc(m)}</b> con un enlace para poner una contraseña nueva.</p>
+        <p style="margin-top:8px">• Mira también en <b>Spam / Correo no deseado</b> y en <b>Promociones</b>.<br>• Lo envía <b>noreply@porhacer-36f11.firebaseapp.com</b>.<br>• Puede tardar unos minutos.</p>
+        <p style="margin-top:8px">Cuando la cambies, en los otros aparatos tendrás que volver a entrar con la nueva.</p>`,
+        botones:[{ txt:'Entendido', cls:'btn-pri', val:true }] });
+    }catch(e){ console.warn(e); popAviso('No se pudo enviar', Nube.textoError(e)); }
+  }
+};
+
+
+/* ---------- Configuración › Tickets: el cifrado de «Gastos» ---------- */
+const GxCifra = {
+  pintar(box){
+    if(!box) return;
+    const on = Gastos.cifrado(), nom = esc(Gastos.nombre()), siempre = Gastos.pideSiempre();
+    box.innerHTML = on
+      ? `<p class="gxc-est on">🔒 <b>Cifrado activado.</b> Las notas y las fotos de ${nom} están cifradas en este aparato y en la nube. Para abrir la lista hay que escribir la contraseña.</p>
+         <p class="aj-ayuda" style="margin:10px 0 4px">Pedir la contraseña:</p>
+         <div class="seg" id="gxcPedir"><button data-v="siempre" class="${siempre ? 'on' : ''}">Cada vez que abro la lista</button><button data-v="sesion" class="${siempre ? '' : 'on'}">Una vez, mientras la app esté abierta</button></div>
+         <button class="btn-sec btn-ancho" id="gxcCambiar" style="margin-top:12px">🔑 Cambiar la contraseña</button>
+         <button class="btn-sec btn-ancho" id="gxcQuitar" style="margin-top:8px">🔓 Quitar el cifrado</button>
+         <button class="nube-link suave" id="gxcOlvido">He olvidado la contraseña</button>
+         <p class="aj-ayuda" style="margin-top:8px">💾 La <b>copia cifrada</b> de ${nom} está en ${Ajustes.enlace('copias', '📦 Copias de seguridad')}</p>`
+      : `<p class="gxc-est">🔓 <b>Sin cifrar.</b> Cualquiera que coja tu móvil desbloqueado puede abrir ${nom}.</p>
+         <p class="aj-ayuda" style="margin:8px 0">Si lo activas, todas las notas y fotos de ${nom} se guardan <b>cifradas</b> (como las Notas secretas), en el aparato y en la nube, y para abrir la lista hay que poner la contraseña.</p>
+         <button class="btn-pri btn-ancho" id="gxcActivar">🔒 Activar el cifrado</button>`;
+    const re = () => this.pintar(box);
+    Ajustes.enlazarEnlaces(box);
+    if(!on){ $('#gxcActivar', box).onclick = async () => { if(await this.activar()) re(); }; return; }
+    $$('#gxcPedir button', box).forEach(b => b.onclick = () => { lsSet('ph3-gx-pedir', b.dataset.v === 'sesion' ? 'sesion' : null); $$('#gxcPedir button', box).forEach(x => x.classList.toggle('on', x === b)); toast(b.dataset.v === 'sesion' ? '🔓 Se pedirá una vez, hasta que cierres la app' : '🔒 Se pedirá cada vez que abras la lista'); });
+    $('#gxcCambiar', box).onclick = async () => { if(await this.cambiar()) re(); };
+    $('#gxcQuitar', box).onclick = async () => { if(await this.quitar()) re(); };
+    $('#gxcOlvido', box).onclick = async () => { if(await this.olvido()) re(); };
+  },
+  // ventana con casillas de contraseña (con 👁); comprobar(valores) → '' o el error (puede ser async)
+  pedir(tit, texto, campos, boton, comprobar){
+    return popup({ tit, html:`<div class="md-form"><p class="aj-ayuda" style="margin:0 0 4px">${texto}</p>${campos.map(([id, l]) => `<label>${l}</label>${Gastos.campoPass(id, '')}`).join('')}<div class="nube-error" id="gxcErr"></div><button class="btn-pri btn-ancho" id="gxcOk">${boton}</button></div>`,
+      botones:[{ txt:'Cancelar', val:null }],
+      alAbrir:(c, fin) => {
+        MisDatos.enlazarOjos(c);
+        const ok = $('#gxcOk', c), ir = async () => { const v = campos.map(([id]) => $('#' + id, c).value); ok.disabled = true; $('#gxcErr', c).textContent = '';
+          let e = ''; try{ e = await comprobar(v); }catch(x){ console.warn(x); e = 'No se ha podido: ' + (x.message || x); }
+          ok.disabled = false; if(e) $('#gxcErr', c).textContent = e; else fin(v); };
+        ok.onclick = ir; $$('input', c).forEach(i => i.onkeydown = e => { if(e.key === 'Enter') ir(); });
+        setTimeout(() => { const i = $('input', c); i && i.focus(); }, 200);
+      } });
+  },
+  nueva(a, b){ return !a ? 'Escribe la contraseña nueva.' : a.length < 4 ? 'Pon al menos 4 letras o números.' : a !== b ? 'Las dos contraseñas no son iguales.' : ''; },
+  async activar(){
+    if(!window.crypto || !crypto.subtle){ popAviso('Cifrado', 'Este navegador no permite cifrar. Abre la app desde su dirección https.'); return false; }
+    const v = await this.pedir('🔒 Activar el cifrado', `Elige una contraseña para <b>${esc(Gastos.nombre())}</b>. <b>⚠️ Apúntala en un sitio seguro:</b> si la olvidas, nadie (ni tú, ni yo, ni Google) podrá volver a abrir estas notas.`,
+      [['gxcN1', 'Contraseña nueva <small>(mínimo 4)</small>'], ['gxcN2', 'Repítela']], '🔒 Cifrar ahora', async ([a, b]) => {
+        const e = this.nueva(a, b); if(e) return e;
+        toast('🔒 Cifrando…', null, null, 20000); await Gastos.activarCifrado(a); return ''; });
+    if(!v) return false;
+    toast('🔒 ' + Gastos.nombre() + ' ya está cifrada', null, null, 3000); Gastos.pintarBoton(); return true;
+  },
+  async cambiar(){
+    const v = await this.pedir('🔑 Cambiar la contraseña', `La contraseña de <b>${esc(Gastos.nombre())}</b>. En tus otros aparatos tendrás que abrirla con la nueva.`,
+      [['gxcA', 'Contraseña actual'], ['gxcN1', 'Contraseña nueva <small>(mínimo 4)</small>'], ['gxcN2', 'Repite la nueva']], 'Guardar la contraseña nueva', async ([a, n1, n2]) => {
+        if(!a) return 'Escribe la contraseña actual.';
+        const k = await Gastos.probar(a); if(!k) return 'La contraseña actual no es correcta.';
+        const e = this.nueva(n1, n2); if(e) return e; if(n1 === a) return 'La nueva es igual que la actual.';
+        if(!Gastos.clave){ Gastos.clave = k; Gastos._sal = Mio.uno('gastos', Gastos.HDR).sal; }
+        toast('🔑 Cifrando con la contraseña nueva…', null, null, 20000); await Gastos.cambiarClave(n1); if(Gastos.pideSiempre() && !Gastos.abierto()) Gastos._olvidar(); return ''; });
+    if(!v) return false;
+    toast('🔑 Contraseña de ' + Gastos.nombre() + ' cambiada', null, null, 3000); return true;
+  },
+  async quitar(){
+    const v = await this.pedir('🔓 Quitar el cifrado', `Las notas de <b>${esc(Gastos.nombre())}</b> se guardarán <b>sin cifrar</b> y se podrán abrir sin contraseña. Escribe la contraseña para confirmarlo.`,
+      [['gxcA', 'Contraseña']], '🔓 Quitar el cifrado', async ([a]) => {
+        if(!a) return 'Escribe la contraseña.';
+        const k = await Gastos.probar(a); if(!k) return 'Contraseña incorrecta.';
+        if(!Gastos.clave){ Gastos.clave = k; Gastos._sal = Mio.uno('gastos', Gastos.HDR).sal; }
+        await Gastos.quitarCifrado(); return ''; });
+    if(!v) return false;
+    toast('🔓 ' + Gastos.nombre() + ' ya no está cifrada'); Gastos.pintarBoton(); return true;
+  },
+  async olvido(){
+    const v = await popup({ tit:'😟 He olvidado la contraseña', html:`<p>Lo siento: la contraseña <b>no se guarda en ningún sitio</b> (por eso es seguro), así que no se puede recuperar ni descifrar las notas sin ella.</p>
+        <p style="margin-top:8px">• Si tienes una <b>copia cifrada</b> de Gastos con otra contraseña que sí recuerdes, puedes empezar de nuevo e importarla.<br>• Si no, la única opción es <b>borrar ${esc(Gastos.nombre())}</b> y empezar de cero.</p>`,
+      botones:[{ txt:'Cancelar', val:false }, { txt:'🗑 Borrar y empezar', cls:'btn-pri', val:true }] });
+    if(!v) return false;
+    const ok = await popup({ tit:'⚠️ ¿Seguro?', html:`<p>Se borrarán <b>todas</b> las notas y fotos de ${esc(Gastos.nombre())}, en este aparato y en la nube. <b>No se puede deshacer.</b></p><p style="margin-top:8px">Escribe <b>BORRAR</b> para confirmarlo:</p><input id="gxcBorrar" autocomplete="off" autocapitalize="characters">`,
+      botones:[{ txt:'Cancelar', val:false }, { txt:'Borrar todo', cls:'btn-pri', val:c => $('#gxcBorrar', c).value.trim().toUpperCase() === 'BORRAR' }] });
+    if(!ok){ toast('No se ha borrado nada'); return false; }
+    await Gastos.borrarTodo(); Gastos.pintarBoton(); toast('🗑 Gastos borrado. Ya puedes empezar de nuevo.'); return true;
   }
 };

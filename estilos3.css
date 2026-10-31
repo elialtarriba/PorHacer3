@@ -1077,3 +1077,25 @@ ul.aj-lista b{display:inline;font-size:inherit;margin:0}
 .gx-limp{width:70px;border:0;outline:0;background:transparent;font:inherit;font-size:15.5px;font-weight:800;text-align:right;color:var(--ink);padding:0}
 .gx-lrow .gx-impw{border-bottom-width:1.5px}
 .gx-tots{float:none;margin:0 0 2px 0;width:100%}
+
+/* V14.7 · Mis datos */
+.md-datos{display:flex;flex-direction:column;gap:10px}
+.md-fila{display:flex;flex-direction:column;gap:2px;padding:10px 12px;border-radius:12px;background:var(--fondo2,rgba(127,127,127,.08))}
+.md-fila small{opacity:.65;font-size:12px}
+.md-fila b{font-size:16px;word-break:break-all}
+.md-puntos{letter-spacing:3px}
+.md-fila em{font-style:normal;font-size:12px;margin-top:2px}
+.md-ok{color:#2e9d57}.md-aviso{color:#d9822b}
+.md-form{display:flex;flex-direction:column;gap:6px}
+.md-form label{font-size:13px;opacity:.8;margin-top:6px}
+.md-form label small{opacity:.7}
+.md-pass{display:flex;gap:6px;align-items:center}
+.md-pass input{flex:1;min-width:0}
+.md-ojo{border:0;background:transparent;font-size:20px;width:40px;flex:0 0 40px;padding:4px 0;cursor:pointer}
+.md-form .btn-pri{margin-top:10px}
+
+/* V14.8 · Cifrado de Gastos */
+.gxc-est{padding:10px 12px;border-radius:12px;background:rgba(217,130,43,.12);margin:0}
+.gxc-est.on{background:rgba(46,157,87,.12)}
+#gxcPedir{flex-wrap:wrap}
+#gxcPedir button{flex:1 1 140px}

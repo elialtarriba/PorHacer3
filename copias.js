@@ -189,14 +189,15 @@ const Completa = {
 /* ---------- Copia de la lista «Gastos» (de Tickets), cifrada con una contraseña como las Notas secretas ---------- */
 const CopiaGastos = {
   async exportar(){
-    const notas = Mio.todos('gastos'); if(!notas.filter(x => x.tipo === 'gasto').length){ popAviso('Copia de Gastos', 'Todavía no hay notas en Gastos.'); return; }
+    if(!await Gastos.desbloquear()) return;
+    const notas = Gastos._items(); if(!notas.filter(x => x.tipo === 'gasto').length){ popAviso('Copia de Gastos', 'Todavía no hay notas en Gastos.'); return; }
     const ok = (a, b) => !a ? 'Escribe una contraseña' : a.length < 4 ? 'Pon al menos 4 caracteres' : a !== b ? 'Las dos contraseñas no son iguales' : '';
     const v = await Bloc.pedir('🔒 Contraseña de la copia', 'La copia de <b>' + esc(Gastos.nombre()) + '</b> irá <b>cifrada</b>: sin esta contraseña nadie la puede abrir. Escríbela dos veces y no la olvides.',
       [['cgP1', 'Contraseña'], ['cgP2', 'Repítela']], async ([a, b]) => ok(a, b));
     if(!v) return;
     toast('🔒 Cifrando la copia…', null, null, 15000);
     try{
-      const fotos = {}; notas.forEach(x => (x.fotos || []).forEach(f => { const fo = Mio.uno('fotos', f); if(fo) fotos[f] = fo; }));
+      const fotos = {}; notas.forEach(x => (x.fotos || []).forEach(f => { const fo = Mio.uno('fotos', f), img = Gastos.fotoSrc(f); if(fo && img) fotos[f] = { img, t:fo.t, de:'gastos' }; }));
       const sal = crypto.getRandomValues(new Uint8Array(16)), clave = await Bloc.derivar(v[0], sal);
       const paq = await Bloc.cifrar({ gastos:notas, fotos, nombre:Gastos.nombre(), fecha:new Date().toISOString(), version:VERSION }, clave, sal);
       paq.app = 'PorHacer3-gastos';
@@ -219,12 +220,13 @@ const CopiaGastos = {
         <button class="opcion opc2" data-v="juntar">➕ Juntarla con lo que tengo<small>No se borra nada; se añade lo que falta</small></button>`,
       botones:[{ txt:'Cancelar', val:null }], alAbrir:(c, fin) => $$('[data-v]', c).forEach(b => b.onclick = () => fin(b.dataset.v)) });
     if(!modo) return;
+    if(!await Gastos.desbloquear()) return;
     try{
-      if(modo === 'cambiar') for(const x of Mio.todos('gastos')) await Mio.quitar('gastos', x.id);
-      for(const [id, fo] of Object.entries(o.fotos || {})) if(!Mio.uno('fotos', id)) await Mio.poner('fotos', id, { ...fo, de:'gastos' });
-      for(const x of o.gastos || []){ if(!x || !x.id) continue; const ya = Mio.uno('gastos', x.id);
-        if(x.tipo === 'gastos-meta' && ya && modo === 'juntar'){ const t = [...(ya.tabs || [])]; (x.tabs || []).forEach(tb => { if(!t.some(y => y.id === tb.id)) t.push(tb); }); await Mio.poner('gastos', x.id, { ...ya, tabs:t }); continue; }
-        if(!ya || modo === 'cambiar' || (x.cambiado || 0) > (ya.cambiado || 0)) await Mio.poner('gastos', x.id, x); }
+      if(modo === 'cambiar') for(const x of Gastos._items()) await Gastos._quitar(x.id);
+      for(const [id, fo] of Object.entries(o.fotos || {})) if(!Mio.uno('fotos', id) && fo && fo.img) await Gastos.ponerFotoCon(id, fo.img, fo.t);
+      for(const x of o.gastos || []){ if(!x || !x.id || (x.tipo !== 'gasto' && x.tipo !== 'gastos-meta')) continue; const ya = Gastos._uno(x.id);
+        if(x.tipo === 'gastos-meta' && ya && modo === 'juntar'){ const t = [...(ya.tabs || [])]; (x.tabs || []).forEach(tb => { if(!t.some(y => y.id === tb.id)) t.push(tb); }); await Gastos._poner(x.id, { ...ya, tabs:t }); continue; }
+        if(!ya || modo === 'cambiar' || (x.cambiado || 0) > (ya.cambiado || 0)) await Gastos._poner(x.id, x); }
       Gastos.pintarBoton(); if(Gastos.abierto()) Gastos.pintar();
       toast('✅ ' + n + (n === 1 ? ' nota' : ' notas') + ' de Gastos importada' + (n === 1 ? '' : 's'));
     }catch(e){ console.warn(e); popAviso('Importar', 'No se ha podido importar: ' + e.message); }

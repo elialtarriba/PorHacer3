@@ -9,17 +9,121 @@ const Gastos = {
   q: '', filtro: '', editando: null,
 
   /* ---------- Datos ---------- */
-  meta(){ return Mio.uno('gastos', 'gx__meta') || { id:'gx__meta', tipo:'gastos-meta', nombre:'Gastos' }; },
-  nombre(){ return (this.meta().nombre || '').trim() || 'Gastos'; },
-  todos(){ return Mio.todos('gastos').filter(x => x.tipo === 'gasto'); },
+  meta(){ return this._uno('gx__meta') || { id:'gx__meta', tipo:'gastos-meta', nombre:'Gastos' }; },
+  nombre(){ if(this.cerrado()) return lsGet('ph3-gx-nombre') || 'Gastos'; const m = this._uno('gx__meta'), n = ((m && m.nombre) || '').trim() || 'Gastos'; if(m && lsGet('ph3-gx-nombre') !== n) lsSet('ph3-gx-nombre', n); return n; },
+  todos(){ return this._items().filter(x => x.tipo === 'gasto'); },
   /* Pestañas (por ejemplo, los 12 meses): cada nota es de una pestaña; las de antes, de la primera */
   tabs(){ return this.meta().tabs || []; },
   tabDe(x){ const ts = this.tabs(); return x.tab && ts.some(t => t.id === x.tab) ? x.tab : (ts[0] ? ts[0].id : ''); },
   tabActiva(){ const ts = this.tabs(), a = lsGet('ph3-gx-tab'); return ts.some(t => t.id === a) ? a : (ts[0] ? ts[0].id : ''); },
   deTab(){ const a = this.tabActiva(); return this.todos().filter(x => !a || this.tabDe(x) === a); },
-  uno(id){ const x = Mio.uno('gastos', id); return x && x.tipo === 'gasto' ? x : null; },
-  async poner(x){ x.cambiado = Date.now(); await Mio.poner('gastos', x.id, x); },
+  uno(id){ const x = this._uno(id); return x && x.tipo === 'gasto' ? x : null; },
+  async poner(x){ x.cambiado = Date.now(); await this._poner(x.id, x); },
   color(c){ return (this.COLORES.find(x => x[0] === (c || '')) || this.COLORES[0]); },
+
+  /* ---------- Cifrado (opcional, se activa en Configuración › Tickets) ----------
+     Con el cifrado puesto, cada nota (y cada foto) se guarda cifrada con AES-GCM y una clave sacada de tu contraseña
+     (PBKDF2, como las Notas secretas). En el aparato y en la nube solo hay letras sin sentido; la contraseña no se guarda
+     en ningún sitio. Abierta la lista, las notas descifradas viven solo en la memoria (this._cache). */
+  HDR: 'gx__cifra', VERIF: 'PorHacer3-gastos-ok',
+  _cache: new Map(), _ct: new Map(), _fotos: new Map(), _fct: new Map(), clave: null, _sal: null,
+  cifrado(){ return !!Mio.uno('gastos', this.HDR); },
+  cerrado(){ return this.cifrado() && !this.clave; },
+  _items(){ return this.cifrado() ? [...this._cache.values()] : Mio.todos('gastos').filter(x => x.tipo !== 'gx-c' && x.tipo !== 'gastos-cifra'); },
+  _uno(id){ return this.cifrado() ? (this._cache.get(id) || null) : Mio.uno('gastos', id); },
+  async _enc(obj, clave){ const iv = crypto.getRandomValues(new Uint8Array(12)); const ct = await crypto.subtle.encrypt({ name:'AES-GCM', iv }, clave || this.clave, new TextEncoder().encode(JSON.stringify(obj))); return { iv:Bloc.b64(iv), ct:Bloc.b64(ct) }; },
+  async _dec(d, clave){ const pt = await crypto.subtle.decrypt({ name:'AES-GCM', iv:Bloc.deb64(d.iv) }, clave || this.clave, Bloc.deb64(d.ct)); return JSON.parse(new TextDecoder().decode(pt)); },
+  async _poner(id, obj){
+    if(!this.cifrado()){ await Mio.poner('gastos', id, obj); return; }
+    if(!this.clave) throw new Error('Gastos está cerrado con contraseña');
+    this._cache.set(id, obj);
+    const e = await this._enc(obj); this._ct.set(id, e.ct);
+    await Mio.poner('gastos', id, { id, tipo:'gx-c', iv:e.iv, ct:e.ct, cambiado:obj.cambiado || Date.now() });
+  },
+  async _quitar(id){ this._cache.delete(id); this._ct.delete(id); await Mio.quitar('gastos', id); },
+  fotoSrc(f){ return this.cifrado() ? (this._fotos.get(f) || '') : Mio.foto(f); },
+  async ponerFoto(img){
+    if(!this.cifrado()) return Mio.ponerFoto(img, null, 'gastos');
+    const id = nuevoId('f'), e = await this._enc(img); this._fotos.set(id, img); this._fct.set(id, e.ct);
+    await Mio.poner('fotos', id, { img:'', iv:e.iv, ct:e.ct, t:Date.now(), de:'gastos' }); return id;
+  },
+  async ponerFotoCon(id, img, t){
+    if(!this.cifrado()){ await Mio.poner('fotos', id, { img, t:t || Date.now(), de:'gastos' }); return; }
+    const e = await this._enc(img); this._fotos.set(id, img); this._fct.set(id, e.ct); await Mio.poner('fotos', id, { img:'', iv:e.iv, ct:e.ct, t:t || Date.now(), de:'gastos' });
+  },
+  _olvidar(){ this.clave = null; this._sal = null; this._cache.clear(); this._ct.clear(); this._fotos.clear(); this._fct.clear(); },
+  // pone al día lo descifrado con lo que hay guardado (y cifra lo que llegue sin cifrar)
+  sync(){ this._cola = (this._cola || Promise.resolve()).then(() => this._sync()).catch(e => console.warn('gastos cifrado', e)); return this._cola; },
+  async _sync(){
+    const h = Mio.uno('gastos', this.HDR);
+    if(!h){ if(this.clave) this._olvidar(); return; }
+    if(!this.clave) return;
+    if(h.sal !== this._sal){        // se cambió la contraseña en otro aparato
+      this._olvidar(); if(this.abierto()){ const v = $('#gx'); v && v.classList.remove('abierto'); }
+      toast('🔒 La contraseña de ' + (lsGet('ph3-gx-nombre') || 'Gastos') + ' ha cambiado en otro aparato. Vuelve a abrirla con la nueva.', null, null, 6000); this.pintarBoton(); return;
+    }
+    const vistos = new Set();
+    for(const r of Mio.todos('gastos')){
+      if(r.id === this.HDR) continue; vistos.add(r.id);
+      if(r.tipo === 'gx-c'){ if(this._ct.get(r.id) === r.ct) continue; try{ this._cache.set(r.id, await this._dec(r)); this._ct.set(r.id, r.ct); }catch(e){ /* de otra clave: se deja */ } }
+      else if(r.tipo === 'gasto' || r.tipo === 'gastos-meta'){ const ya = this._cache.get(r.id); if(!ya || (r.cambiado || 0) >= (ya.cambiado || 0)) await this._poner(r.id, { ...r }); else await this._poner(r.id, ya); }
+    }
+    for(const id of [...this._cache.keys()]) if(!vistos.has(id)){ this._cache.delete(id); this._ct.delete(id); }
+    for(const [id, f] of Object.entries(Mio.datos.fotos || {})){
+      if(!f || f.de !== 'gastos') continue;
+      if(f.ct){ if(this._fct.get(id) === f.ct) continue; try{ this._fotos.set(id, await this._dec(f)); this._fct.set(id, f.ct); }catch(e){} }
+      else if(f.img){ const e = await this._enc(f.img); this._fotos.set(id, f.img); this._fct.set(id, e.ct); await Mio.poner('fotos', id, { img:'', iv:e.iv, ct:e.ct, t:f.t || Date.now(), de:'gastos' }); }
+    }
+  },
+  async probar(pass, h){ h = h || Mio.uno('gastos', this.HDR); const sal = Bloc.deb64(h.sal), clave = await Bloc.derivar(pass, sal); try{ if(await this._dec(h.ver, clave) === this.VERIF) return clave; }catch(e){} return null; },
+  campoPass(id, ph){ return `<span class="md-pass"><input id="${id}" type="password" placeholder="${ph}" autocomplete="off"><button type="button" class="md-ojo" data-ojo="${id}">👁</button></span>`; },
+  // pide la contraseña para abrir; devuelve true si ya está abierto
+  async desbloquear(){
+    if(!this.cerrado()) return true;
+    if(!window.crypto || !crypto.subtle){ popAviso('Gastos', 'Este navegador no permite descifrar. Abre la app desde su dirección https.'); return false; }
+    const h = Mio.uno('gastos', this.HDR);
+    const clave = await popup({ tit:'🔒 ' + (lsGet('ph3-gx-nombre') || 'Gastos'), html:`<p class="aj-ayuda" style="margin:0 0 6px">Esta lista está <b>cifrada</b>. Escribe su contraseña para abrirla.</p>${this.campoPass('gxPass', 'Contraseña')}<div class="nube-error" id="gxPErr"></div>`,
+      botones:[{ txt:'Cancelar', val:null }],
+      alAbrir:(c, fin) => {
+        MisDatos.enlazarOjos(c);
+        const bx = document.createElement('button'); bx.className = 'btn-pri btn-ancho'; bx.textContent = '🔓 Abrir'; bx.style.marginTop = '10px'; $('#gxPErr', c).after(bx);
+        const ir = async () => { const p = $('#gxPass', c).value; if(!p){ $('#gxPErr', c).textContent = 'Escribe la contraseña.'; return; }
+          bx.disabled = true; $('#gxPErr', c).textContent = ''; const k = await this.probar(p, h); bx.disabled = false;
+          if(k) fin(k); else { $('#gxPErr', c).textContent = 'Contraseña incorrecta.'; $('#gxPass', c).select(); } };
+        bx.onclick = ir; $('#gxPass', c).onkeydown = e => { if(e.key === 'Enter') ir(); };
+        setTimeout(() => $('#gxPass', c).focus(), 200);
+      } });
+    if(!clave) return false;
+    this.clave = clave; this._sal = h.sal; await this.sync(); this.pintarBoton(); return true;
+  },
+  pideSiempre(){ return lsGet('ph3-gx-pedir') !== 'sesion'; },
+  async activarCifrado(pass){
+    const datos = Mio.todos('gastos').filter(x => x.tipo === 'gasto' || x.tipo === 'gastos-meta').map(x => ({ ...x }));
+    const sal = crypto.getRandomValues(new Uint8Array(16)), clave = await Bloc.derivar(pass, sal);
+    this._olvidar(); this.clave = clave; this._sal = Bloc.b64(sal); datos.forEach(x => this._cache.set(x.id, x));
+    await Mio.poner('gastos', this.HDR, { id:this.HDR, tipo:'gastos-cifra', sal:this._sal, ver:await this._enc(this.VERIF), cambiado:Date.now() });
+    await this.sync();
+  },
+  async cambiarClave(pass){
+    await this.sync();
+    const sal = crypto.getRandomValues(new Uint8Array(16)), clave = await Bloc.derivar(pass, sal);
+    const notas = [...this._cache.entries()], fotos = [...this._fotos.entries()];
+    this.clave = clave; this._sal = Bloc.b64(sal); this._ct.clear(); this._fct.clear();
+    await Mio.poner('gastos', this.HDR, { id:this.HDR, tipo:'gastos-cifra', sal:this._sal, ver:await this._enc(this.VERIF), cambiado:Date.now() });
+    for(const [id, x] of notas) await this._poner(id, x);
+    for(const [id, img] of fotos){ const e = await this._enc(img); this._fct.set(id, e.ct); const f = Mio.uno('fotos', id); await Mio.poner('fotos', id, { img:'', iv:e.iv, ct:e.ct, t:(f && f.t) || Date.now(), de:'gastos' }); }
+  },
+  async quitarCifrado(){
+    await this.sync();
+    const notas = [...this._cache.entries()], fotos = [...this._fotos.entries()];
+    await Mio.quitar('gastos', this.HDR); this._olvidar();
+    for(const [id, x] of notas) await Mio.poner('gastos', id, x);
+    for(const [id, img] of fotos){ const f = Mio.uno('fotos', id); await Mio.poner('fotos', id, { img, t:(f && f.t) || Date.now(), de:'gastos' }); }
+  },
+  async borrarTodo(){
+    const ids = Mio.todos('gastos').map(x => x.id), fs = Object.keys(Mio.datos.fotos || {}).filter(k => (Mio.datos.fotos[k] || {}).de === 'gastos');
+    this._olvidar(); for(const id of ids) await Mio.quitar('gastos', id); await Mio.quitarFotos(fs); lsSet('ph3-gx-nombre', null);
+  },
   ordenados(){
     const t = this.deTab(), q = norm(this.q.trim());
     const ok = x => (!this.filtro || x.color === this.filtro) && (!q || norm((x.texto || '') + ' ' + this.importes(x).map(i => dinero(i.imp)).join(' ')).includes(q));
@@ -29,7 +133,8 @@ const Gastos = {
   },
 
   /* ---------- Pantalla ---------- */
-  abrir(){
+  async abrir(){
+    if(this.cerrado() && !await this.desbloquear()) return;
     let v = $('#gx');
     if(!v){
       v = document.createElement('div'); v.id = 'gx'; v.className = 'gx';
@@ -54,7 +159,7 @@ const Gastos = {
     if(Mio.todos('tickets').some(x => x.tipo === 'gasto' || x.tipo === 'gastos-meta')) this.migrar();   // por si quedaba alguna de antes
   },
   abierto(){ const v = $('#gx'); return !!(v && v.classList.contains('abierto')); },
-  async cerrar(){ await this.guardarEdicion(); const v = $('#gx'); if(v) v.classList.remove('abierto'); Tickets.pintar && Tickets.pintar(); },
+  async cerrar(){ await this.guardarEdicion(); const v = $('#gx'); if(v) v.classList.remove('abierto'); if(this.cifrado() && this.pideSiempre()){ this._olvidar(); this.pintarBoton(); } Tickets.pintar && Tickets.pintar(); },
   pintarTabs(){
     const ts = this.tabs(), a = this.tabActiva(), n = id => this.todos().filter(x => !x.ok && this.tabDe(x) === id).length;
     $('#gxTabs').innerHTML = ts.map(t => `<button class="gx-tab ${t.id === a ? 'on' : ''}" data-tab="${t.id}">${esc(t.nombre)}${n(t.id) ? `<small>${n(t.id)}</small>` : ''}${t.id === a ? '<em>▾</em>' : ''}</button>`).join('')
@@ -86,11 +191,11 @@ const Gastos = {
     const n = await this.pedirNombreTab('＋ Nueva pestaña', ''); if(!n) return;
     const m = this.meta(), ts = [...(m.tabs || [])];
     if(n === '__12'){ for(const mes of MESES_C) if(!ts.some(t => norm(t.nombre) === norm(mes))) ts.push({ id:'tb_' + nuevoId('t'), nombre:mes });
-      m.tabs = ts; await Mio.poner('gastos', m.id, m);
+      m.tabs = ts; await this._poner(m.id, m);
       const hoy = ts.find(t => norm(t.nombre) === norm(MESES_C[new Date().getMonth()])); if(hoy) lsSet('ph3-gx-tab', hoy.id);
       this.pintar(); toast('📅 Pestañas de los 12 meses creadas'); return; }
     if(ts.some(t => norm(t.nombre) === norm(n))){ toast('Ya hay una pestaña «' + n + '»'); return; }
-    const t = { id:'tb_' + nuevoId('t'), nombre:n }; ts.push(t); m.tabs = ts; await Mio.poner('gastos', m.id, m);
+    const t = { id:'tb_' + nuevoId('t'), nombre:n }; ts.push(t); m.tabs = ts; await this._poner(m.id, m);
     lsSet('ph3-gx-tab', t.id); this._tabVisto = false; this.pintar(); toast('📑 Pestaña «' + n + '» creada');
   },
   async opcionesTab(id){
@@ -104,14 +209,14 @@ const Gastos = {
       <div class="mp-fila"><button class="mp-b" data-a="x">Cerrar</button></div>`);
     p.onclick = async e => { const b = e.target.closest('[data-a]'); if(!b) return; const a = b.dataset.a; cerrarPopMio();
       const m = this.meta(), ts = [...(m.tabs || [])], i = ts.findIndex(x => x.id === id);
-      if(a === 'nom'){ const v = await this.pedirNombreTab('✏️ Nombre de la pestaña', t.nombre); if(v && v !== '__12'){ ts[i] = { ...ts[i], nombre:v }; m.tabs = ts; await Mio.poner('gastos', m.id, m); this.pintar(); } }
-      else if(a === 'izq' || a === 'der'){ const j = a === 'izq' ? i - 1 : i + 1; if(j < 0 || j >= ts.length) return; [ts[i], ts[j]] = [ts[j], ts[i]]; m.tabs = ts; await Mio.poner('gastos', m.id, m); this.pintar(); }
+      if(a === 'nom'){ const v = await this.pedirNombreTab('✏️ Nombre de la pestaña', t.nombre); if(v && v !== '__12'){ ts[i] = { ...ts[i], nombre:v }; m.tabs = ts; await this._poner(m.id, m); this.pintar(); } }
+      else if(a === 'izq' || a === 'der'){ const j = a === 'izq' ? i - 1 : i + 1; if(j < 0 || j >= ts.length) return; [ts[i], ts[j]] = [ts[j], ts[i]]; m.tabs = ts; await this._poner(m.id, m); this.pintar(); }
       else if(a === 'borrar'){
         if(!await confirmarMio('Borrar pestaña', n ? `¿Borrar la pestaña «${esc(t.nombre)}» y sus ${n} ${n === 1 ? 'nota' : 'notas'}?` : `¿Borrar la pestaña «${esc(t.nombre)}»?`, 'Borrar')) return;
         const notas = this.todos().filter(x => this.tabDe(x) === id), copiaTabs = [...ts];
-        for(const x of notas) await Mio.quitar('gastos', x.id);
-        m.tabs = ts.filter(x => x.id !== id); await Mio.poner('gastos', m.id, m); this.pintar();
-        toast('🗑 Pestaña borrada', 'Deshacer', async () => { const m2 = this.meta(); m2.tabs = copiaTabs; await Mio.poner('gastos', m2.id, m2); for(const x of notas) await Mio.poner('gastos', x.id, x); lsSet('ph3-gx-tab', id); this.pintar(); toast('↩️ La pestaña vuelve a estar'); }, 6000);
+        for(const x of notas) await this._quitar(x.id);
+        m.tabs = ts.filter(x => x.id !== id); await this._poner(m.id, m); this.pintar();
+        toast('🗑 Pestaña borrada', 'Deshacer', async () => { const m2 = this.meta(); m2.tabs = copiaTabs; await this._poner(m2.id, m2); for(const x of notas) await this._poner(x.id, x); lsSet('ph3-gx-tab', id); this.pintar(); toast('↩️ La pestaña vuelve a estar'); }, 6000);
         setTimeout(() => { notas.forEach(x => { if(!this.uno(x.id)) Mio.quitarFotos(x.fotos || []); }); }, 8000);
       } };
   },
@@ -136,7 +241,7 @@ const Gastos = {
       <button class="gx-tick ${l.ok ? 'on' : ''}" data-etick aria-label="Marcar (tachar)" ${l.imp == null ? 'hidden' : ''}>${l.ok ? '✓' : ''}</button></div>`;
   },
   fila(x){
-    const tit = this.titulo(x), ls = this.lineasDe(x), c = this.color(x.color), fotos = (x.fotos || []).map(f => ({ f, s:Mio.foto(f) })).filter(o => o.s);
+    const tit = this.titulo(x), ls = this.lineasDe(x), c = this.color(x.color), fotos = (x.fotos || []).map(f => ({ f, s:this.fotoSrc(f) })).filter(o => o.s);
     const ed = this.editando === x.id, S = this.sumas(x);
     const tots = S.n >= 2 ? `<div class="gx-tots"><small>Total ${dinero(S.todo)}</small><b>${dinero(S.pend)}</b></div>` : '';
     return `<div class="desl-fila gx-fila ${x.ok ? 'ok' : ''} ${ed ? 'ed' : ''}" data-id="${x.id}"><div class="desl-del"><span>🗑 Eliminar</span></div>
@@ -202,7 +307,7 @@ const Gastos = {
     const id = this.editando; if(!id) return;
     const x = this.uno(id); if(!x) { this.editando = null; return; }
     const v = this.leerCampos(x); this.editando = null;
-    if(!v.texto.trim() && v.importe == null && !v.lineas.some(l => l.imp != null) && !(x.fotos || []).length){ await Mio.quitar('gastos', x.id); return; }     // nota vacía: fuera
+    if(!v.texto.trim() && v.importe == null && !v.lineas.some(l => l.imp != null) && !(x.fotos || []).length){ await this._quitar(x.id); return; }     // nota vacía: fuera
     if(this.aplicar(x, v)) await this.poner(x);
   },
   aplicar(x, v){
@@ -294,7 +399,7 @@ const Gastos = {
     const x = this.uno(id); if(!x) return; this.aplicar(x, this.leerCampos(x));
     const fs = await elegirFotos(false, true); if(!fs.length) return;
     toast('📷 Guardando foto…');
-    for(const f of fs){ try{ const fid = await Mio.ponerFoto(await aligerarImg(f, 1400, .75), null, 'gastos'); x.fotos = [...(x.fotos || []), fid]; }catch(e){ toast('⚠️ No se ha podido añadir esa imagen'); } }
+    for(const f of fs){ try{ const fid = await this.ponerFoto(await aligerarImg(f, 1400, .75)); x.fotos = [...(x.fotos || []), fid]; }catch(e){ toast('⚠️ No se ha podido añadir esa imagen'); } }
     await this.poner(x); this.pintar();
   },
   async quitarFoto(id, f){
@@ -305,18 +410,18 @@ const Gastos = {
   async borrar(id){
     if(this.editando === id) this.editando = null;
     const x = this.uno(id); if(!x) return;
-    await Mio.quitar('gastos', id); this.pintarCols();
-    toast('🗑 Nota eliminada', 'Deshacer', async () => { await Mio.poner('gastos', x.id, x); this.pintar(); toast('↩️ La nota vuelve a estar'); }, 5000);
+    await this._quitar(id); this.pintarCols();
+    toast('🗑 Nota eliminada', 'Deshacer', async () => { await this._poner(x.id, x); this.pintar(); toast('↩️ La nota vuelve a estar'); }, 5000);
     setTimeout(() => { if(!this.uno(id)) Mio.quitarFotos(x.fotos || []); }, 7000);
     setTimeout(() => this.pintar(), 260);
   },
   async renombrar(){
     const i = $('#gxTit'), n = i.value.trim() || 'Gastos'; i.value = n;
     if(n === this.nombre()) return;
-    const m = this.meta(); m.nombre = n; await Mio.poner('gastos', m.id, m);
+    const m = this.meta(); m.nombre = n; await this._poner(m.id, m);
     this.pintarBoton(); toast('✏️ La lista se llama «' + n + '»', null, null, 1500);
   },
-  pintarBoton(){ const b = $('#tkGastos'); if(b) b.innerHTML = `💶 <span>${esc(this.nombre())}</span>`; },
+  pintarBoton(){ const b = $('#tkGastos'); if(b) b.innerHTML = `${this.cifrado() ? '🔒' : '💶'} <span>${esc(this.nombre())}</span>`; },
 
   enlazar(v){
     const c = $('#gxCuerpo', v);
@@ -356,20 +461,20 @@ const Gastos = {
     const q = $('#gxQ', v); q.oninput = () => { this.q = q.value; this.pintar(); };
     const t = $('#gxTit', v); t.onchange = () => this.renombrar(); t.onkeydown = e => { if(e.key === 'Enter') t.blur(); };
     document.addEventListener('keydown', e => { if(e.key === 'Escape' && this.abierto() && !$('#mioPop') && !$('.vfg')) this.cerrar(); });
-    Mio.al('gastos', () => { this.pintarBoton(); if(this.abierto() && !this.editando) this.pintar(); });
+    Mio.al('gastos', async () => { if(this.clave || this.cifrado()) await this.sync(); this.pintarBoton(); if(this.abierto() && !this.editando) this.pintar(); });
     Mio.al('tickets', () => this.migrar());
-    Mio.al('fotos', () => { if(this.abierto() && !this.editando) this.pintar(); });
+    Mio.al('fotos', async () => { if(this.clave) await this.sync(); if(this.abierto() && !this.editando) this.pintar(); });
   },
   // antes, las notas de Gastos se guardaban con los Tickets: se pasan a su propio apartado (con sus fotos)
   async migrar(){
-    if(this._migrando) return;
+    if(this._migrando || this.cerrado()) return;
     const viejas = Mio.todos('tickets').filter(x => x.tipo === 'gasto' || x.tipo === 'gastos-meta'); if(!viejas.length) return;
     this._migrando = true;
     try{
       for(const x of viejas){
-        const ya = Mio.uno('gastos', x.id);
+        const ya = this._uno(x.id);
         if(x.tipo === 'gastos-meta' && ya){ /* ya hay una lista: se queda la nueva */ }
-        else if(!ya || (x.cambiado || 0) > (ya.cambiado || 0)) await Mio.poner('gastos', x.id, x);
+        else if(!ya || (x.cambiado || 0) > (ya.cambiado || 0)) await this._poner(x.id, x);
         for(const f of x.fotos || []){ const fo = Mio.uno('fotos', f); if(fo && fo.de !== 'gastos') await Mio.poner('fotos', f, { ...fo, de:'gastos' }); }
         await Mio.quitar('tickets', x.id);
       }
@@ -382,5 +487,6 @@ const Gastos = {
     const b = document.createElement('button'); b.id = 'tkGastos'; b.className = 'tk-gastos-b'; b.title = 'Lista de gastos';
     caja.insertBefore(b, $('#tkTema')); b.onclick = () => this.abrir();
     this.pintarBoton();
+    if(!$('#gx')) Mio.al('gastos', () => { if(!$('#gx')) this.pintarBoton(); });   // al llegar los datos (cifrada o no)
   }
 };
