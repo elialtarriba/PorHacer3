@@ -91,26 +91,18 @@ const Portada = {
     $('#poSaludo').textContent = this.saludo();
     const agHoy = Mio.uno('agenda', hoyIso()), nNotas = agHoy ? (agHoy.items || []).filter(i => !i.hecha).length : 0;
     const tHoy = App.tareas.filter(t => { if(colDe(t.colId).hecha) return false; const r = rango(t); return r && r[0] <= hoyIso() && hoyIso() <= r[1]; }).length;
-    const marcas = Array.from({ length:60 }, (_, k) => `<line x1="100" y1="${k % 5 ? 12 : 10}" x2="100" y2="${k % 5 ? 17 : 22}" transform="rotate(${k * 6} 100 100)" class="${k % 5 ? 'rm' : 'rM'}"/>`).join('');
-    const nums = Array.from({ length:12 }, (_, k) => { const n = k + 1, ang = n * 30 * Math.PI / 180; return `<text x="${(100 + 67 * Math.sin(ang)).toFixed(1)}" y="${(100 - 67 * Math.cos(ang) + 7).toFixed(1)}" class="${n % 3 ? 'rn' : 'rn rn3'}">${n}</text>`; }).join('');
     $('#poHoy').innerHTML = `
-      <span class="po-dia"><b>${d.getDate()}</b><span>${MESES_C[d.getMonth()].slice(0, 3)}</span></span>
+      <button class="po-nube po-nube2" data-nube aria-label="Conexión"></button>
+      <div class="po-hoy-izq"><span class="po-dia"><b>${d.getDate()}</b><span>${MESES_C[d.getMonth()].slice(0, 3)}</span></span>
       <div class="po-hoy-tx"><b>${capital(DIAS[d.getDay()])}</b><small>${d.getDate()} de ${MESES[d.getMonth()]} de ${d.getFullYear()}</small>
         <div class="po-hoy-chips">
           <button data-ir="tareas">✅ ${tHoy ? tHoy + (tHoy === 1 ? ' tarea' : ' tareas') + ' hoy' : 'Sin tareas hoy'}</button>
           <button data-ir="agenda">📒 ${nNotas ? nNotas + (nNotas === 1 ? ' nota' : ' notas') : 'Agenda libre'}</button>
-        </div></div>
-      <div class="po-reloj" aria-label="Reloj">
-        <svg viewBox="0 0 200 200" id="poReloj" aria-hidden="true">
-          <circle cx="100" cy="100" r="96" class="r-aro"/><circle cx="100" cy="100" r="88" class="r-cara"/>
-          ${marcas}${nums}
-          <rect x="76" y="128" width="48" height="20" rx="10" class="r-digf"/><text x="100" y="143" class="r-dig" id="poDig"></text>
-          <line x1="100" y1="112" x2="100" y2="54" class="r-h" id="poH"/>
-          <line x1="100" y1="116" x2="100" y2="34" class="r-m" id="poM"/>
-          <g id="poS"><line x1="100" y1="124" x2="100" y2="26" class="r-s"/><circle cx="100" cy="26" r="4" class="r-sp"/></g>
-          <circle cx="100" cy="100" r="7" class="r-c"/><circle cx="100" cy="100" r="2.6" fill="#fff"/>
-        </svg>
-      </div>`;
+        </div></div></div>
+      <div class="po-reloj" aria-label="Reloj">${this.svgReloj('po')}<span class="po-rel-n">Aquí</span></div>
+      <div class="po-reloj po-reloj2" aria-label="Reloj del mundo" role="button" title="Toca para elegir el país">${this.svgReloj('pw')}<span class="po-rel-n" id="pwNom"></span></div>`;
+    this.pintarNube();
+    const r2 = $('#poHoy .po-reloj2'); if(r2) r2.onclick = () => this.elegirZona();
     this.reloj();
     const pd = $('#poHoy .po-dia'); if(pd){ pd.setAttribute('role', 'button'); pd.title = 'Ver el año de la agenda'; pd.onclick = () => AnioPO.abrir(); }
     const rl = $('#poHoy .po-reloj'); if(rl){ rl.setAttribute('role', 'button'); rl.title = 'Toca para grabar una nota de voz'; rl.onclick = () => this.grabarYa(); }
@@ -198,13 +190,77 @@ const Portada = {
     g.addEventListener('contextmenu', e => { if(e.target.closest('.po-b')) e.preventDefault(); });
   },
   // Reloj de agujas pequeñito
+  svgReloj(p){
+    const marcas = Array.from({ length:60 }, (_, k) => `<line x1="100" y1="${k % 5 ? 12 : 10}" x2="100" y2="${k % 5 ? 17 : 22}" transform="rotate(${k * 6} 100 100)" class="${k % 5 ? 'rm' : 'rM'}"/>`).join('');
+    const nums = Array.from({ length:12 }, (_, k) => { const n = k + 1, ang = n * 30 * Math.PI / 180; return `<text x="${(100 + 67 * Math.sin(ang)).toFixed(1)}" y="${(100 - 67 * Math.cos(ang) + 7).toFixed(1)}" class="${n % 3 ? 'rn' : 'rn rn3'}">${n}</text>`; }).join('');
+    return `<svg viewBox="0 0 200 200" id="${p}Reloj" aria-hidden="true">
+          <circle cx="100" cy="100" r="96" class="r-aro"/><circle cx="100" cy="100" r="88" class="r-cara"/>
+          ${marcas}${nums}
+          <rect x="70" y="128" width="60" height="20" rx="10" class="r-digf"/><text x="100" y="143" class="r-dig" id="${p}Dig"></text>
+          <line x1="100" y1="112" x2="100" y2="54" class="r-h" id="${p}H"/>
+          <line x1="100" y1="116" x2="100" y2="34" class="r-m" id="${p}M"/>
+          <g id="${p}S"><line x1="100" y1="124" x2="100" y2="26" class="r-s"/><circle cx="100" cy="26" r="4" class="r-sp"/></g>
+          <circle cx="100" cy="100" r="7" class="r-c"/><circle cx="100" cy="100" r="2.6" fill="#fff"/>
+        </svg>`;
+  },
+  // la hora de una zona (o la de aquí)
+  horaEn(tz){
+    const d = new Date();
+    if(!tz) return { h:d.getHours(), m:d.getMinutes(), s:d.getSeconds(), dia:0 };
+    try{
+      const f = new Intl.DateTimeFormat('en-GB', { timeZone:tz, hour:'2-digit', minute:'2-digit', second:'2-digit', year:'numeric', month:'2-digit', day:'2-digit', hourCycle:'h23' });
+      const o = {}; f.formatToParts(d).forEach(x => o[x.type] = x.value);
+      const alli = Date.UTC(+o.year, +o.month - 1, +o.day), aqui = Date.UTC(d.getFullYear(), d.getMonth(), d.getDate());
+      return { h:+o.hour % 24, m:+o.minute, s:+o.second, dia:Math.round((alli - aqui) / 864e5) };
+    }catch(e){ return { h:d.getHours(), m:d.getMinutes(), s:d.getSeconds(), dia:0 }; }
+  },
+  moverAgujas(p, t, extra){
+    const H = $('#' + p + 'H'); if(!H) return;
+    const m = t.m + t.s / 60, h = (t.h % 12) + m / 60;
+    H.setAttribute('transform', `rotate(${h * 30} 100 100)`); $('#' + p + 'M').setAttribute('transform', `rotate(${m * 6} 100 100)`); $('#' + p + 'S').setAttribute('transform', `rotate(${t.s * 6} 100 100)`);
+    $('#' + p + 'Dig').textContent = String(t.h).padStart(2, '0') + ':' + String(t.m).padStart(2, '0') + (extra || '');
+  },
+  // Reloj de agujas (y el del mundo, que se ve con el móvil en horizontal)
   reloj(){
     clearInterval(this._r);
     const pon = () => { const r = $('#poReloj'); if(!r || !$('#vPortada').classList.contains('activa')){ clearInterval(this._r); return; }
-      const d = new Date(), s = d.getSeconds(), m = d.getMinutes() + s / 60, h = (d.getHours() % 12) + m / 60;
-      $('#poH').setAttribute('transform', `rotate(${h * 30} 100 100)`); $('#poM').setAttribute('transform', `rotate(${m * 6} 100 100)`); $('#poS').setAttribute('transform', `rotate(${s * 6} 100 100)`);
-      $('#poDig').textContent = String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); };
+      this.moverAgujas('po', this.horaEn(null));
+      const z = this.zona(), t = this.horaEn(z.tz);
+      this.moverAgujas('pw', t, t.dia > 0 ? ' +1' : t.dia < 0 ? ' −1' : '');
+      const n = $('#pwNom'); if(n && n.textContent !== z.nombre) n.textContent = z.nombre; };
     pon(); this._r = setInterval(pon, 1000);
+  },
+  ZONAS: [['Europe/London','Londres'],['Europe/Lisbon','Lisboa'],['Europe/Paris','París'],['Europe/Berlin','Berlín'],['Europe/Rome','Roma'],['Europe/Athens','Atenas'],['Europe/Moscow','Moscú'],['Atlantic/Canary','Canarias'],
+    ['America/New_York','Nueva York'],['America/Chicago','Chicago'],['America/Denver','Denver'],['America/Los_Angeles','Los Ángeles'],['America/Mexico_City','Ciudad de México'],['America/Bogota','Bogotá'],['America/Lima','Lima'],['America/Caracas','Caracas'],['America/Santiago','Santiago de Chile'],['America/Argentina/Buenos_Aires','Buenos Aires'],['America/Sao_Paulo','São Paulo'],['America/Havana','La Habana'],['America/Toronto','Toronto'],['America/Anchorage','Alaska'],['Pacific/Honolulu','Hawái'],
+    ['Africa/Casablanca','Casablanca'],['Africa/Cairo','El Cairo'],['Africa/Johannesburg','Johannesburgo'],['Africa/Lagos','Lagos'],['Africa/Nairobi','Nairobi'],
+    ['Asia/Dubai','Dubái'],['Asia/Jerusalem','Jerusalén'],['Asia/Istanbul','Estambul'],['Asia/Kolkata','India'],['Asia/Bangkok','Bangkok'],['Asia/Shanghai','China'],['Asia/Hong_Kong','Hong Kong'],['Asia/Singapore','Singapur'],['Asia/Manila','Manila'],['Asia/Seoul','Seúl'],['Asia/Tokyo','Tokio'],
+    ['Australia/Perth','Perth'],['Australia/Sydney','Sídney'],['Pacific/Auckland','Nueva Zelanda']],
+  zona(){ try{ const z = JSON.parse(lsGet('ph3-reloj2') || 'null'); if(z && z.tz) return z; }catch(e){} return { tz:'America/New_York', nombre:'Nueva York' }; },
+  elegirZona(){
+    const act = this.zona().tz, todas = (() => { try{ return Intl.supportedValuesOf('timeZone'); }catch(e){ return []; } })();
+    const hora = tz => { const t = this.horaEn(tz); return String(t.h).padStart(2, '0') + ':' + String(t.m).padStart(2, '0') + (t.dia > 0 ? ' (+1)' : t.dia < 0 ? ' (−1)' : ''); };
+    const fila = (tz, n) => `<button class="opcion opc2 pz-f ${tz === act ? 'on' : ''}" data-tz="${esc(tz)}" data-nom="${esc(n)}"><span>${esc(n)}</span><small>${hora(tz)}</small></button>`;
+    popup({ tit:'🌍 Reloj del mundo', html:`<p class="aj-ayuda" style="margin:0 0 8px">Elige la ciudad o el país. Se ve con el móvil en horizontal.</p>
+        <input id="pzQ" type="search" placeholder="Buscar ciudad o país…" autocomplete="off" style="margin-bottom:8px">
+        <div class="pz-lista" id="pzLista">${this.ZONAS.map(([tz, n]) => fila(tz, n)).join('')}</div>`,
+      botones:[{ txt:'Cerrar', val:null }],
+      alAbrir:(c, fin) => {
+        const lista = $('#pzLista', c), q = $('#pzQ', c);
+        const pintar = () => { const t = norm(q.value.trim());
+          if(!t){ lista.innerHTML = this.ZONAS.map(([tz, n]) => fila(tz, n)).join(''); return; }
+          const nuestras = this.ZONAS.filter(([tz, n]) => norm(n + ' ' + tz).includes(t));
+          const otras = todas.filter(tz => norm(tz.replace(/_/g, ' ')).includes(t) && !nuestras.some(z => z[0] === tz)).slice(0, 40).map(tz => [tz, tz.split('/').pop().replace(/_/g, ' ')]);
+          lista.innerHTML = [...nuestras, ...otras].map(([tz, n]) => fila(tz, n)).join('') || '<p class="aj-ayuda">No encuentro esa ciudad. Prueba en inglés (por ejemplo «New York»).</p>'; };
+        q.oninput = pintar;
+        lista.onclick = e => { const b = e.target.closest('[data-tz]'); if(!b) return; lsSet('ph3-reloj2', JSON.stringify({ tz:b.dataset.tz, nombre:b.dataset.nom })); fin(true); this.reloj(); toast('🌍 ' + b.dataset.nom + ': ' + hora(b.dataset.tz), null, null, 1600); };
+      } });
+  },
+  /* La nubecita: verde con internet, roja sin internet */
+  enLinea(){ return navigator.onLine !== false; },
+  pintarNube(){
+    const on = this.enLinea(), svg = `<svg viewBox="0 0 32 24" aria-hidden="true"><path d="M8.5 22h16a6.5 6.5 0 0 0 .9-12.94A9 9 0 0 0 8.1 7.6 7.2 7.2 0 0 0 8.5 22z"/>${on ? '<path d="M11 14.5l3.4 3.2L21 11" class="pn-ok"/>' : '<path d="M12.5 11l7 7M19.5 11l-7 7" class="pn-ok"/>'}</svg>`;
+    $$('[data-nube]').forEach(b => { b.classList.toggle('off', !on); b.innerHTML = svg; b.title = on ? 'Conectada a internet' : 'Sin conexión'; b.setAttribute('aria-label', b.title);
+      b.onclick = e => { e.stopPropagation(); toast(on ? '☁️ Conectada a internet: lo que guardas en la nube se sube al momento' : '⚠️ Sin conexión: se guarda en el aparato y se sube solo cuando vuelva internet', null, null, 3500); }; });
   },
   // Al tocar una baldosa: se hunde y un círculo de su color llena la pantalla
   entrarEn(sec, boton){
@@ -239,6 +295,9 @@ const Portada = {
     Mio.al('grabar', () => this.pintar());
     $('#lsVolver').innerHTML = icono('portada');
     $('#verTxt2').textContent = VERSION;
+    addEventListener('online', () => { this.pintarNube(); toast('☁️ Vuelve a haber conexión', null, null, 1600); }); addEventListener('offline', () => { this.pintarNube(); toast('⚠️ Sin conexión a internet', null, null, 2000); });
+    this.pintarNube();
+    matchMedia('(orientation: landscape)').addEventListener && matchMedia('(orientation: landscape)').addEventListener('change', () => this.reloj());
     Mio.al('agenda', () => this.pintar()); Mio.al('tickets', () => this.pintar()); Mio.al('sitios', () => this.pintar());
     document.addEventListener('visibilitychange', () => { if(!document.hidden) this.pintar(); });
     setInterval(() => { if(Listas.datos.length !== this._nl){ this._nl = Listas.datos.length; this.pintar(); } }, 3000);
@@ -255,7 +314,7 @@ const Calc = {
     this._carga = new Promise(ok => {
       const f = $('#calcFrame');
       f.addEventListener('load', () => setTimeout(() => ok(this.win()), 60), { once:true });
-      f.src = 'calculadora.html?v=160';
+      f.src = 'calculadora.html?v=162';
     });
     return this._carga;
   },

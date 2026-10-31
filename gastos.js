@@ -151,7 +151,7 @@ const Gastos = {
         <div class="gx-total" id="gxTotal" hidden></div>
         <div class="gx-cuerpo" id="gxCuerpo"></div>`;
       document.body.appendChild(v);
-      this.enlazar(v);
+      this.enlazar(v); this.arrastrarTabs($('#gxTabs', v));
     }
     this.q = ''; this.filtro = ''; this.editando = null;
     $('#gxQ').value = ''; $('#gxTit').value = this.nombre();
@@ -165,6 +165,43 @@ const Gastos = {
     $('#gxTabs').innerHTML = ts.map(t => `<button class="gx-tab ${t.id === a ? 'on' : ''}" data-tab="${t.id}">${esc(t.nombre)}${n(t.id) ? `<small>${n(t.id)}</small>` : ''}${t.id === a ? '<em>▾</em>' : ''}</button>`).join('')
       + `<button class="gx-tab gx-tab-mas" data-tabnueva>＋ ${ts.length ? 'Pestaña' : 'Crear pestañas'}</button>`;
     const on = $('#gxTabs .gx-tab.on'); if(on && !this._tabVisto){ on.scrollIntoView({ inline:'center', block:'nearest' }); this._tabVisto = true; }
+  },
+  /* Mover pestañas: mantener pulsada un momento, arrastrar y soltar donde quieras (se guarda el orden) */
+  arrastrarTabs(box){
+    let tm = null, drag = null, sx = 0, sy = 0, scr = null;
+    const parar = () => { clearTimeout(tm); tm = null; };
+    const empezar = (t, x, y) => { sx = x; sy = y; parar();
+      tm = setTimeout(() => { tm = null; drag = { el:t }; this._noClick = true; t.classList.add('arr'); box.classList.add('arrastrando');
+        try{ navigator.vibrate && navigator.vibrate(15); }catch(e){} toast('↔️ Arrastra la pestaña y suéltala donde quieras', null, null, 1400); }, 380); };
+    const mover = x => {
+      const otras = $$('.gx-tab[data-tab]', box).filter(o => o !== drag.el);
+      const antes = otras.find(o => { const r = o.getBoundingClientRect(); return x < r.left + r.width / 2; });
+      box.insertBefore(drag.el, antes || $('.gx-tab-mas', box));
+      const R = box.getBoundingClientRect(); clearInterval(scr); scr = null;
+      if(x < R.left + 36 || x > R.right - 36){ const d = x < R.left + 36 ? -10 : 10; scr = setInterval(() => { box.scrollLeft += d; }, 30); }
+    };
+    const soltar = async () => {
+      parar(); clearInterval(scr); scr = null;
+      if(!drag){ return; }
+      const el = drag.el; drag = null; el.classList.remove('arr'); box.classList.remove('arrastrando');
+      setTimeout(() => { this._noClick = false; }, 80);
+      const ts = this.tabs(), nuevo = $$('.gx-tab[data-tab]', box).map(o => ts.find(t => t.id === o.dataset.tab)).filter(Boolean);
+      if(nuevo.length === ts.length && nuevo.some((t, i) => t.id !== ts[i].id)){
+        const m = this.meta(); m.tabs = nuevo; await this._poner(m.id, m); toast('↔️ Pestaña movida. El orden queda guardado', null, null, 1300);
+      }
+      this.pintarTabs();
+    };
+    // dedo
+    box.addEventListener('touchstart', e => { const t = e.target.closest('.gx-tab[data-tab]'); if(t && e.touches.length === 1) empezar(t, e.touches[0].clientX, e.touches[0].clientY); }, { passive:true });
+    box.addEventListener('touchmove', e => { const p = e.touches[0];
+      if(drag){ e.preventDefault(); mover(p.clientX); }
+      else if(tm && (Math.abs(p.clientX - sx) > 8 || Math.abs(p.clientY - sy) > 8)) parar(); }, { passive:false });
+    box.addEventListener('touchend', soltar); box.addEventListener('touchcancel', soltar);
+    // ratón
+    box.addEventListener('mousedown', e => { const t = e.target.closest('.gx-tab[data-tab]'); if(t && e.button === 0) empezar(t, e.clientX, e.clientY); });
+    box.addEventListener('mousemove', e => { if(drag){ e.preventDefault(); mover(e.clientX); } else if(tm && (Math.abs(e.clientX - sx) > 6 || Math.abs(e.clientY - sy) > 6)) parar(); });
+    document.addEventListener('mouseup', () => { if(drag || tm) soltar(); });
+    box.addEventListener('contextmenu', e => { if(e.target.closest('.gx-tab')) e.preventDefault(); });
   },
   pedirNombreTab(tit, val){
     return new Promise(ok => {
@@ -244,7 +281,8 @@ const Gastos = {
     const tit = this.titulo(x), ls = this.lineasDe(x), c = this.color(x.color), fotos = (x.fotos || []).map(f => ({ f, s:this.fotoSrc(f) })).filter(o => o.s);
     const ed = this.editando === x.id, S = this.sumas(x);
     const tots = S.n >= 2 ? `<div class="gx-tots"><small>Total ${dinero(S.todo)}</small><b>${dinero(S.pend)}</b></div>` : '';
-    return `<div class="desl-fila gx-fila ${x.ok ? 'ok' : ''} ${ed ? 'ed' : ''}" data-id="${x.id}"><div class="desl-del"><span>🗑 Eliminar</span></div>
+    const fondo = x.fondo && x.color ? ` gx-fondo" style="--gxf:${c[2]}` : '';
+    return `<div class="desl-fila gx-fila ${x.ok ? 'ok' : ''} ${ed ? 'ed' : ''}${fondo}" data-id="${x.id}"><div class="desl-del"><span>🗑 Eliminar</span></div>
       <div class="desl-cara gx-cara">
         <button class="gx-check" data-check aria-label="${x.ok ? 'Desmarcar' : 'Marcar como hecha'}"></button>
         <div class="gx-cont">
@@ -265,6 +303,7 @@ const Gastos = {
               <button class="gx-hb gx-hbt" data-ins="." aria-label="Poner un punto">.</button>
               <button class="gx-hb gx-hbt" data-lista aria-label="Lista con números o puntos">1≡</button>
               <button class="gx-hb" data-foto aria-label="Añadir foto">📷</button>
+              <button class="gx-hb gx-intro" data-intro aria-label="Siguiente (como la tecla Intro)">↵ Siguiente</button>
               <button class="gx-hb gx-listo" data-listo>Listo</button>
             </div>` : ''}
         </div>
@@ -361,14 +400,32 @@ const Gastos = {
     x.ok = !x.ok; x.hecho = x.ok ? Date.now() : null; if(!x.ok) x.orden = Date.now();
     await this.poner(x); this.pintar();
   },
-  async bandera(id){
+  /* La banderita: dos toques seguidos = cambia de color · mantener pulsada = toda la nota de ese color (otra vez = blanca) */
+  banderaTap(id){
+    if(this._bLong) return;
+    const ahora = Date.now();
+    clearTimeout(this._bHint);
+    if(this._bTap && this._bTap.id === id && ahora - this._bTap.t < 450){ this._bTap = null; this.bandera(id, 'color'); return; }
+    this._bTap = { id, t:ahora };
+    this._bHint = setTimeout(() => { this._bTap = null; toast('🚩 Dos toques: cambiar el color · Mantener pulsada: toda la nota de color', null, null, 2400); }, 470);
+  },
+  async bandera(id, que){
     const x = this.uno(id); if(!x) return;
     this.aplicar(x, this.leerCampos(x));
-    const i = this.COLORES.findIndex(c => c[0] === (x.color || '')); x.color = this.COLORES[(i + 1) % this.COLORES.length][0];
+    let msg;
+    if(que === 'fondo'){
+      if(!x.color){ x.fondo = false; msg = 'Primero elige un color (dos toques en la banderita)'; }
+      else { x.fondo = !x.fondo; msg = x.fondo ? '🎨 Toda la nota en ' + this.color(x.color)[1].toLowerCase() : 'La nota vuelve a ser blanca'; }
+    } else {
+      const i = this.COLORES.findIndex(c => c[0] === (x.color || '')); x.color = this.COLORES[(i + 1) % this.COLORES.length][0];
+      if(!x.color) x.fondo = false;
+      msg = x.color ? '🚩 ' + this.color(x.color)[1] : 'Sin color';
+    }
     await this.poner(x);
-    const b = $('#gxCuerpo .gx-band'); if(b){ const c = this.color(x.color); b.innerHTML = this.svgBandera(c[2]); b.style.setProperty('--bc', c[2]); }
+    const c = this.color(x.color), b = $('#gxCuerpo .gx-band'); if(b){ b.innerHTML = this.svgBandera(c[2]); b.style.setProperty('--bc', c[2]); }
+    const f = $(`#gxCuerpo .gx-fila[data-id="${id}"]`); if(f){ f.classList.toggle('gx-fondo', !!(x.fondo && x.color)); f.style.setProperty('--gxf', c[2]); }
     this.pintarCols();
-    toast(x.color ? '🚩 ' + this.color(x.color)[1] : 'Sin color', null, null, 900);
+    toast(msg, null, null, que === 'fondo' ? 1600 : 1000);
   },
   // poner un texto donde está el cursor
   foco(){ const f = this._focoEl; return f && document.body.contains(f) ? f : ($('#gxLineas .gx-lt') || $('#gxT1')); },
@@ -436,13 +493,14 @@ const Gastos = {
       else if(d.tachar !== undefined) this.tachar(id, d.tachar);
       else if('etick' in d){ b.classList.toggle('on'); b.textContent = b.classList.contains('on') ? '✓' : ''; b.closest('.gx-lrow, .gx-erow').classList.toggle('tach', b.classList.contains('on')); }
       else if('editar' in d){ await this.guardarEdicion(); this.editar(id); }
-      else if('bandera' in d) this.bandera(id);
+      else if('bandera' in d) this.banderaTap(id);
+      else if('intro' in d){ const f = this.foco(); if(f) this.teclas({ key:'Enter', target:f, preventDefault(){} }); }
       else if('foto' in d) this.foto(id);
       else if('hoy' in d) this.ponerHoy();
       else if(d.ins) this.insertar(d.ins);
       else if('iconos' in d) this.iconos();
       else if('lista' in d) this.lista();
-      else if(d.tab){ await this.guardarEdicion(); if(d.tab === this.tabActiva()) this.opcionesTab(d.tab); else { lsSet('ph3-gx-tab', d.tab); this.pintar(); } }
+      else if(d.tab){ if(this._noClick) return; await this.guardarEdicion(); if(d.tab === this.tabActiva()) this.opcionesTab(d.tab); else { lsSet('ph3-gx-tab', d.tab); this.pintar(); } }
       else if('tabnueva' in d) this.nuevaTab();
       else if(d.quitarfoto) this.quitarFoto(id, d.quitarfoto);
       else if('listo' in d){ await this.guardarEdicion(); this.pintar(); }
@@ -454,6 +512,12 @@ const Gastos = {
     c.addEventListener('focusin', e => { if(e.target.closest('.gx-fila.ed') && /TEXTAREA|INPUT/.test(e.target.tagName)) this._focoEl = e.target; });
     c.addEventListener('focusout', e => { if(e.target.id === 'gxImp' || e.target.classList.contains('gx-limp')) this.formatoImp(e.target); });
     c.addEventListener('keydown', e => this.teclas(e));
+    // mantener pulsada la banderita: toda la nota de color
+    const finLargo = () => { clearTimeout(this._bLT); if(this._bLong) setTimeout(() => { this._bLong = false; }, 450); };
+    c.addEventListener('pointerdown', e => { const b = e.target.closest('.gx-band'); if(!b) return; const id = b.closest('.gx-fila').dataset.id; clearTimeout(this._bLT);
+      this._bLT = setTimeout(() => { this._bLong = true; this._bTap = null; clearTimeout(this._bHint); try{ navigator.vibrate && navigator.vibrate(15); }catch(x){} this.bandera(id, 'fondo'); }, 520); });
+    ['pointerup', 'pointercancel', 'pointerleave'].forEach(ev => c.addEventListener(ev, e => { if(e.target.closest && e.target.closest('.gx-band')) finLargo(); }));
+    c.addEventListener('contextmenu', e => { if(e.target.closest('.gx-band')) e.preventDefault(); });
     // los botones de debajo de la nota no quitan el cursor del texto (así el teclado no se esconde)
     c.addEventListener('pointerdown', e => { const b = e.target.closest('.gx-herr button'); if(b && !b.matches('[data-listo],[data-foto]')) e.preventDefault(); });
     c.addEventListener('mousedown', e => { if(e.target.closest('.gx-herr button')) e.preventDefault(); });

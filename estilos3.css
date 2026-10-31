@@ -1099,3 +1099,56 @@ ul.aj-lista b{display:inline;font-size:inherit;margin:0}
 .gxc-est.on{background:rgba(46,157,87,.12)}
 #gxcPedir{flex-wrap:wrap}
 #gxcPedir button{flex:1 1 140px}
+
+/* V14.9 · Gastos: nota entera de color · mover pestañas */
+.gx-fila.gx-fondo .gx-cara{background:color-mix(in srgb,var(--gxf) 30%,var(--card));border:1px solid color-mix(in srgb,var(--gxf) 55%,transparent)}
+.gx-fila.gx-fondo.ok .gx-cara{background:color-mix(in srgb,var(--gxf) 14%,var(--card))}
+.gx-hb{touch-action:manipulation}
+.gx-tab{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none;touch-action:manipulation}
+.gx-tabs.arrastrando{scroll-behavior:auto}
+.gx-tab.arr{transform:scale(1.08);box-shadow:0 6px 16px rgba(0,0,0,.25);opacity:.92;z-index:2;position:relative}
+
+/* V15 · Portada: nubecita de conexión · reloj del mundo · móvil en horizontal */
+.po-der-f{display:flex;align-items:center;gap:8px}
+.po-nube{width:42px;height:42px;border-radius:13px;border:1px solid var(--line);background:var(--card);display:grid;place-items:center;padding:0;box-shadow:0 3px 0 rgba(0,0,0,.08)}
+.po-nube svg{width:30px;height:24px;overflow:visible}
+.po-nube svg path:first-child{fill:#2e9d57}
+.po-nube.off svg path:first-child{fill:#e5383b}
+.po-nube .pn-ok{fill:none;stroke:#fff;stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round}
+.po-nube.off{animation:pnLate 1.6s ease-in-out infinite}
+@keyframes pnLate{50%{transform:scale(1.08)}}
+.po-hoy-izq{display:contents}
+.po-nube2,.po-reloj2,.po-rel-n{display:none}
+.po-reloj{position:relative}
+.pz-lista{max-height:46vh;overflow-y:auto;display:flex;flex-direction:column;gap:6px}
+.pz-f{display:flex!important;flex-direction:row!important;align-items:center;justify-content:space-between}
+.pz-f small{font-weight:900;font-variant-numeric:tabular-nums}
+.pz-f.on{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 12%,var(--card))}
+
+@media (orientation:landscape) and (max-height:540px){
+  #vPortada .po-scroll{padding-left:max(16px,env(safe-area-inset-left));padding-right:max(16px,env(safe-area-inset-right))}
+  #vPortada .po-cab{display:none}
+  #vPortada .po-hoy{position:relative;min-height:calc(100dvh - 22px - var(--safeB));margin-top:6px;display:flex;align-items:center;justify-content:space-around;gap:3vw;padding:20px 3vw}
+  .po-hoy-izq{display:flex;flex-direction:column;align-items:flex-start;gap:12px;flex:0 1 auto;min-width:0}
+  .po-hoy-izq .po-dia{display:flex;width:84px;height:92px;border-radius:22px}
+  .po-hoy-izq .po-dia b{font-size:42px}
+  .po-hoy-izq .po-hoy-tx>b{font-size:26px}
+  .po-hoy-izq .po-hoy-tx>small{font-size:15px}
+  .po-reloj,.po-reloj2{display:flex;flex-direction:column;align-items:center;gap:8px;width:min(62dvh,27vw);aspect-ratio:auto;margin:0;border-radius:0;filter:none}
+  .po-reloj svg{width:100%;height:auto;aspect-ratio:1;filter:drop-shadow(0 5px 10px var(--sombra))}
+  .po-rel-n{display:block;font-size:15px;font-weight:900;color:var(--dark);background:var(--colbg);border:1.5px solid var(--line);border-radius:20px;padding:4px 14px;white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis}
+  .po-reloj2 .po-rel-n{color:var(--accent);border-color:color-mix(in srgb,var(--accent) 45%,var(--line))}
+  .po-reloj2 .po-rel-n::before{content:'🌍 '}
+  .po-nube2{display:grid;position:absolute;top:12px;right:14px}
+  /* debajo, los botones uno debajo de otro, en rectángulo */
+  .po-rejilla{grid-template-columns:1fr;gap:10px}
+  .po-b{min-height:0;flex-direction:row;align-items:center;gap:14px;padding:12px 56px 12px 14px}
+  .po-b .po-ico{margin:0;flex:none}
+  .po-b b{font-size:19px;flex:0 0 auto;min-width:30%}
+  .po-b small{font-size:14px;padding-right:0;flex:1}
+  .po-b .po-flecha{top:50%;bottom:auto;transform:translateY(-50%)}
+  .po-ayuda{display:none}
+}
+.gx-intro{width:auto;padding:0 14px;border-radius:22px;margin-left:auto;font:inherit;font-size:14px;font-weight:900;background:var(--colbg);color:var(--dark);border:1.5px solid var(--line)}
+.gx-intro + .gx-listo{margin-left:8px}
+.gx-band{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
