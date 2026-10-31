@@ -191,7 +191,7 @@ const Mio = {
     const fotosUsadas = new Set();
     const usa = ids => (ids || []).forEach(i => i && fotosUsadas.add(i));
     if(que.agenda){ out.agenda = this.todos('agenda'); out.agenda.forEach(d => (d.items || []).forEach(it => usa(it.fotos))); }
-    if(que.tickets){ out.tickets = this.todos('tickets'); out.tickets.forEach(t => usa([t.foto, t.fotoProd])); }
+    if(que.tickets){ out.tickets = this.todos('tickets'); out.tickets.forEach(t => usa([t.foto, t.fotoProd, ...(t.fotos || [])])); }   // con la lista de Gastos
     if(que.sitios){ out.sitios = this.todos('sitios'); out.sitios.forEach(s => { usa(s.fotos); usa([s.fotoCasa]); Object.values(s.cosas || {}).forEach(c => usa(c.fotos)); }); }
     if(que.listas && typeof Listas !== 'undefined'){ out.listas = Listas.datos; out.fondos = Listas.fondos; }
     if(fotosUsadas.size){ out.fotos = {}; fotosUsadas.forEach(id => { const f = this.uno('fotos', id); if(f) out.fotos[id] = f; }); }
@@ -378,7 +378,7 @@ async function guardarFoto(src, nombre){
 // html de cada fila: <div class="desl-fila" data-id="…"><div class="desl-del"><span>🗑 Eliminar</span></div><button class="desl-cara …">…</button></div>
 function deslizarBorrar(cont, alBorrar){
   let D = null; const UMBRAL = 100;
-  cont.addEventListener('pointerdown', e => { const cara = e.target.closest('.desl-cara'); if(!cara || e.button > 0) return; D = { cara, fila:cara.closest('.desl-fila'), x:e.clientX, y:e.clientY, dx:0, mov:false, id:e.pointerId }; });
+  cont.addEventListener('pointerdown', e => { const cara = e.target.closest('.desl-cara'); if(!cara || e.button > 0 || e.target.closest('textarea,input,select,label') || cara.closest('.ed')) return; D = { cara, fila:cara.closest('.desl-fila'), x:e.clientX, y:e.clientY, dx:0, mov:false, id:e.pointerId }; });
   cont.addEventListener('pointermove', e => {
     if(!D || e.pointerId !== D.id) return;
     const rdx = e.clientX - D.x, dx = Math.min(0, rdx), dy = e.clientY - D.y;
@@ -451,23 +451,57 @@ async function pdfDeHtml(html, nombre, papel){
     await Promise.all([...z.querySelectorAll('img')].map(i => i.complete ? 0 : new Promise(r => { i.onload = i.onerror = r; })));
     const cv = await html2canvas(z, { scale:2, backgroundColor:papel, useCORS:true, logging:false });
     const { jsPDF } = window.jspdf, doc = new jsPDF({ unit:'mm', format:'a4', compress:true });
-    const pw = 210, ph = 297, altoPag = Math.floor(cv.width * ph / pw);
+    const pw = 210, ph = 297, altoPag = Math.floor(cv.width * ph / pw), hojas = [];
     for(let y = 0, n = 0; y < cv.height; y += altoPag, n++){
       if(n) doc.addPage();
-      const trozo = document.createElement('canvas'); trozo.width = cv.width; trozo.height = Math.min(altoPag, cv.height - y);
+      const trozo = document.createElement('canvas'); trozo.width = cv.width; trozo.height = altoPag;   // cada hoja, entera (A4)
       const tx = trozo.getContext('2d'); tx.fillStyle = papel; tx.fillRect(0, 0, trozo.width, trozo.height); tx.drawImage(cv, 0, -y);
-      doc.addImage(trozo.toDataURL('image/jpeg', 0.88), 'JPEG', 0, 0, pw, trozo.height * pw / cv.width);
+      const jpg = trozo.toDataURL('image/jpeg', 0.88); hojas.push(jpg);
+      doc.addImage(jpg, 'JPEG', 0, 0, pw, ph);
     }
     const blob = doc.output('blob'); nombre = String(nombre || 'documento').replace(/[^\w\- áéíóúñç]/gi, '').trim().slice(0, 50) + '.pdf';
-    const file = new File([blob], nombre, { type:'application/pdf' });
-    if(matchMedia('(pointer:coarse)').matches && navigator.canShare && navigator.canShare({ files:[file] })){
-      try{ await navigator.share({ files:[file], title:nombre }); }catch(e){ if(e.name !== 'AbortError') descargar(blob, nombre); }
-    } else descargar(blob, nombre);
-    toast('📄 PDF «' + nombre + '» listo');
+    $('#toast').classList.remove('ver');
+    verPdf(hojas, blob, nombre);      // primero se ve; se guarda solo si quieres
   }catch(e){ console.warn(e); toast('⚠️ No se pudo hacer el PDF'); }
   finally{ z.remove(); }
 }
 
+// Ver un PDF antes de guardarlo: ocupa toda la pantalla, se pasa hacia abajo y con dos dedos se amplía.
+function verPdf(hojas, blob, nombre){
+  const v = document.createElement('div'); v.className = 'vpd';
+  v.innerHTML = `<div class="vpd-top"><button class="vpd-b vpd-x" data-x aria-label="Cerrar">✕</button><b>${esc(nombre)}</b><button class="vpd-b vpd-g" data-g>📤 Guardar</button></div>
+    <div class="vpd-zona"><div class="vpd-hojas">${hojas.map((h, i) => `<img src="${h}" alt="Hoja ${i + 1}" draggable="false">`).join('')}</div></div>
+    <div class="vpd-pie"><button class="vpd-b" data-menos aria-label="Más pequeño">－</button><span class="vpd-n">${hojas.length} ${hojas.length === 1 ? 'hoja' : 'hojas'} · 🤏 dos dedos para ampliar</span><button class="vpd-b" data-mas aria-label="Más grande">＋</button></div>`;
+  document.body.appendChild(v);
+  const zona = $('.vpd-zona', v), hs = $('.vpd-hojas', v); let k = 1;
+  // ampliar cambiando el ancho de las hojas: así se mueve con el dedo de forma normal (arriba, abajo y a los lados)
+  const zoom = (nk, fx, fy) => {
+    nk = Math.max(1, Math.min(5, nk)); const r = zona.getBoundingClientRect();
+    fx = fx == null ? r.width / 2 : fx; fy = fy == null ? r.height / 2 : fy;
+    const px = (zona.scrollLeft + fx) / k, py = (zona.scrollTop + fy) / k;
+    k = nk; hs.style.width = (k * 100) + '%';
+    zona.scrollLeft = px * k - fx; zona.scrollTop = py * k - fy; v.classList.toggle('ampliado', k > 1.02);
+  };
+  const P = new Map(); let ini = null;
+  zona.addEventListener('pointerdown', e => { if(e.pointerType !== 'touch') return; P.set(e.pointerId, e); if(P.size === 2){ const [a, b] = [...P.values()]; const r = zona.getBoundingClientRect(); ini = { d:Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY), k, fx:(a.clientX + b.clientX) / 2 - r.left, fy:(a.clientY + b.clientY) / 2 - r.top }; } });
+  zona.addEventListener('pointermove', e => { if(!P.has(e.pointerId)) return; P.set(e.pointerId, e); if(P.size === 2 && ini){ const [a, b] = [...P.values()]; zoom(ini.k * Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY) / Math.max(10, ini.d), ini.fx, ini.fy); } });
+  const fuera = e => { P.delete(e.pointerId); if(P.size < 2) ini = null; };
+  zona.addEventListener('pointerup', fuera); zona.addEventListener('pointercancel', fuera);
+  zona.addEventListener('wheel', e => { if(!e.ctrlKey) return; e.preventDefault(); const r = zona.getBoundingClientRect(); zoom(k * (e.deltaY < 0 ? 1.12 : 1 / 1.12), e.clientX - r.left, e.clientY - r.top); }, { passive:false });
+  let ult = 0; zona.addEventListener('click', e => { const n = Date.now(); if(n - ult < 320){ const r = zona.getBoundingClientRect(); zoom(k > 1.5 ? 1 : 2.5, e.clientX - r.left, e.clientY - r.top); ult = 0; } else ult = n; });
+  const cerrarV = () => { v.remove(); document.removeEventListener('keydown', tecla); };
+  const tecla = e => { if(e.key === 'Escape') cerrarV(); };
+  document.addEventListener('keydown', tecla);
+  v.addEventListener('click', async e => { const b = e.target.closest('.vpd-b'); if(!b) return;
+    if('x' in b.dataset) cerrarV();
+    else if('mas' in b.dataset) zoom(k * 1.4); else if('menos' in b.dataset) zoom(k / 1.4);
+    else if('g' in b.dataset){
+      const file = new File([blob], nombre, { type:'application/pdf' });
+      if(matchMedia('(pointer:coarse)').matches && navigator.canShare && navigator.canShare({ files:[file] })){
+        try{ await navigator.share({ files:[file], title:nombre }); toast('📄 PDF «' + nombre + '» listo'); }catch(err){ if(err.name !== 'AbortError') descargar(blob, nombre); }
+      } else { descargar(blob, nombre); toast('📄 PDF «' + nombre + '» guardado'); }
+    } });
+}
 // Una fila que se desliza de lado: con el dedo ya va sola; con el ratón, arrastrando (y sin que cuente como clic)
 function deslizarLado(el){
   if(!el || el._lado) return; el._lado = true;

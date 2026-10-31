@@ -25,7 +25,7 @@ const Tickets = {
   },
 
   /* ---------- Datos ---------- */
-  todos(){ return Mio.todos('tickets'); },
+  todos(){ return Mio.todos('tickets').filter(t => !t.tipo); },      // (los de la lista «Gastos» van aparte)
   deDia(k){ return this.todos().filter(t => t.fecha === k).sort((a, b) => (a.creado || 0) - (b.creado || 0)); },
   deMes(y, m){ const p = `${y}-${String(m + 1).padStart(2, '0')}-`; return this.todos().filter(t => (t.fecha || '').startsWith(p)).sort((a, b) => a.fecha < b.fecha ? 1 : a.fecha > b.fecha ? -1 : (b.creado || 0) - (a.creado || 0)); },
   importe(v){ const s = String(v || '').replace(/[^\d,.-]/g, '').replace(/\.(?=\d{3}(\D|$))/g, '').replace(',', '.'); const n = parseFloat(s); return isFinite(n) ? Math.round(n * 100) / 100 : null; },
@@ -280,5 +280,6 @@ const Tickets = {
       cambio: dir => { this._desliz = Date.now(); this.mover(dir); } });
     Mio.al('tickets', () => this.pintar());
     this.ponerTema();
+    if(typeof Gastos !== 'undefined') Gastos.iniciar();
   }
 };

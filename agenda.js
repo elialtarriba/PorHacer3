@@ -77,7 +77,7 @@ const Agenda = {
     const lista = its.length ? its.map(it => {
       const fs = (it.fotos || []).map(f => Mio.foto(f)).filter(Boolean);
       return `<div class="ag-item ${it.hecha ? 'hecha' : ''}" data-nota="${it.id}"><span class="ag-pto" style="background:${this.puntoNota(it)}"></span>
-        <div class="ag-tx">${it.texto ? esc(it.texto).replace(/\n/g, '<br>') : '<em>Foto</em>'}${it.aviso && !it.avisoVisto ? `<span class="ag-rem">⏰ ${this.avisoBonito(it.aviso)}</span>` : ''}${fs.length ? `<div class="ag-fotos">${fs.map(s => `<img src="${s}" alt="" data-ver>`).join('')}</div>` : ''}</div>
+        <div class="ag-tx">${it.texto ? esc(it.texto).replace(/\n/g, '<br>') : '<em>Foto</em>'}${it.serie ? '<span class="ag-rep" title="Se repite">🔁</span>' : ''}${it.aviso && !it.avisoVisto ? `<span class="ag-rem">⏰ ${this.avisoBonito(it.aviso)}</span>` : ''}${fs.length ? `<div class="ag-fotos">${fs.map(s => `<img src="${s}" alt="" data-ver>`).join('')}</div>` : ''}</div>
         <button class="ag-check" data-hecha="${it.id}" aria-label="Hecha">${it.hecha ? '✓' : ''}</button></div>`;
     }).join('') : '<div class="ag-vacio">Nada apuntado este día.</div>';
     return `<div class="ag-semana">${sem}</div>
@@ -105,7 +105,7 @@ const Agenda = {
   elegirDia(k){
     const n = this.notas(k).length, dc = this.colorDia(k);
     const p = popMio(`
-      <div class="mp-fecha">${fechaBonita(k, true)}</div>
+      <div class="mp-fecha" data-dia-ag="${k}">${fechaBonita(k, true)}</div>
       <h3 class="mp-h">¿Qué quieres hacer?</h3>
       <button class="mp-op" data-a="nueva"><span class="mp-ic">${icono('mas')}</span><span><b>Añadir una nota</b><small>Escribe algo nuevo para este día</small></span></button>
       ${n ? `<button class="mp-op" data-a="editar"><span class="mp-ic">${icono('lapiz')}</span><span><b>Editar una nota</b><small>${n === 1 ? 'Hay 1 nota este día' : 'Hay ' + n + ' notas este día'}</small></span></button>` : ''}
@@ -125,11 +125,11 @@ const Agenda = {
       else if(a === 'sel'){ cerrarPopMio(); this.sel = k; this.dia = k; this.pintar(); toast('📍 Día seleccionado: ' + fechaBonita(k)); }
     };
   },
-  elegirNota(k){
+  elegirNota(k, siempreLista){
     const its = this.notas(k);
-    if(its.length === 1) return this.editor(k, its[0].id);
-    const p = popMio(`<div class="mp-fecha">${fechaBonita(k, true)}</div><h3 class="mp-h">¿Qué nota quieres editar?</h3>
-      <div class="mp-notas">${its.map(it => `<div class="desl-fila" data-id="${it.id}"><div class="desl-del"><span>🗑 Eliminar</span></div><button class="mp-nota desl-cara ${it.hecha ? 'hecha' : ''}" data-id="${it.id}"><i style="background:${this.puntoNota(it)}"></i><span>${it.aviso && !it.avisoVisto ? '⏰ ' : ''}${it.texto ? esc(it.texto) : '<em>Foto</em>'}${(it.fotos || []).length ? ` <small>📷 ${it.fotos.length}</small>` : ''}</span><b>›</b></button></div>`).join('')}</div>
+    if(its.length === 1 && !siempreLista) return this.editor(k, its[0].id);
+    const p = popMio(`<div class="mp-fecha" data-dia-ag="${k}">${fechaBonita(k, true)}</div><h3 class="mp-h">¿Qué nota quieres editar?</h3>
+      <div class="mp-notas">${its.map(it => `<div class="desl-fila" data-id="${it.id}"><div class="desl-del"><span>🗑 Eliminar</span></div><button class="mp-nota desl-cara ${it.hecha ? 'hecha' : ''}" data-id="${it.id}"><i style="background:${this.puntoNota(it)}"></i><span>${it.aviso && !it.avisoVisto ? '⏰ ' : ''}${it.texto ? esc(it.texto) : '<em>Foto</em>'}${it.serie ? ' 🔁' : ''}${(it.fotos || []).length ? ` <small>📷 ${it.fotos.length}</small>` : ''}</span><b>›</b></button></div>`).join('')}</div>
       <p class="desl-pista">👈 Desliza una nota a la izquierda para eliminarla</p>
       <button class="mp-cancelar" data-volver>‹ Volver</button>`);
     deslizarBorrar($('.mp-notas', p), id => this.borrarConDeshacer(k, id, () => { if(!$('.desl-fila', p)) this.elegirDia(k); }));
@@ -139,8 +139,12 @@ const Agenda = {
   async borrarConDeshacer(k, id, despues){
     const it = this.notas(k).find(x => x.id === id); if(!it) return;
     await this.guardarDia(k, this.notas(k).filter(x => x.id !== id)); this.pintar();
-    toast('🗑 Nota eliminada', 'Deshacer', async () => { await this.guardarDia(k, [...this.notas(k), it]); this.pintar(); toast('↩️ La nota vuelve a estar'); }, 5000);
-    setTimeout(() => { if(!this.notas(k).some(x => x.id === id)) Mio.quitarFotos(it.fotos || []); }, 7000);
+    toast('🗑 Nota eliminada', 'Deshacer', async () => {
+      await this.guardarDia(k, [...this.notas(k), it]); this.pintar(); toast('↩️ La nota vuelve a estar');
+      // si la lista de notas (o el menú de ese día) sigue abierta, se vuelve a ver con la nota
+      const pop = $('#mioPop'); if(pop && pop.querySelector(`[data-dia-ag="${k}"]`)) this.elegirNota(k, true);
+    }, 5000);
+    setTimeout(() => { if(!this.notas(k).some(x => x.id === id)) this.quitarFotosLibres(it.fotos || []); }, 7000);
     despues && despues();
   },
 
@@ -148,10 +152,12 @@ const Agenda = {
   editor(k, id){
     const it = id ? this.notas(k).find(x => x.id === id) : null;
     this.NE = { k, nk:k, id:id || null, texto:it ? it.texto || '' : '', color:it ? it.color || 'none' : 'none', hecha:!!(it && it.hecha),
-      fotos:it ? [...(it.fotos || [])] : [], orig:it ? [...(it.fotos || [])] : [], nuevas:[], aviso:it && it.aviso && !it.avisoVisto ? it.aviso : '', panel:null };
+      fotos:it ? [...(it.fotos || [])] : [], orig:it ? [...(it.fotos || [])] : [], nuevas:[], aviso:it && it.aviso && !it.avisoVisto ? it.aviso : '', panel:null,
+      serie:it && it.serie ? it.serie : null, rep:it && it.rep ? { ...it.rep } : { freq:'no', desde:k, hasta:'' } };
     this.pintarEditor(true);
   },
-  leerEd(){ const N = this.NE; if(!N) return; const t = $('#neTexto'); if(t) N.texto = t.value; const r = $('#neAviso'); if(r) N.aviso = r.value; },
+  leerEd(){ const N = this.NE; if(!N) return; const t = $('#neTexto'); if(t) N.texto = t.value; const r = $('#neAviso'); if(r) N.aviso = r.value;
+    const d = $('#neRepDesde'), h = $('#neRepHasta'); if(d && d.value) N.rep.desde = d.value; if(h) N.rep.hasta = h.value; },
   pintarEditor(foco){
     const N = this.NE; if(!N) return;
     if(Voz.activo) Voz.parar();
@@ -163,6 +169,15 @@ const Agenda = {
     else if(N.panel === 'aviso') panel = `<div class="ne-panel"><div class="ne-et">Aviso</div>
       <div class="ne-aviso"><span>⏰</span><input type="datetime-local" id="neAviso" value="${N.aviso}"><button data-quitaraviso aria-label="Quitar aviso">✕</button></div>
       <button class="ne-ical" data-ical><b>📅 Añadir también al calendario del móvil</b><small>Así te avisa aunque la app esté cerrada</small></button></div>`;
+    else if(N.panel === 'repetir'){
+      const R = N.rep, FR = this.FRECS;
+      panel = N.serie ? `<div class="ne-panel"><div class="ne-et">🔁 Esta nota se repite</div><p class="ne-rep-info">${this.repTexto(R)}</p>
+          <p class="ne-rep-info"><small>Al guardar o borrar te preguntará si es solo esta o todas las de la serie.</small></p></div>`
+        : `<div class="ne-panel"><div class="ne-et">🔁 Repetir esta nota</div>
+          <div class="ne-reps">${Object.entries(FR).map(([f, t]) => `<button data-freq="${f}" class="${R.freq === f ? 'on' : ''}">${t}</button>`).join('')}</div>
+          ${R.freq !== 'no' ? `<div class="ne-rep-fechas"><label>Desde<input type="date" id="neRepDesde" value="${R.desde || N.nk}"></label><label>Hasta<input type="date" id="neRepHasta" value="${R.hasta || this.hastaPorDefecto(R.desde || N.nk, R.freq)}"></label></div>
+          <p class="ne-rep-info">${this.repTexto({ ...R, desde:R.desde || N.nk, hasta:R.hasta || this.hastaPorDefecto(R.desde || N.nk, R.freq) })}</p>` : ''}</div>`;
+    }
     const fotos = N.fotos.map(f => ({ f, s:Mio.foto(f) })).filter(x => x.s);
     const p = popMio(`
       <div class="ne-top"><button class="mp-fecha ne-fechab" data-panel="dia">${fechaBonita(N.nk, true)} ▾</button><span class="ne-modo">${N.id ? 'Editar nota' : 'Nueva nota'}</span></div>
@@ -171,6 +186,7 @@ const Agenda = {
       <div class="ne-chips">
         <button class="ne-chip ${N.panel === 'color' ? 'on' : ''}" data-panel="color"><i style="background:${pto(N.color)}"></i>${N.color === 'none' ? 'Color' : this.col(N.color).name} ▾</button>
         <button class="ne-chip ${N.panel === 'aviso' ? 'on' : ''} ${N.aviso ? 'tiene' : ''}" data-panel="aviso">⏰ ${N.aviso ? this.avisoBonito(N.aviso) : 'Aviso'}</button>
+        <button class="ne-chip ${N.panel === 'repetir' ? 'on' : ''} ${N.serie || N.rep.freq !== 'no' ? 'tiene' : ''}" data-panel="repetir">🔁 ${N.serie || N.rep.freq !== 'no' ? this.FRECS[N.rep.freq] : 'Repetir'}</button>
         <button class="ne-chip" id="neMic" data-dictar>${icIn('mic')}Dictar</button>
         <button class="ne-chip" data-foto>${icIn('camara')}Foto</button>
         ${N.id ? `<button class="ne-chip ${N.hecha ? 'tiene' : ''}" data-hecha>${N.hecha ? '✓ Hecha' : '○ Hecha'}</button>` : ''}
@@ -185,6 +201,7 @@ const Agenda = {
       if(b.tagName === 'IMG'){ verFotoGrande(b.src); return; }
       if(d.panel){ this.leerEd(); N.panel = N.panel === d.panel ? null : d.panel; if(N.panel === 'aviso' && !N.aviso) N.aviso = this.avisoPorDefecto(N.nk); this.pintarEditor(false); }
       else if(d.col){ this.leerEd(); N.color = d.col; N.panel = null; this.pintarEditor(false); }
+      else if(d.freq){ this.leerEd(); N.rep.freq = d.freq; if(d.freq !== 'no'){ N.rep.desde = N.rep.desde || N.nk; N.rep.hasta = this.hastaPorDefecto(N.rep.desde, d.freq); } this.pintarEditor(false); }
       else if('quitaraviso' in d){ N.aviso = ''; N.panel = null; this.pintarEditor(false); }
       else if('ical' in d){ this.leerEd(); this.alCalendario(N.texto, N.aviso, N.nk); }
       else if('dictar' in d) Voz.empezar($('#neTexto'), b, null);
@@ -195,22 +212,16 @@ const Agenda = {
       else if('cancelar' in d) this.cancelar();
       else if('guardar' in d) this.guardarNota();
     };
+    ['neRepDesde', 'neRepHasta'].forEach(id => { const x = $('#' + id); if(x) x.onchange = () => { this.leerEd(); if(N.rep.hasta && N.rep.hasta < N.rep.desde) N.rep.hasta = N.rep.desde; this.pintarEditor(false); }; });
     const di = $('#neDia'); if(di) di.onchange = () => { if(di.value){ this.leerEd(); N.nk = di.value; N.panel = null; this.pintarEditor(false); } };
     if(foco) setTimeout(() => { const t = $('#neTexto'); if(t){ t.focus(); t.setSelectionRange(t.value.length, t.value.length); } }, 150);
   },
-  // Quitar una foto de la nota: primero pregunta; si la nota ya estaba guardada, se quita ya (no hace falta pulsar Guardar)
+  // Quitar una foto de la nota: primero pregunta. Se quita de verdad al pulsar «Guardar»; con «Cancelar» la foto se queda.
   async quitarFotoNota(f){
     const N = this.NE; if(!N) return; this.leerEd();
-    const ok = await confirmarMio('Borrar foto', '¿Seguro que quieres borrar esta foto de la nota?', 'Borrar');
-    if(!this.NE){ return; }
-    if(ok){
-      N.fotos = N.fotos.filter(x => x !== f);
-      if(N.id){ const its = this.notas(N.k).map(x => ({ ...x })), it = its.find(x => x.id === N.id);
-        if(it && (it.fotos || []).includes(f)){ it.fotos = it.fotos.filter(x => x !== f); await this.guardarDia(N.k, its); N.orig = N.orig.filter(x => x !== f); }
-      }
-      await Mio.quitarFotos([f]); N.nuevas = N.nuevas.filter(x => x !== f);
-      toast('🗑 Foto borrada');
-    }
+    const ok = await confirmarMio('Borrar foto', '¿Seguro que quieres borrar esta foto de la nota?<br><small>Se borrará al pulsar «Guardar». Si pulsas «Cancelar», la foto se queda.</small>', 'Borrar');
+    if(!this.NE) return;
+    if(ok){ N.fotos = N.fotos.filter(x => x !== f); toast('🗑 Foto quitada · pulsa «Guardar» para que quede así', null, null, 3500); }
     this.pintarEditor(false);
   },
   async anadirFoto(){
@@ -231,13 +242,20 @@ const Agenda = {
     this.leerEd();
     const texto = N.texto.trim();
     if(!texto && !N.fotos.length){ $('#neTexto') && $('#neTexto').focus(); toast('Escribe la nota o añade una foto'); return; }
+    // una nota que se repite: ¿solo esta o toda la serie?
+    if(N.serie && N.id){
+      const q = await this.preguntaSerie('Guardar los cambios', '¿Cambias solo esta nota o también las demás de la serie?'); if(!q) return;
+      if(q !== 'esta'){ await this.guardarSerie(N, texto, q); return; }
+    }
+    // una nota nueva (o que no se repetía) con repetición: se pone en todos los días
+    if(!N.serie && N.rep.freq !== 'no'){ await this.crearSerie(N, texto); return; }
     const origen = this.notas(N.k).map(x => ({ ...x }));
     let nota = N.id ? origen.find(x => x.id === N.id) : null;
     const nueva = !nota;
     if(!nota) nota = { id:nuevoId('n'), creada:Date.now() };
     nota.texto = texto; nota.color = N.color; nota.hecha = N.id ? N.hecha : false; nota.fotos = [...N.fotos];
     if(N.aviso){ if(nota.aviso !== N.aviso) nota.avisoVisto = false; nota.aviso = N.aviso; } else { delete nota.aviso; delete nota.avisoVisto; }
-    await Mio.quitarFotos(N.orig.filter(f => !N.fotos.includes(f)));
+    await this.quitarFotosLibres(N.orig.filter(f => !N.fotos.includes(f)), N.id);
     const av = N.aviso ? ' · aviso ' + this.avisoBonito(N.aviso) : '';
     this.NE = null; cerrarPopMio();
     if(N.nk !== N.k){
@@ -253,12 +271,99 @@ const Agenda = {
   },
   async borrarNota(){
     const N = { ...this.NE }; this.leerEd();
+    if(N.serie){
+      const q = await this.preguntaSerie('Borrar nota', '¿Borras solo esta nota o también las demás de la serie?', true);
+      if(!q){ this.pintarEditor(false); return; }
+      if(q !== 'esta'){ await this.borrarSerie(N, q); return; }
+      const it = this.notas(N.k).find(x => x.id === N.id);
+      await this.guardarDia(N.k, this.notas(N.k).filter(x => x.id !== N.id)); this.NE = null; this.pintar();
+      toast('🗑 Nota borrada', 'Deshacer', async () => { await this.guardarDia(N.k, [...this.notas(N.k), it]); this.pintar(); }, 5000);
+      return;
+    }
     if(!await confirmarMio('Borrar nota', '¿Seguro que quieres borrar esta nota?')){ this.pintarEditor(false); return; }
     const it = this.notas(N.k).find(x => x.id === N.id);
     await this.guardarDia(N.k, this.notas(N.k).filter(x => x.id !== N.id));
     this.NE = null; this.pintar();
     toast('🗑 Nota borrada', 'Deshacer', async () => { await this.guardarDia(N.k, [...this.notas(N.k), it]); this.pintar(); });
-    setTimeout(() => { if(!this.notas(N.k).some(x => x.id === N.id)) Mio.quitarFotos((it && it.fotos) || []); }, 9000);
+    setTimeout(() => { if(!this.notas(N.k).some(x => x.id === N.id)) this.quitarFotosLibres((it && it.fotos) || []); }, 9000);
+  },
+  // las notas de una serie comparten fotos: solo se borra una foto si ya no la usa ninguna nota
+  async quitarFotosLibres(fs, menosId){
+    if(!fs || !fs.length) return;
+    const usadas = new Set(); Mio.todos('agenda').forEach(d => (d.items || []).forEach(it => { if(it.id !== menosId) (it.fotos || []).forEach(f => usadas.add(f)); }));
+    if(this.NE) this.NE.fotos.forEach(f => usadas.add(f));
+    await Mio.quitarFotos(fs.filter(f => !usadas.has(f)));
+  },
+  /* ---------- Repetir notas ---------- */
+  FRECS: { no:'No se repite', dia:'Cada día', semana:'Cada semana', mes:'Cada mes', anio:'Cada año' },
+  MAX_REP: 400,
+  sumar(k, freq, n){
+    const d = deIso(k), dia = d.getDate();
+    if(freq === 'dia') d.setDate(dia + n);
+    else if(freq === 'semana') d.setDate(dia + 7 * n);
+    else if(freq === 'mes'){ d.setDate(1); d.setMonth(d.getMonth() + n); d.setDate(Math.min(dia, new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate())); }   // el 31 → último día del mes
+    else if(freq === 'anio'){ d.setDate(1); d.setFullYear(d.getFullYear() + n); d.setDate(Math.min(dia, new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate())); }
+    return iso(d);
+  },
+  fechasRep(R){ const out = []; if(!R.desde || !R.hasta || R.freq === 'no') return out;
+    for(let n = 0; n < this.MAX_REP; n++){ const k = this.sumar(R.desde, R.freq, n); if(k > R.hasta) break; out.push(k); } return out; },
+  hastaPorDefecto(desde, freq){ return this.sumar(desde, freq === 'dia' ? 'mes' : freq === 'semana' ? 'mes' : 'anio', freq === 'dia' ? 1 : freq === 'semana' ? 3 : freq === 'mes' ? 1 : 5); },
+  repTexto(R){
+    if(!R || R.freq === 'no') return '';
+    const d = deIso(R.desde), dias = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
+    const cuando = R.freq === 'dia' ? 'Cada día' : R.freq === 'semana' ? 'Cada ' + dias[d.getDay()] : R.freq === 'mes' ? 'El día ' + d.getDate() + ' de cada mes' : 'Cada ' + d.getDate() + ' de ' + MESES_C[d.getMonth()].toLowerCase();
+    const n = this.fechasRep(R).length;
+    return `<b>${cuando}</b>, del ${fechaCortaB(R.desde)} al ${fechaCortaB(R.hasta)}${n ? ` · <b>${n}</b> ${n === 1 ? 'vez' : 'veces'}` : ''}${n >= this.MAX_REP ? ' (como mucho)' : ''}`;
+  },
+  preguntaSerie(tit, txt, borrar){
+    return new Promise(ok => {
+      const p = popMio(`<h3 class="mp-h">🔁 ${tit}</h3><p class="mp-p">${txt}</p>
+        <button class="mp-op" data-q="esta"><span class="mp-ic">1️⃣</span><span><b>Solo esta</b></span></button>
+        <button class="mp-op" data-q="siguientes"><span class="mp-ic">⏩</span><span><b>Esta y las siguientes</b></span></button>
+        <button class="mp-op" data-q="todas"><span class="mp-ic">🔁</span><span><b>Todas</b></span></button>
+        <div class="mp-fila"><button class="mp-b" data-q="">Cancelar</button></div>`);
+      p.parentNode._alCerrar = () => ok(null);
+      p.onclick = e => { const b = e.target.closest('[data-q]'); if(!b) return; p.parentNode._alCerrar = null; cerrarPopMio(); ok(b.dataset.q || null); };
+    });
+  },
+  // las notas de una serie: [[día, nota], …]
+  deSerie(serie){ const out = []; Mio.todos('agenda').forEach(d => (d.items || []).forEach(it => { if(it.serie === serie) out.push([d.id, it]); })); return out.sort((a, b) => a[0] < b[0] ? -1 : 1); },
+  conHora(aviso, k){ return aviso ? k + aviso.slice(10) : ''; },
+  async crearSerie(N, texto){
+    const R = { freq:N.rep.freq, desde:N.rep.desde || N.nk, hasta:N.rep.hasta || this.hastaPorDefecto(N.rep.desde || N.nk, N.rep.freq) };
+    const fechas = this.fechasRep(R); if(!fechas.length){ toast('Revisa las fechas de la repetición'); return; }
+    const serie = nuevoId('sr');
+    if(N.id){ await this.guardarDia(N.k, this.notas(N.k).filter(x => x.id !== N.id)); }      // la nota de antes pasa a ser la serie
+    const quitar = N.orig.filter(f => !N.fotos.includes(f));
+    this.NE = null; cerrarPopMio(); toast('🔁 Poniendo la nota en ' + fechas.length + ' días…', null, null, 8000);
+    for(const k of fechas){
+      const nota = { id:nuevoId('n'), creada:Date.now(), texto, color:N.color, hecha:false, fotos:[...N.fotos], serie, rep:R };
+      if(N.aviso){ nota.aviso = this.conHora(N.aviso, k); nota.avisoVisto = false; }
+      await this.guardarDia(k, [...this.notas(k), nota]);
+    }
+    await this.quitarFotosLibres(quitar);
+    this.pintar(); toast('🔁 Nota puesta ' + fechas.length + ' veces: ' + this.repTexto(R).replace(/<[^>]+>/g, ''), null, null, 5000);
+    setTimeout(() => this.revisarAvisos(), 500);
+  },
+  async guardarSerie(N, texto, q){
+    const lista = this.deSerie(N.serie).filter(([k]) => q === 'todas' || k >= N.k);
+    this.NE = null; cerrarPopMio();
+    for(const [k, it] of lista){
+      const its = this.notas(k).map(x => ({ ...x })), n = its.find(x => x.id === it.id); if(!n) continue;
+      n.texto = texto; n.color = N.color; n.fotos = [...N.fotos];
+      if(N.aviso){ const a = this.conHora(N.aviso, k); if(n.aviso !== a) n.avisoVisto = false; n.aviso = a; } else { delete n.aviso; delete n.avisoVisto; }
+      if(it.id === N.id) n.hecha = N.hecha;
+      await this.guardarDia(k, its);
+    }
+    await this.quitarFotosLibres(N.orig.filter(f => !N.fotos.includes(f)));
+    this.pintar(); toast('✅ Guardadas ' + lista.length + ' notas de la serie');
+  },
+  async borrarSerie(N, q){
+    const lista = this.deSerie(N.serie).filter(([k]) => q === 'todas' || k >= N.k), copia = lista.map(([k, it]) => [k, it]);
+    this.NE = null; cerrarPopMio();
+    for(const [k, it] of lista) await this.guardarDia(k, this.notas(k).filter(x => x.id !== it.id));
+    this.pintar();
+    toast('🗑 Borradas ' + lista.length + ' notas', 'Deshacer', async () => { for(const [k, it] of copia) await this.guardarDia(k, [...this.notas(k), it]); this.pintar(); toast('↩️ Las notas vuelven a estar'); }, 6000);
   },
   async marcarHecha(k, id){
     const its = this.notas(k).map(x => ({ ...x })), it = its.find(x => x.id === id); if(!it) return;

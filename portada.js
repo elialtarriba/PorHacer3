@@ -70,7 +70,7 @@ const Portada = {
       if(k === 'cal'){ const m = hoyIso().slice(0, 7), n = App.tareas.filter(t => { const r = rango(t); return r && r[0].slice(0, 7) <= m && m <= r[1].slice(0, 7); }).length; return n ? pl(n, 'tarea', 'tareas') + ' este mes' : 'Tus tareas por días'; }
       if(k === 'listas'){ const n = Listas.datos.length, p = Listas.datos.reduce((s, l) => s + (l.items || []).filter(i => !i.ok).length, 0); return pl(n, 'lista', 'listas') + (p ? ' · ' + pl(p, 'punto', 'puntos') : ''); }
       if(k === 'agenda'){ const d = Mio.uno('agenda', hoy), n = d ? (d.items || []).filter(i => !i.hecha).length : 0; return n ? pl(n, 'nota', 'notas') + ' hoy' : 'Nada para hoy'; }
-      if(k === 'tickets'){ const m = hoy.slice(0, 7), ts = Mio.todos('tickets').filter(t => (t.fecha || '').startsWith(m)), tot = ts.reduce((s, t) => s + (t.importe || 0), 0);
+      if(k === 'tickets'){ const m = hoy.slice(0, 7), ts = Mio.todos('tickets').filter(t => !t.tipo && (t.fecha || '').startsWith(m)), tot = ts.reduce((s, t) => s + (t.importe || 0), 0);
         return ts.length ? pl(ts.length, 'ticket', 'tickets') + (tot ? ' · ' + dinero(tot) : '') : 'Ninguno este mes'; }
       if(k === 'calc') return 'Cuentas, % e IVA';
       if(k === 'teams') return Teams.proxima();
@@ -253,7 +253,7 @@ const Calc = {
     this._carga = new Promise(ok => {
       const f = $('#calcFrame');
       f.addEventListener('load', () => setTimeout(() => ok(this.win()), 60), { once:true });
-      f.src = 'calculadora.html?v=150';
+      f.src = 'calculadora.html?v=152';
     });
     return this._carga;
   },
