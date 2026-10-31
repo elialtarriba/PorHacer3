@@ -160,48 +160,75 @@ const Gastos = {
   },
   abierto(){ const v = $('#gx'); return !!(v && v.classList.contains('abierto')); },
   async cerrar(){ await this.guardarEdicion(); const v = $('#gx'); if(v) v.classList.remove('abierto'); if(this.cifrado() && this.pideSiempre()){ this._olvidar(); this.pintarBoton(); } Tickets.pintar && Tickets.pintar(); },
+  /* Pestañas como las de una agenda de papel: de colores, con las esquinas de arriba redondeadas */
+  TAB_COLS: [['#f0c4e0','Rosa'],['#ff9fbf','Fresa'],['#ddd6f6','Lila'],['#ffd5bf','Melocotón'],['#f8c9c4','Salmón'],['#c8ead8','Menta'],
+    ['#cfe4f7','Cielo'],['#fbe3a0','Vainilla'],['#d5eab4','Pistacho'],['#e4d2f2','Lavanda'],['#eadcc8','Arena'],['#bfe6e3','Agua']],
+  colorTab(t, i){ return t.color || this.TAB_COLS[i % this.TAB_COLS.length][0]; },
   pintarTabs(){
     const ts = this.tabs(), a = this.tabActiva(), n = id => this.todos().filter(x => !x.ok && this.tabDe(x) === id).length;
-    $('#gxTabs').innerHTML = ts.map(t => `<button class="gx-tab ${t.id === a ? 'on' : ''}" data-tab="${t.id}">${esc(t.nombre)}${n(t.id) ? `<small>${n(t.id)}</small>` : ''}${t.id === a ? '<em>▾</em>' : ''}</button>`).join('')
+    const box = $('#gxTabs'), ia = ts.findIndex(t => t.id === a);
+    box.style.setProperty('--tca', ia >= 0 ? this.colorTab(ts[ia], ia) : 'var(--line)');
+    box.innerHTML = ts.map((t, i) => `<button class="gx-tab ${t.id === a ? 'on' : ''}" data-tab="${t.id}" style="--tc:${this.colorTab(t, i)};z-index:${t.id === a ? 50 : ts.length - i}">${esc(t.nombre)}${n(t.id) ? `<small>${n(t.id)}</small>` : ''}${t.id === a ? '<em>▾</em>' : ''}</button>`).join('')
       + `<button class="gx-tab gx-tab-mas" data-tabnueva>＋ ${ts.length ? 'Pestaña' : 'Crear pestañas'}</button>`;
     const on = $('#gxTabs .gx-tab.on'); if(on && !this._tabVisto){ on.scrollIntoView({ inline:'center', block:'nearest' }); this._tabVisto = true; }
   },
-  /* Mover pestañas: mantener pulsada un momento, arrastrar y soltar donde quieras (se guarda el orden) */
+  /* Mover pestañas: mantener pulsada un momento (se levanta), arrastrar y soltar. El orden se guarda.
+     Con el dedo, la fila de pestañas se desplaza «a mano» para que el móvil no se lleve el gesto. */
   arrastrarTabs(box){
-    let tm = null, drag = null, sx = 0, sy = 0, scr = null;
+    let tm = null, drag = null, sx = 0, sy = 0, lx = 0, lt = 0, vel = 0, movido = false, scr = null, inercia = null;
     const parar = () => { clearTimeout(tm); tm = null; };
-    const empezar = (t, x, y) => { sx = x; sy = y; parar();
-      tm = setTimeout(() => { tm = null; drag = { el:t }; this._noClick = true; t.classList.add('arr'); box.classList.add('arrastrando');
-        try{ navigator.vibrate && navigator.vibrate(15); }catch(e){} toast('↔️ Arrastra la pestaña y suéltala donde quieras', null, null, 1400); }, 380); };
+    const levantar = t => { tm = null; drag = { el:t }; this._noClick = true; t.classList.add('arr'); box.classList.add('arrastrando');
+      try{ navigator.vibrate && navigator.vibrate(18); }catch(e){} };
+    const empezar = (t, x, y) => { sx = lx = x; sy = y; lt = Date.now(); vel = 0; movido = false; parar(); cancelAnimationFrame(inercia); tm = setTimeout(() => levantar(t), 280); };
     const mover = x => {
       const otras = $$('.gx-tab[data-tab]', box).filter(o => o !== drag.el);
       const antes = otras.find(o => { const r = o.getBoundingClientRect(); return x < r.left + r.width / 2; });
-      box.insertBefore(drag.el, antes || $('.gx-tab-mas', box));
+      const ref = antes || $('.gx-tab-mas', box); if(drag.el.nextElementSibling !== ref) box.insertBefore(drag.el, ref);
       const R = box.getBoundingClientRect(); clearInterval(scr); scr = null;
-      if(x < R.left + 36 || x > R.right - 36){ const d = x < R.left + 36 ? -10 : 10; scr = setInterval(() => { box.scrollLeft += d; }, 30); }
+      if(x < R.left + 40 || x > R.right - 40){ const d = x < R.left + 40 ? -9 : 9; scr = setInterval(() => { box.scrollLeft += d; }, 30); }
     };
     const soltar = async () => {
       parar(); clearInterval(scr); scr = null;
-      if(!drag){ return; }
+      if(movido){ this._noClick = true; setTimeout(() => { if(!drag) this._noClick = false; }, 120); }
+      if(!drag){
+        // un poco de inercia al soltar después de desplazar
+        if(movido && Math.abs(vel) > .2){ let v = vel * 16; const paso = () => { box.scrollLeft -= v; v *= .93; if(Math.abs(v) > .5) inercia = requestAnimationFrame(paso); }; inercia = requestAnimationFrame(paso); }
+        return; }
       const el = drag.el; drag = null; el.classList.remove('arr'); box.classList.remove('arrastrando');
-      setTimeout(() => { this._noClick = false; }, 80);
+      setTimeout(() => { this._noClick = false; }, 120);
       const ts = this.tabs(), nuevo = $$('.gx-tab[data-tab]', box).map(o => ts.find(t => t.id === o.dataset.tab)).filter(Boolean);
       if(nuevo.length === ts.length && nuevo.some((t, i) => t.id !== ts[i].id)){
-        const m = this.meta(); m.tabs = nuevo; await this._poner(m.id, m); toast('↔️ Pestaña movida. El orden queda guardado', null, null, 1300);
+        // cada pestaña conserva su color al cambiar de sitio
+        const m = this.meta(); m.tabs = nuevo.map(t => ({ ...t, color:this.colorTab(t, ts.indexOf(t)) })); await this._poner(m.id, m); toast('↔️ Pestaña movida. El orden queda guardado', null, null, 1300);
       }
       this.pintarTabs();
     };
     // dedo
-    box.addEventListener('touchstart', e => { const t = e.target.closest('.gx-tab[data-tab]'); if(t && e.touches.length === 1) empezar(t, e.touches[0].clientX, e.touches[0].clientY); }, { passive:true });
-    box.addEventListener('touchmove', e => { const p = e.touches[0];
-      if(drag){ e.preventDefault(); mover(p.clientX); }
-      else if(tm && (Math.abs(p.clientX - sx) > 8 || Math.abs(p.clientY - sy) > 8)) parar(); }, { passive:false });
+    box.addEventListener('touchstart', e => { const t = e.target.closest('.gx-tab[data-tab]'); if(t && e.touches.length === 1) empezar(t, e.touches[0].clientX, e.touches[0].clientY); else parar(); }, { passive:true });
+    box.addEventListener('touchmove', e => {
+      if(!tm && !drag && !movido && !e.target.closest('.gx-tab[data-tab]')) return;
+      const p = e.touches[0]; e.preventDefault();
+      if(drag){ mover(p.clientX); return; }
+      const dx = p.clientX - lx, now = Date.now(); box.scrollLeft -= dx; vel = dx / Math.max(1, now - lt); lx = p.clientX; lt = now;
+      if(Math.abs(p.clientX - sx) > 10 || Math.abs(p.clientY - sy) > 10){ movido = true; parar(); }
+    }, { passive:false });
     box.addEventListener('touchend', soltar); box.addEventListener('touchcancel', soltar);
     // ratón
     box.addEventListener('mousedown', e => { const t = e.target.closest('.gx-tab[data-tab]'); if(t && e.button === 0) empezar(t, e.clientX, e.clientY); });
     box.addEventListener('mousemove', e => { if(drag){ e.preventDefault(); mover(e.clientX); } else if(tm && (Math.abs(e.clientX - sx) > 6 || Math.abs(e.clientY - sy) > 6)) parar(); });
     document.addEventListener('mouseup', () => { if(drag || tm) soltar(); });
     box.addEventListener('contextmenu', e => { if(e.target.closest('.gx-tab')) e.preventDefault(); });
+  },
+  async colorDeTab(id){
+    const ts = this.tabs(), i = ts.findIndex(x => x.id === id); if(i < 0) return;
+    const act = this.colorTab(ts[i], i);
+    const p = popMio(`<h3 class="mp-h">🎨 Color de «${esc(ts[i].nombre)}»</h3>
+      <div class="gx-tcols">${this.TAB_COLS.map(([c, n]) => `<button data-c="${c}" class="${c === act ? 'on' : ''}" style="--tc:${c}" title="${n}"><i></i><span>${n}</span></button>`).join('')}</div>
+      <div class="mp-fila"><button class="mp-b" data-c="auto">Automático</button><button class="mp-b mp-pri" data-c="x">Listo</button></div>`);
+    p.onclick = async e => { const b = e.target.closest('[data-c]'); if(!b) return; const c = b.dataset.c; cerrarPopMio(); if(c === 'x') return;
+      const m = this.meta(), t2 = [...(m.tabs || [])], j = t2.findIndex(x => x.id === id); if(j < 0) return;
+      t2[j] = { ...t2[j] }; if(c === 'auto') delete t2[j].color; else t2[j].color = c;
+      m.tabs = t2; await this._poner(m.id, m); this.pintarTabs(); toast('🎨 Color cambiado', null, null, 1000); };
   },
   pedirNombreTab(tit, val){
     return new Promise(ok => {
@@ -240,6 +267,7 @@ const Gastos = {
     const n = this.todos().filter(x => this.tabDe(x) === id).length;
     const p = popMio(`<h3 class="mp-h">📑 ${esc(t.nombre)}</h3>
       <button class="mp-op" data-a="nom"><span class="mp-ic">✏️</span><span><b>Cambiar el nombre</b></span></button>
+      <button class="mp-op" data-a="color"><span class="mp-ic">🎨</span><span><b>Color de la pestaña</b></span></button>
       <button class="mp-op" data-a="izq"><span class="mp-ic">⬅️</span><span><b>Mover a la izquierda</b></span></button>
       <button class="mp-op" data-a="der"><span class="mp-ic">➡️</span><span><b>Mover a la derecha</b></span></button>
       <button class="mp-op" data-a="borrar"><span class="mp-ic">🗑️</span><span><b>Borrar la pestaña</b><small>${n ? 'Y sus ' + n + (n === 1 ? ' nota' : ' notas') : 'Está vacía'}</small></span></button>
@@ -247,6 +275,7 @@ const Gastos = {
     p.onclick = async e => { const b = e.target.closest('[data-a]'); if(!b) return; const a = b.dataset.a; cerrarPopMio();
       const m = this.meta(), ts = [...(m.tabs || [])], i = ts.findIndex(x => x.id === id);
       if(a === 'nom'){ const v = await this.pedirNombreTab('✏️ Nombre de la pestaña', t.nombre); if(v && v !== '__12'){ ts[i] = { ...ts[i], nombre:v }; m.tabs = ts; await this._poner(m.id, m); this.pintar(); } }
+      else if(a === 'color') this.colorDeTab(id);
       else if(a === 'izq' || a === 'der'){ const j = a === 'izq' ? i - 1 : i + 1; if(j < 0 || j >= ts.length) return; [ts[i], ts[j]] = [ts[j], ts[i]]; m.tabs = ts; await this._poner(m.id, m); this.pintar(); }
       else if(a === 'borrar'){
         if(!await confirmarMio('Borrar pestaña', n ? `¿Borrar la pestaña «${esc(t.nombre)}» y sus ${n} ${n === 1 ? 'nota' : 'notas'}?` : `¿Borrar la pestaña «${esc(t.nombre)}»?`, 'Borrar')) return;

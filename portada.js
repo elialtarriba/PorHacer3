@@ -99,13 +99,13 @@ const Portada = {
           <button data-ir="tareas">✅ ${tHoy ? tHoy + (tHoy === 1 ? ' tarea' : ' tareas') + ' hoy' : 'Sin tareas hoy'}</button>
           <button data-ir="agenda">📒 ${nNotas ? nNotas + (nNotas === 1 ? ' nota' : ' notas') : 'Agenda libre'}</button>
         </div></div></div>
-      <div class="po-reloj" aria-label="Reloj">${this.svgReloj('po')}<span class="po-rel-n">Aquí</span></div>
-      <div class="po-reloj po-reloj2" aria-label="Reloj del mundo" role="button" title="Toca para elegir el país">${this.svgReloj('pw')}<span class="po-rel-n" id="pwNom"></span></div>`;
+      <div class="po-reloj po-reloj2" aria-label="Reloj del mundo" role="button" title="Toca para elegir el país">${this.svgReloj('pw')}<span class="po-rel-n" id="pwNom"></span></div>
+      <div class="po-reloj po-reloj1" aria-label="Reloj">${this.svgReloj('po')}<span class="po-rel-n">Aquí</span></div>`;
     this.pintarNube();
     const r2 = $('#poHoy .po-reloj2'); if(r2) r2.onclick = () => this.elegirZona();
     this.reloj();
     const pd = $('#poHoy .po-dia'); if(pd){ pd.setAttribute('role', 'button'); pd.title = 'Ver el año de la agenda'; pd.onclick = () => AnioPO.abrir(); }
-    const rl = $('#poHoy .po-reloj'); if(rl){ rl.setAttribute('role', 'button'); rl.title = 'Toca para grabar una nota de voz'; rl.onclick = () => this.grabarYa(); }
+    const rl = $('#poHoy .po-reloj1'); if(rl){ rl.setAttribute('role', 'button'); rl.title = 'Toca para grabar una nota de voz'; rl.onclick = () => { if(this.horizontal()){ toast('🌍 Para elegir el país, toca el reloj del medio', null, null, 2200); return; } this.grabarYa(); }; }
     const g = $('#poRejilla');
     const dial = `<svg viewBox="0 0 100 100" aria-hidden="true" class="po-dialito">
           <circle cx="50" cy="50" r="46" class="d-aro"/>
@@ -240,7 +240,7 @@ const Portada = {
     const act = this.zona().tz, todas = (() => { try{ return Intl.supportedValuesOf('timeZone'); }catch(e){ return []; } })();
     const hora = tz => { const t = this.horaEn(tz); return String(t.h).padStart(2, '0') + ':' + String(t.m).padStart(2, '0') + (t.dia > 0 ? ' (+1)' : t.dia < 0 ? ' (−1)' : ''); };
     const fila = (tz, n) => `<button class="opcion opc2 pz-f ${tz === act ? 'on' : ''}" data-tz="${esc(tz)}" data-nom="${esc(n)}"><span>${esc(n)}</span><small>${hora(tz)}</small></button>`;
-    popup({ tit:'🌍 Reloj del mundo', html:`<p class="aj-ayuda" style="margin:0 0 8px">Elige la ciudad o el país. Se ve con el móvil en horizontal.</p>
+    popup({ tit:'🌍 Reloj del mundo', html:`<p class="aj-ayuda pz-ayuda" style="margin:0 0 8px">Elige la ciudad o el país (o búscalo). Se ve con el móvil en horizontal, en el reloj del medio.</p>
         <input id="pzQ" type="search" placeholder="Buscar ciudad o país…" autocomplete="off" style="margin-bottom:8px">
         <div class="pz-lista" id="pzLista">${this.ZONAS.map(([tz, n]) => fila(tz, n)).join('')}</div>`,
       botones:[{ txt:'Cerrar', val:null }],
@@ -255,6 +255,7 @@ const Portada = {
         lista.onclick = e => { const b = e.target.closest('[data-tz]'); if(!b) return; lsSet('ph3-reloj2', JSON.stringify({ tz:b.dataset.tz, nombre:b.dataset.nom })); fin(true); this.reloj(); toast('🌍 ' + b.dataset.nom + ': ' + hora(b.dataset.tz), null, null, 1600); };
       } });
   },
+  horizontal(){ return matchMedia('(orientation: landscape) and (max-height: 540px)').matches; },
   /* La nubecita: verde con internet, roja sin internet */
   enLinea(){ return navigator.onLine !== false; },
   pintarNube(){
@@ -314,7 +315,7 @@ const Calc = {
     this._carga = new Promise(ok => {
       const f = $('#calcFrame');
       f.addEventListener('load', () => setTimeout(() => ok(this.win()), 60), { once:true });
-      f.src = 'calculadora.html?v=162';
+      f.src = 'calculadora.html?v=164';
     });
     return this._carga;
   },
