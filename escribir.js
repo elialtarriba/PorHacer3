@@ -22,7 +22,7 @@ const Escribir = {
     $('#esTexto').innerHTML = d.html || '';
     this.figs = JSON.parse(JSON.stringify(d.figs || [])); this.sel = null;
     this.pintarFigs(); this.contar();
-    requestAnimationFrame(() => this.migrar());
+    requestAnimationFrame(() => { this.migrar(); this.paginar(); });
   },
   // ¿está vacío? (sin título, sin texto, sin fotos ni figuras)
   vacio(d){ return !d || (!(d.titulo || '').trim() && !(d.figs || []).length && !/<img/i.test(d.html || '') && !(new DOMParser().parseFromString(d.html || '', 'text/html').body.textContent || '').replace(/[\s\u200b]/g, '')); },
@@ -33,16 +33,81 @@ const Escribir = {
     if(!silencio){ this.cargar(); setTimeout(() => $('#esTexto').focus(), 100); toast('📝 Escrito nuevo'); }
   },
   // se guarda solo mientras escribes
-  cambio(){ clearTimeout(this._t); if(!Voz.activo) $('#esEstado').textContent = '✏️ Escribiendo…'; this._t = setTimeout(() => this.guardarYa(), 700); this.contar(); },
+  cambio(){ clearTimeout(this._t); if(!Voz.activo) $('#esEstado').textContent = '✏️ Escribiendo…'; this._t = setTimeout(() => this.guardarYa(), 700); this.contar(); clearTimeout(this._tp); this._tp = setTimeout(() => this.paginar(), 120); },
   guardarYa(){
     clearTimeout(this._t);
     const l = this.lista(), d = l.find(x => x.id === this.id); if(!d || !$('#esTexto')) return;
-    const html = $('#esTexto').innerHTML, tit = $('#esTitulo').value.trim(), figs = JSON.stringify(this.figs || []);
+    const html = this.htmlLimpio(), tit = $('#esTitulo').value.trim(), figs = JSON.stringify(this.figs || []);
     if(d.html === html && (d.titulo || '') === tit && JSON.stringify(d.figs || []) === figs) { if(!Voz.activo) $('#esEstado').textContent = '✓ Guardado'; return; }
     d.html = html; d.titulo = tit; d.figs = JSON.parse(figs); d.cambiado = Date.now(); this.ponerLista(l);
     if(!Voz.activo) $('#esEstado').textContent = '✓ Guardado';
   },
-  contar(){ const t = ($('#esTexto').innerText || '').trim(); const n = t ? t.split(/\s+/).length : 0; $('#esCuenta').textContent = n + (n === 1 ? ' palabra' : ' palabras'); },
+  contar(){ const t = ($('#esTexto').innerText || '').trim(); const n = t ? t.split(/\s+/).length : 0; this._palabras = n + (n === 1 ? ' palabra' : ' palabras'); this.pintarPagina(); },
+
+  /* ---------- Páginas (como en Word): hojas A4 una debajo de otra, con su número ----------
+     El texto sigue siendo uno solo; si un párrafo no cabe al final de una hoja, pasa entero a la siguiente
+     (se le pone un margen «data-salto» que no se guarda). */
+  PAG_G: 22, PAG_M: 30, PAG_MB: 34,
+  medidas(){ const P = $('#esPapel'), W = P.clientWidth || 340; return { W, H:Math.round(W * 297 / 210), G:this.PAG_G }; },
+  htmlLimpio(){
+    const c = $('#esTexto').cloneNode(true);
+    c.querySelectorAll('[data-salto]').forEach(el => { el.style.marginTop = ''; el.removeAttribute('data-salto'); if(!el.getAttribute('style')) el.removeAttribute('style'); });
+    return c.innerHTML;
+  },
+  paginar(){
+    const T = $('#esTexto'), P = $('#esPapel'); if(!T || !P || !this.activa()) return;
+    const { W, H, G } = this.medidas(), paso = H + G, M = this.PAG_M, MB = this.PAG_MB;
+    T.querySelectorAll('[data-salto]').forEach(el => { el.style.marginTop = ''; el.removeAttribute('data-salto'); if(!el.getAttribute('style')) el.removeAttribute('style'); });
+    for(const el of T.children){
+      if(el.offsetHeight >= H - M - MB) continue;            // más alto que una hoja: no se puede mover
+      const top = el.offsetTop, bot = top + el.offsetHeight, k = Math.floor(top / paso), fin = k * paso + H - MB;
+      if(bot > fin){ const extra = (k + 1) * paso + M - top; const mt = parseFloat(getComputedStyle(el).marginTop) || 0; el.style.marginTop = (mt + extra) + 'px'; el.setAttribute('data-salto', ''); }
+    }
+    const rg = document.createRange(); rg.selectNodeContents(T); const rb = rg.getBoundingClientRect(), tb = T.getBoundingClientRect();
+    const alto = rb.height ? rb.bottom - tb.top : 0, n = Math.max(1, Math.ceil((alto + MB) / paso));   // hasta donde llega lo escrito (no el alto de la caja)
+    this._paginas = n; P.style.minHeight = (n * paso - G) + 'px';
+    const hs = $('#esHojas');
+    if(hs.childElementCount !== n || hs.dataset.h !== String(H)){ hs.dataset.h = H; hs.innerHTML = Array.from({ length:n }, (_, i) => `<div class="es-pag" style="top:${i * paso}px;height:${H}px"><span>${i + 1}</span></div>`).join(''); }
+    this.reglas(W, H, n);
+    this.pintarPagina();
+  },
+  paginaActual(){
+    const P = $('#esPapel'); if(!P) return 1; const { H, G } = this.medidas(), pr = P.getBoundingClientRect();
+    let y = null; const s = getSelection();
+    if(s.rangeCount && $('#esTexto').contains(s.anchorNode)){ const r = s.getRangeAt(0).getClientRects()[0] || (s.anchorNode.nodeType === 1 ? s.anchorNode.getBoundingClientRect() : s.anchorNode.parentElement.getBoundingClientRect()); if(r) y = r.top - pr.top; }
+    if(y == null){ const h = $('#esHoja').getBoundingClientRect(); y = h.top + h.height / 2 - pr.top; }
+    return Math.min(this._paginas || 1, Math.max(1, Math.floor(y / (H + G)) + 1));
+  },
+  pintarPagina(){ const c = $('#esCuenta'); if(!c) return; c.textContent = (this._palabras || '') + ' · Pág. ' + this.paginaActual() + ' de ' + (this._paginas || 1); },
+  /* ---------- Reglas en centímetros (arriba y al lado), se ponen y se quitan con «📏 Regla» ---------- */
+  reglaH(){ return lsGet('ph3-es-regla-h') === '1'; },
+  reglaV(){ return lsGet('ph3-es-regla-v') === '1'; },
+  reglas(W, H, n){
+    const rh = $('#esReglaH'), rv = $('#esReglaV'), cm = W / 21, mI = 18 / cm;   // margen del texto (18 px)
+    rh.hidden = !this.reglaH(); rv.hidden = !this.reglaV(); $('#esHoja').classList.toggle('con-regla-v', this.reglaV());
+    if(this.reglaH()){
+      let t = ''; for(let i = 0; i <= 42; i++){ const x = (i / 2) * cm, may = i % 2 === 0; t += `<line x1="${x.toFixed(1)}" y1="${may ? 9 : 14}" x2="${x.toFixed(1)}" y2="22"/>` + (may && i > 0 && i < 42 ? `<text x="${x.toFixed(1)}" y="8">${i / 2}</text>` : ''); }
+      rh.innerHTML = `<svg width="${W}" height="22" viewBox="0 0 ${W} 22"><rect x="0" y="0" width="${(mI * cm).toFixed(1)}" height="22" class="rg-mar"/><rect x="${(W - mI * cm).toFixed(1)}" y="0" width="${(mI * cm).toFixed(1)}" height="22" class="rg-mar"/>${t}</svg>`;
+      rh.style.width = W + 'px';
+    }
+    if(this.reglaV()){
+      const paso = H + this.PAG_G, cmV = H / 29.7; let t = '';
+      for(let p = 0; p < n; p++){ const y0 = p * paso;
+        t += `<rect x="0" y="${y0}" width="20" height="${H}" class="rg-fondo"/><rect x="0" y="${y0}" width="20" height="${this.PAG_M}" class="rg-mar"/><rect x="0" y="${y0 + H - this.PAG_MB}" width="20" height="${this.PAG_MB}" class="rg-mar"/>`;
+        for(let i = 0; i <= 59; i++){ const y = y0 + (i / 2) * cmV, may = i % 2 === 0; t += `<line x1="${may ? 9 : 14}" y1="${y.toFixed(1)}" x2="20" y2="${y.toFixed(1)}"/>` + (may && i > 0 && i < 58 ? `<text x="7" y="${(y + 3).toFixed(1)}">${i / 2}</text>` : ''); } }
+      const tot = n * paso - this.PAG_G;
+      rv.innerHTML = `<svg width="20" height="${tot}" viewBox="0 0 20 ${tot}">${t}</svg>`; rv.style.height = tot + 'px';
+    }
+  },
+  menuRegla(){
+    const p = popMio(`<h3 class="mp-h">📏 Reglas</h3>
+      <label class="check"><input type="checkbox" id="rgH" ${this.reglaH() ? 'checked' : ''}><span class="caja"></span><span>Regla de arriba<small>En centímetros, como en Word</small></span></label>
+      <label class="check"><input type="checkbox" id="rgV" ${this.reglaV() ? 'checked' : ''}><span class="caja"></span><span>Regla al lado de la hoja<small>Vuelve a empezar en cada página</small></span></label>
+      <div class="mp-fila"><button class="mp-b mp-pri" data-x>Listo</button></div>`);
+    const ok = () => { lsSet('ph3-es-regla-h', $('#rgH', p).checked ? '1' : null); lsSet('ph3-es-regla-v', $('#rgV', p).checked ? '1' : null); $('#esRegla').classList.toggle('on', this.reglaH() || this.reglaV()); this.paginar(); };
+    $('#rgH', p).onchange = ok; $('#rgV', p).onchange = ok;
+    p.querySelector('[data-x]').onclick = () => cerrarPopMio();
+  },
   tituloDe(d){ if(d.titulo) return d.titulo; const t = (new DOMParser().parseFromString(d.html || '', 'text/html').body.textContent || '').replace(/\u200b/g, '').trim(); return t ? t.slice(0, 40) + (t.length > 40 ? '…' : '') : 'Sin título'; },
 
   /* ---------- Formato: cada botón se enciende (verde) y se apaga ---------- */
@@ -469,13 +534,19 @@ const Escribir = {
     const d = this.actual(); if(!d) return false;
     if(this.vacio(d)){ toast('La hoja está vacía: no hay nada que guardar'); return false; }
     this.sel = null; this.pintarSel();
-    const nom = (this.tituloDe(d) || 'Escrito').replace(/[\\/:*?"<>|…]/g, '').trim().slice(0, 50) || 'Escrito';
+    const limpio = t => (t || '').replace(/[\\/:*?"<>|…]/g, '').replace(/\.docx$/i, '').trim().slice(0, 60);
+    const nom0 = limpio(this.tituloDe(d)) || 'Escrito';
+    // nombre del archivo: se puede cambiar antes de guardar
+    const nom = await popup({ tit:'📄 Guardar como .docx', html:`<p style="margin:0 0 8px">¿Cómo se llama el archivo?</p><div class="es-nomarch"><input id="esNomArch" value="${esc(nom0)}" maxlength="60" autocomplete="off" enterkeyhint="done"><span>.docx</span></div>`,
+      botones:[{ txt:'Cancelar', val:null }, { txt:'📄 Guardar', cls:'btn-pri', val:c => limpio($('#esNomArch', c).value) || nom0 }],
+      alAbrir:c => { const i = $('#esNomArch', c); setTimeout(() => { i.focus(); i.select(); }, 250); i.onkeydown = e => { if(e.key === 'Enter') $('#popBtns .btn-pri').click(); }; } });
+    if(!nom) return false;
     const blob = new Blob([DocxSimple.crear(nom, $('#esTexto'), this.figs, $('#esPapel'))], { type:'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
     const archivo = nom + '.docx';
     try{
       const f = new File([blob], archivo, { type:blob.type });
       if(navigator.canShare && navigator.canShare({ files:[f] }) && /iPhone|iPad|Android/i.test(navigator.userAgent)){
-        await navigator.share({ files:[f], title:nom }); this.quitarGuardado(d, archivo); return true; }
+        await navigator.share({ files:[f] }); this.quitarGuardado(d, archivo); return true; }   // solo el archivo (con «title» el iPhone guardaba también un .txt)
     }catch(e){ if(e && e.name === 'AbortError'){ toast('No se ha guardado: el escrito sigue aquí'); return false; } }
     descargar(blob, archivo); this.quitarGuardado(d, archivo); return true;
   },
@@ -527,6 +598,11 @@ const Escribir = {
     $('#esTam').onchange = ev => { if(ev.target.value){ this.restaurarCursor(); this.cmd('tam', ev.target.value); } ev.target.value = ''; };
     $('#esMis').onclick = () => this.misEscritos();
     $('#esAbrir').onclick = () => this.elegirArchivo();
+    $('#esRegla').onclick = () => this.menuRegla(); $('#esRegla').classList.toggle('on', this.reglaH() || this.reglaV());
+    addEventListener('resize', () => { clearTimeout(this._tp); this._tp = setTimeout(() => this.paginar(), 200); });
+    $('#esHoja').addEventListener('scroll', () => { if(!this._tpp){ this._tpp = requestAnimationFrame(() => { this._tpp = null; this.pintarPagina(); }); } }, { passive:true });
+    document.addEventListener('selectionchange', () => { if(this.activa()) this.pintarPagina(); });
+    e.addEventListener('load', () => this.paginar(), true);   // las fotos, al cargarse, cambian el alto
     $('#esSalir').onclick = () => this.salir();
     $('#esDocx').onclick = () => this.docx();
     $('#esMic').addEventListener('mousedown', ev => ev.preventDefault());   // que no se pierda el cursor

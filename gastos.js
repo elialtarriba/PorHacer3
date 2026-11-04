@@ -5,7 +5,7 @@
    Se guarda con los Tickets (misma colección, tipo «gasto»), así va a la nube y a las copias. */
 
 const Gastos = {
-  COLORES: [['', 'Sin color', 'transparent'], ['amarillo', 'Amarillo', '#f2c418'], ['naranja', 'Naranja', '#f08a1a'], ['verde', 'Verde', '#3fae5a'], ['azul', 'Azul', '#2f80ed'], ['rosa', 'Rosa', '#e84898']],
+  COLORES: [['', 'Sin color', 'transparent'], ['amarillo', 'Amarillo', '#f2c418'], ['naranja', 'Naranja', '#f08a1a'], ['verde', 'Verde', '#3fae5a'], ['azul', 'Azul', '#2f80ed'], ['rosa', 'Rosa', '#e84898'], ['marronclaro', 'Marrón claro', '#c49a6c'], ['lima', 'Lima', '#a3cf3e'], ['rosapastel', 'Rosa pastel', '#f4b3cf']],
   q: '', filtro: '', editando: null,
 
   /* ---------- Datos ---------- */
@@ -15,7 +15,7 @@ const Gastos = {
   /* Pestañas (por ejemplo, los 12 meses): cada nota es de una pestaña; las de antes, de la primera */
   tabs(){ return this.meta().tabs || []; },
   tabDe(x){ const ts = this.tabs(); return x.tab && ts.some(t => t.id === x.tab) ? x.tab : (ts[0] ? ts[0].id : ''); },
-  tabActiva(){ const ts = this.tabs(), a = lsGet('ph3-gx-tab'); return ts.some(t => t.id === a) ? a : (ts[0] ? ts[0].id : ''); },
+  tabActiva(){ const ts = this.tabs(), a = lsGet('ph3-gx-tab'); const r = ts.some(t => t.id === a) ? a : (ts[0] ? ts[0].id : ''); if(r && r !== a) lsSet('ph3-gx-tab', r); return r; },
   deTab(){ const a = this.tabActiva(); return this.todos().filter(x => !a || this.tabDe(x) === a); },
   uno(id){ const x = this._uno(id); return x && x.tipo === 'gasto' ? x : null; },
   async poner(x){ x.cambiado = Date.now(); await this._poner(x.id, x); },
@@ -124,8 +124,9 @@ const Gastos = {
     const ids = Mio.todos('gastos').map(x => x.id), fs = Object.keys(Mio.datos.fotos || {}).filter(k => (Mio.datos.fotos[k] || {}).de === 'gastos');
     this._olvidar(); for(const id of ids) await Mio.quitar('gastos', id); await Mio.quitarFotos(fs); lsSet('ph3-gx-nombre', null);
   },
+  global(){ return !!(this.q.trim() || this.filtro); },   // buscando o filtrando: se ven las notas de todas las pestañas
   ordenados(){
-    const q = norm(this.q.trim()), t = q ? this.todos() : this.deTab();   // al buscar: en todas las pestañas
+    const q = norm(this.q.trim()), t = (q || this.filtro) ? this.todos() : this.deTab();   // al buscar o filtrar por color: en todas las pestañas
     const ok = x => (!this.filtro || x.color === this.filtro) && (!q || norm((x.texto || '') + ' ' + this.importes(x).map(i => dinero(i.imp)).join(' ')).includes(q));
     const pend = t.filter(x => !x.ok && ok(x)).sort((a, b) => (b.orden || b.creado || 0) - (a.orden || a.creado || 0));
     const hechos = t.filter(x => x.ok && ok(x)).sort((a, b) => (b.hecho || 0) - (a.hecho || 0));
@@ -144,10 +145,10 @@ const Gastos = {
           <button class="gx-mas" data-nueva aria-label="Añadir una nota">＋</button>
         </div>
         <div class="gx-buscar gx-buscar-arriba"><span>🔍</span><input id="gxQ" type="search" placeholder="Buscar en todas las pestañas…" autocomplete="off" enterkeyhint="search"></div>
-        <div class="gx-tabs" id="gxTabs"></div>
-        <div class="gx-filtros">
+        <div class="gx-filtros gx-filtros-arriba">
           <div class="gx-cols" id="gxCols"></div>
         </div>
+        <div class="gx-tabs" id="gxTabs"></div>
         <div class="gx-total" id="gxTotal" hidden></div>
         <div class="gx-cuerpo" id="gxCuerpo"></div>`;
       document.body.appendChild(v);
@@ -169,7 +170,7 @@ const Gastos = {
     const box = $('#gxTabs'), ia = ts.findIndex(t => t.id === a);
     box.style.setProperty('--tca', ia >= 0 ? this.colorTab(ts[ia], ia) : 'var(--line)');
     box.innerHTML = ts.map((t, i) => `<button class="gx-tab ${t.id === a ? 'on' : ''}" data-tab="${t.id}" style="--tc:${this.colorTab(t, i)};z-index:${t.id === a ? 50 : ts.length - i}">${esc(t.nombre)}${n(t.id) ? `<small>${n(t.id)}</small>` : ''}${t.id === a ? '<em>▾</em>' : ''}</button>`).join('')
-      + `<button class="gx-tab gx-tab-mas" data-tabnueva>＋ ${ts.length ? 'Pestaña' : 'Crear pestañas'}</button>`;
+      + `<button class="gx-tab gx-tab-mas" data-tabnueva>＋ ${ts.length ? 'Pestaña' : 'Crear pestañas'}</button>` + (ts.length ? '<button class="gx-tab gx-tab-mas" data-tabcolores>🎨 Colores</button>' : '');
     const on = $('#gxTabs .gx-tab.on'); if(on && !this._tabVisto){ on.scrollIntoView({ inline:'center', block:'nearest' }); this._tabVisto = true; }
   },
   /* Mover pestañas: mantener pulsada un momento (se levanta), arrastrar y soltar. El orden se guarda.
@@ -219,16 +220,24 @@ const Gastos = {
     document.addEventListener('mouseup', () => { if(drag || tm) soltar(); });
     box.addEventListener('contextmenu', e => { if(e.target.closest('.gx-tab')) e.preventDefault(); });
   },
-  async colorDeTab(id){
+  // 🎨 Colores: todas las pestañas, para cambiar el color de cada una
+  coloresTabs(){
+    const ts = this.tabs();
+    const p = popMio(`<h3 class="mp-h">🎨 Colores de las pestañas</h3><p class="mp-p">Toca una pestaña para elegir su color.</p>
+      <div class="gx-mc-tabs">${ts.map((t, i) => `<button data-ct="${t.id}" style="--tc:${this.colorTab(t, i)}"><span>📑 ${esc(t.nombre)}</span><small>${t.color ? (this.TAB_COLS.find(c => c[0] === t.color) || ['', 'Elegido'])[1] : 'Automático'}</small></button>`).join('')}</div>
+      <div class="mp-fila"><button class="mp-b mp-pri" data-x>Listo</button></div>`);
+    p.onclick = e => { const b = e.target.closest('button'); if(!b) return; if(b.dataset.ct){ this.colorDeTab(b.dataset.ct, true); } else cerrarPopMio(); };
+  },
+  async colorDeTab(id, volver){
     const ts = this.tabs(), i = ts.findIndex(x => x.id === id); if(i < 0) return;
     const act = this.colorTab(ts[i], i);
     const p = popMio(`<h3 class="mp-h">🎨 Color de «${esc(ts[i].nombre)}»</h3>
       <div class="gx-tcols">${this.TAB_COLS.map(([c, n]) => `<button data-c="${c}" class="${c === act ? 'on' : ''}" style="--tc:${c}" title="${n}"><i></i><span>${n}</span></button>`).join('')}</div>
       <div class="mp-fila"><button class="mp-b" data-c="auto">Automático</button><button class="mp-b mp-pri" data-c="x">Listo</button></div>`);
-    p.onclick = async e => { const b = e.target.closest('[data-c]'); if(!b) return; const c = b.dataset.c; cerrarPopMio(); if(c === 'x') return;
+    p.onclick = async e => { const b = e.target.closest('[data-c]'); if(!b) return; const c = b.dataset.c; cerrarPopMio(); if(c === 'x'){ if(volver) this.coloresTabs(); return; }
       const m = this.meta(), t2 = [...(m.tabs || [])], j = t2.findIndex(x => x.id === id); if(j < 0) return;
       t2[j] = { ...t2[j] }; if(c === 'auto') delete t2[j].color; else t2[j].color = c;
-      m.tabs = t2; await this._poner(m.id, m); this.pintarTabs(); toast('🎨 Color cambiado', null, null, 1000); };
+      m.tabs = t2; await this._poner(m.id, m); this.pintarTabs(); toast('🎨 Color cambiado', null, null, 1000); if(volver) this.coloresTabs(); };
   },
   pedirNombreTab(tit, val){
     return new Promise(ok => {
@@ -287,7 +296,7 @@ const Gastos = {
       } };
   },
   pintarCols(){
-    const n = c => this.deTab().filter(x => !x.ok && (x.color || '') === c).length;
+    const n = c => this.todos().filter(x => !x.ok && (x.color || '') === c).length;   // en todas las pestañas
     $('#gxCols').innerHTML = `<button data-f="" class="${!this.filtro ? 'on' : ''}">Todas</button>` + this.COLORES.slice(1).map(([c, t, h]) =>
       `<button data-f="${c}" class="${this.filtro === c ? 'on' : ''}" aria-label="${t}"><i style="background:${h}"></i>${n(c) || ''}</button>`).join('');
   },
@@ -311,11 +320,11 @@ const Gastos = {
     const ed = this.editando === x.id, S = this.sumas(x);
     const tots = S.n >= 2 ? `<div class="gx-tots"><small>Total ${dinero(S.todo)}</small><b>${dinero(S.pend)}</b></div>` : '';
     const fondo = x.fondo && x.color ? ` gx-fondo" style="--gxf:${c[2]}` : '';
-    return `<div class="desl-fila gx-fila ${x.ok ? 'ok' : ''} ${ed ? 'ed' : ''}${fondo}" data-id="${x.id}"><div class="desl-del"><span>🗑 Eliminar</span></div>
+    return `<div class="desl-fila gx-fila ${x.ok ? 'ok' : ''} ${ed ? 'ed' : ''}${fondo}" data-id="${x.id}"><div class="desl-del"><span>🗑 Eliminar</span></div><div class="desl-der"><span>↔️ Mover / copiar</span></div>
       <div class="desl-cara gx-cara">
         <button class="gx-check" data-check aria-label="${x.ok ? 'Desmarcar' : 'Marcar como hecha'}"></button>
         <div class="gx-cont">
-          ${tots}${this.q.trim() && this.tabs().length ? (tb => tb ? `<span class="gx-tabde" style="--tc:${this.colorTab(tb, this.tabs().indexOf(tb))}">📑 ${esc(tb.nombre)}</span>` : '')(this.tabs().find(t => t.id === this.tabDe(x))) : ''}
+          ${tots}${this.global() && this.tabs().length ? (tb => tb ? `<span class="gx-tabde" style="--tc:${this.colorTab(tb, this.tabs().indexOf(tb))}">📑 ${esc(tb.nombre)}</span>` : '')(this.tabs().find(t => t.id === this.tabDe(x))) : ''}
           ${ed ? `<div class="gx-erow ${x.okTit ? 'tach' : ''}"><textarea class="gx-t1" id="gxT1" rows="1" placeholder="¿Qué es?" enterkeyhint="next">${esc(tit)}</textarea>
                  <label class="gx-impw"><input class="gx-imp-in" id="gxImp" inputmode="decimal" enterkeyhint="next" placeholder="0,00" value="${x.importe != null ? x.importe.toFixed(2).replace('.', ',') : ''}" autocomplete="off"><span>€</span></label>
                  <button class="gx-tick ${x.okTit ? 'on' : ''}" data-etick id="gxTickT" aria-label="Marcar (tachar)" ${x.importe == null ? 'hidden' : ''}>${x.okTit ? '✓' : ''}</button></div>
@@ -344,16 +353,40 @@ const Gastos = {
     if(!$('#gx')) return;
     const c = $('#gxCuerpo'), sc = c.scrollTop, { pend, hechos } = this.ordenados(), total = this.deTab().length;
     this.pintarTabs(); this.pintarCols();
-    const busc = !!this.q.trim(), nRes = pend.length + hechos.length;
-    c.innerHTML = (busc ? `<p class="gx-bus-pista">🔎 ${nRes ? nRes + (nRes === 1 ? ' nota' : ' notas') + ' en todas las pestañas · toca una para ir a ella' : 'No hay ninguna nota con esto en ninguna pestaña'}</p>` : '')
-      + (pend.length ? pend.map(x => this.fila(x)).join('') : busc ? '' : `<p class="gx-nada">${total ? 'No hay notas con esto.' : 'Pulsa <b>＋</b> para añadir tu primera nota.'}</p>`)
+    const busc = this.global(), nRes = pend.length + hechos.length, tb = this.tabs().find(t => t.id === this.tabActiva());
+    const queBusca = [this.q.trim() ? '«' + esc(this.q.trim()) + '»' : '', this.filtro ? 'color ' + esc(this.color(this.filtro)[1].toLowerCase()) : ''].filter(Boolean).join(' y ');
+    c.innerHTML = (busc ? `<p class="gx-bus-pista">🔎 ${nRes ? nRes + (nRes === 1 ? ' nota' : ' notas') + ' con ' + queBusca + ' en todas las pestañas · toca una para ir a ella' : 'No hay ninguna nota con ' + queBusca + ' en ninguna pestaña'}</p>` : '')
+      + pend.map(x => this.fila(x)).join('')
       + (hechos.length ? `<div class="gx-sep">✓ Hechas · ${hechos.length}</div>` + hechos.map(x => this.fila(x)).join('') : '')
-      + (total ? '<p class="desl-pista">👈 Desliza una nota a la izquierda para eliminarla</p>' : '');
+      + (busc ? '' : `<button class="gx-nada gx-nueva-abajo" data-nueva>Pulsa <b>＋</b> para añadir ${total ? 'otra nota' : 'tu primera nota'}${tb ? ' en «' + esc(tb.nombre) + '»' : ''}</button>`)
+      + (total || busc ? '<p class="desl-pista">👈 Desliza una nota a la izquierda para eliminarla · a la derecha 👉 para moverla o copiarla</p>' : '');
     c.scrollTop = sc;
     $$('#gxCuerpo textarea').forEach(t => this.auto(t));
     // arriba: la suma de todo lo que se ve y lo que falta (lo no tachado de las notas sin hacer)
     const vis = [...pend, ...hechos], todo = vis.reduce((a, x) => a + this.sumas(x).todo, 0), falta = pend.reduce((a, x) => a + this.sumas(x).pend, 0), hay = vis.some(x => this.sumas(x).n);
     const tt = $('#gxTotal'); if(tt){ tt.hidden = !hay; tt.innerHTML = hay ? `Total: <b>${dinero(todo)}</b>${falta !== todo ? ` · sin tachar: <b>${dinero(falta)}</b>` : ''}` : ''; }
+  },
+  // deslizar una nota a la derecha: moverla o copiarla a otra pestaña
+  moverCopiar(id){
+    const x = this.uno(id); if(!x) return;
+    const ts = this.tabs(); if(!ts.length){ toast('Crea antes alguna pestaña (＋ Pestaña)'); return; }
+    let modo = 'mover';
+    const p = popMio(`<h3 class="mp-h">↔️ «${esc(this.titulo(x) || 'Nota')}»</h3>
+      <div class="seg gx-mc-seg"><button data-modo="mover" class="on">↔️ Trasladar a</button><button data-modo="copiar">⧉ Copiar a</button></div>
+      <p class="mp-p" id="gxMcAyuda" style="margin:8px 2px">La nota se va a la pestaña que elijas.</p>
+      <div class="gx-mc-tabs">${ts.map((t, i) => `<button data-to="${t.id}" style="--tc:${this.colorTab(t, i)}" ${t.id === this.tabDe(x) ? 'class="actual"' : ''}><span>📑 ${esc(t.nombre)}</span>${t.id === this.tabDe(x) ? '<small>Ahora está aquí</small>' : ''}</button>`).join('')}</div>
+      <div class="mp-fila"><button class="mp-b" data-x>Cancelar</button></div>`);
+    p.onclick = async e => {
+      const b = e.target.closest('button'); if(!b) return;
+      if(b.dataset.modo){ modo = b.dataset.modo; $$('[data-modo]', p).forEach(o => o.classList.toggle('on', o === b)); $('#gxMcAyuda', p).textContent = modo === 'mover' ? 'La nota se va a la pestaña que elijas.' : 'Se hace una copia en la pestaña que elijas; la nota sigue aquí.'; return; }
+      if('x' in b.dataset){ cerrarPopMio(); return; }
+      const to = b.dataset.to; if(!to) return;
+      const tn = (ts.find(t => t.id === to) || {}).nombre || '';
+      if(modo === 'mover'){ if(to === this.tabDe(x)){ toast('Ya está en «' + tn + '»'); return; } cerrarPopMio(); x.tab = to; x.orden = Date.now(); await this.poner(x); this.pintar(); toast('↔️ Trasladada a «' + tn + '»', 'Ir', () => { lsSet('ph3-gx-tab', to); this.pintar(); }, 5000); }
+      else { cerrarPopMio(); const c = JSON.parse(JSON.stringify(x)); c.id = 'gx_' + nuevoId('g'); c.tab = to; c.creado = c.orden = Date.now(); c.fotos = [];
+        for(const f of x.fotos || []){ const src = this.fotoSrc(f); if(src) c.fotos.push(await this.ponerFoto(src)); }
+        await this.poner(c); this.pintar(); toast('⧉ Copiada a «' + tn + '»', 'Ir', () => { lsSet('ph3-gx-tab', to); this.pintar(); }, 5000); }
+    };
   },
   // desde la búsqueda: ir a la pestaña de la nota, quitar la búsqueda y señalarla
   irANota(id){
@@ -370,7 +403,7 @@ const Gastos = {
   async nueva(){
     await this.guardarEdicion();
     const x = { id:'gx_' + nuevoId('g'), tipo:'gasto', texto:'', lineas:[], ok:false, color:'', fotos:[], creado:Date.now(), orden:Date.now() };
-    const tb = this.tabActiva(); if(tb) x.tab = tb;
+    const vis = $('#gxTabs .gx-tab.on'), tb = (vis && vis.dataset.tab) || this.tabActiva(); if(tb){ x.tab = tb; lsSet('ph3-gx-tab', tb); }   // en la pestaña que se ve
     await this.poner(x);
     this.q = ''; $('#gxQ').value = ''; this.filtro = '';
     this.editar(x.id); $('#gxCuerpo').scrollTop = 0;
@@ -440,20 +473,25 @@ const Gastos = {
     x.ok = !x.ok; x.hecho = x.ok ? Date.now() : null; if(!x.ok) x.orden = Date.now();
     await this.poner(x); this.pintar();
   },
-  /* La banderita: dos toques seguidos = cambia de color · mantener pulsada = toda la nota de ese color (otra vez = blanca) */
+  /* La banderita: al tocarla salen los colores; se elige uno y, si quieres, «toda la nota de color» */
   banderaTap(id){
-    if(this._bLong) return;
-    const ahora = Date.now();
-    clearTimeout(this._bHint);
-    if(this._bTap && this._bTap.id === id && ahora - this._bTap.t < 450){ this._bTap = null; this.bandera(id, 'color'); return; }
-    this._bTap = { id, t:ahora };
-    this._bHint = setTimeout(() => { this._bTap = null; toast('🚩 Dos toques: cambiar el color · Mantener pulsada: toda la nota de color', null, null, 2400); }, 470);
+    const x = this.uno(id); if(!x) return;
+    const pal = $('#gxPaleta'); if(pal){ pal.remove(); return; }
+    const herr = $(`#gxCuerpo .gx-fila[data-id="${id}"] .gx-herr`); if(!herr) return;
+    const d = document.createElement('div'); d.className = 'gx-paleta'; d.id = 'gxPaleta';
+    d.innerHTML = this.COLORES.map(([k, n, h]) => `<button data-pcol="${k}" class="${(x.color || '') === k ? 'on' : ''}" aria-label="${n}" title="${n}"><i style="background:${h === 'transparent' ? '#fff' : h}">${k ? '' : '✕'}</i></button>`).join('')
+      + `<label class="gx-pfondo"><input type="checkbox" id="gxPFondo" ${x.fondo && x.color ? 'checked' : ''}><span>🎨 Toda la nota de color</span></label>`;
+    herr.after(d);
+    d.addEventListener('pointerdown', e => { if(e.target.closest('button')) e.preventDefault(); });
+    d.onclick = async e => { const b = e.target.closest('[data-pcol]'); if(!b) return; await this.bandera(id, 'poner', b.dataset.pcol); $$('[data-pcol]', d).forEach(o => o.classList.toggle('on', o === b)); };
+    $('#gxPFondo', d).onchange = async ev => { const y = this.uno(id); if(!y) return; if(!y.color){ ev.target.checked = false; toast('Primero elige un color'); return; } if(!!y.fondo !== ev.target.checked) await this.bandera(id, 'fondo'); };
   },
-  async bandera(id, que){
+  async bandera(id, que, col){
     const x = this.uno(id); if(!x) return;
     this.aplicar(x, this.leerCampos(x));
     let msg;
-    if(que === 'fondo'){
+    if(que === 'poner'){ x.color = col || ''; if(!x.color) x.fondo = false; msg = x.color ? '🚩 ' + this.color(x.color)[1] : 'Sin color'; }
+    else if(que === 'fondo'){
       if(!x.color){ x.fondo = false; msg = 'Primero elige un color (dos toques en la banderita)'; }
       else { x.fondo = !x.fondo; msg = x.fondo ? '🎨 Toda la nota en ' + this.color(x.color)[1].toLowerCase() : 'La nota vuelve a ser blanca'; }
     } else {
@@ -532,7 +570,7 @@ const Gastos = {
       else if('check' in d) this.marcar(id);
       else if(d.tachar !== undefined) this.tachar(id, d.tachar);
       else if('etick' in d){ b.classList.toggle('on'); b.textContent = b.classList.contains('on') ? '✓' : ''; b.closest('.gx-lrow, .gx-erow').classList.toggle('tach', b.classList.contains('on')); }
-      else if('editar' in d){ await this.guardarEdicion(); if(this.q.trim()) this.irANota(id); else this.editar(id); }
+      else if('editar' in d){ await this.guardarEdicion(); if(this.global()) this.irANota(id); else this.editar(id); }
       else if('bandera' in d) this.banderaTap(id);
       else if('intro' in d){ const f = this.foco(); if(f) this.teclas({ key:'Enter', target:f, preventDefault(){} }); }
       else if('foto' in d) this.foto(id);
@@ -542,6 +580,7 @@ const Gastos = {
       else if('lista' in d) this.lista();
       else if(d.tab){ if(this._noClick) return; await this.guardarEdicion(); if(d.tab === this.tabActiva()) this.opcionesTab(d.tab); else { lsSet('ph3-gx-tab', d.tab); this.pintar(); } }
       else if('tabnueva' in d) this.nuevaTab();
+      else if('tabcolores' in d) this.coloresTabs();
       else if(d.quitarfoto) this.quitarFoto(id, d.quitarfoto);
       else if('listo' in d){ await this.guardarEdicion(); this.pintar(); }
     });
@@ -552,16 +591,11 @@ const Gastos = {
     c.addEventListener('focusin', e => { if(e.target.closest('.gx-fila.ed') && /TEXTAREA|INPUT/.test(e.target.tagName)) this._focoEl = e.target; });
     c.addEventListener('focusout', e => { if(e.target.id === 'gxImp' || e.target.classList.contains('gx-limp')) this.formatoImp(e.target); });
     c.addEventListener('keydown', e => this.teclas(e));
-    // mantener pulsada la banderita: toda la nota de color
-    const finLargo = () => { clearTimeout(this._bLT); if(this._bLong) setTimeout(() => { this._bLong = false; }, 450); };
-    c.addEventListener('pointerdown', e => { const b = e.target.closest('.gx-band'); if(!b) return; const id = b.closest('.gx-fila').dataset.id; clearTimeout(this._bLT);
-      this._bLT = setTimeout(() => { this._bLong = true; this._bTap = null; clearTimeout(this._bHint); try{ navigator.vibrate && navigator.vibrate(15); }catch(x){} this.bandera(id, 'fondo'); }, 520); });
-    ['pointerup', 'pointercancel', 'pointerleave'].forEach(ev => c.addEventListener(ev, e => { if(e.target.closest && e.target.closest('.gx-band')) finLargo(); }));
     c.addEventListener('contextmenu', e => { if(e.target.closest('.gx-band')) e.preventDefault(); });
     // los botones de debajo de la nota no quitan el cursor del texto (así el teclado no se esconde)
     c.addEventListener('pointerdown', e => { const b = e.target.closest('.gx-herr button'); if(b && !b.matches('[data-listo],[data-foto]')) e.preventDefault(); });
     c.addEventListener('mousedown', e => { if(e.target.closest('.gx-herr button')) e.preventDefault(); });
-    deslizarBorrar(c, id => this.borrar(id));
+    deslizarBorrar(c, id => this.borrar(id), { alDerecha: id => this.moverCopiar(id) });
     const q = $('#gxQ', v); q.oninput = () => { this.q = q.value; this.pintar(); };
     const t = $('#gxTit', v); t.onchange = () => this.renombrar(); t.onkeydown = e => { if(e.key === 'Enter') t.blur(); };
     document.addEventListener('keydown', e => { if(e.key === 'Escape' && this.abierto() && !$('#mioPop') && !$('.vfg')) this.cerrar(); });

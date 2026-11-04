@@ -91,7 +91,7 @@ const Portada = {
     $('#poSaludo').textContent = this.saludo();
     const agHoy = Mio.uno('agenda', hoyIso()), nNotas = agHoy ? (agHoy.items || []).filter(i => !i.hecha).length : 0;
     const tHoy = App.tareas.filter(t => { if(colDe(t.colId).hecha) return false; const r = rango(t); return r && r[0] <= hoyIso() && hoyIso() <= r[1]; }).length;
-    $('#poHoy').innerHTML = `
+    const hHoy = `
       <button class="po-nube po-nube2" data-nube aria-label="Conexión"></button>
       <div class="po-hoy-izq"><span class="po-dia"><b>${d.getDate()}</b><span>${MESES_C[d.getMonth()].slice(0, 3)}</span></span>
       <div class="po-hoy-tx"><b>${capital(DIAS[d.getDay()])}</b><small>${d.getDate()} de ${MESES[d.getMonth()]} de ${d.getFullYear()}</small>
@@ -101,6 +101,7 @@ const Portada = {
         </div></div></div>
       <div class="po-reloj po-reloj2" aria-label="Reloj del mundo" role="button" title="Toca para elegir el país">${this.svgReloj('pw')}<span class="po-rel-n" id="pwNom"></span></div>
       <div class="po-reloj po-reloj1" aria-label="Reloj">${this.svgReloj('po')}<span class="po-rel-n">Aquí</span></div>`;
+    if(hHoy !== this._hHoy){ $('#poHoy').innerHTML = hHoy; this._hHoy = hHoy; }   // solo si ha cambiado algo (si no, las baldosas «parpadean»)
     this.pintarNube();
     const r2 = $('#poHoy .po-reloj2'); if(r2) r2.onclick = () => this.elegirZona();
     this.reloj();
@@ -129,12 +130,20 @@ const Portada = {
         <b>${esc(S.k.startsWith('web') ? Webs.nombre(S.k) : S.k === 'escribir' ? Escribir.nombre() : S.t)}</b><small>${esc(this.info(S.k))}</small>
         <span class="po-flecha">›</span>
       </button>`)(this.SECC.find(x => x.k === k));
-    g.innerHTML = this.orden().map(baldosa).join('');
+    const hRej = this.orden().map(baldosa).join('');
+    if(hRej !== this._hRej || !g.children.length){
+      const tpl = document.createElement('div'); tpl.innerHTML = hRej;
+      const viejas = [...g.children].map(x => x.dataset.k).join(), nuevas = [...tpl.children].map(x => x.dataset.k).join();
+      if(viejas === nuevas && g.children.length){   // mismas baldosas: solo se cambian los textos (sin volver a animarlas)
+        [...tpl.children].forEach((n, i) => { const o = g.children[i]; ['b', 'small'].forEach(t => { const a = $(t, o), b2 = $(t, n); if(a && b2 && a.innerHTML !== b2.innerHTML) a.innerHTML = b2.innerHTML; }); });
+      } else g.innerHTML = hRej;
+      this._hRej = hRej;
+    }
     $('#poCajaSitio').innerHTML = '';
     $$('#vPortada [data-ir]').forEach(b => b.onclick = e => { if(Date.now() - (this._soltado || 0) < 600) return; if(b.dataset.ir === 'teams') Teams.nueva(); else if(b.dataset.ir.startsWith('web')) Webs.abrir(b.dataset.ir); else if(b.dataset.ir === 'manual') abrirManual(); else if(b.dataset.ir === 'guardar') Ajustes.abrir('donde'); else this.entrarEn(b.dataset.ir, b); });
     $('#vPortada [data-conf]').onclick = e => { if(Date.now() - (this._soltado || 0) < 600) return; const b = e.currentTarget; b.classList.add('girando'); setTimeout(() => { b.classList.remove('girando'); Ajustes.abrir(); }, 420); };
     const bc = $('#vPortada [data-bloc]'); if(bc) bc.onclick = () => { if(Date.now() - (this._soltado || 0) < 600) return; this.abrirCaja(bc); };
-    if(entrar){ const v = $('#vPortada'); v.classList.remove('entra'); void v.offsetWidth; v.classList.add('entra'); }
+    if(entrar){ const v = $('#vPortada'); v.classList.remove('entra'); void v.offsetWidth; v.classList.add('entra'); clearTimeout(this._tEntra); this._tEntra = setTimeout(() => v.classList.remove('entra'), 1600); }   // la animación de entrada, una sola vez
   },
   /* ---------- Orden de las baldosas (mantener pulsado y arrastrar) ---------- */
   orden(){
@@ -315,7 +324,7 @@ const Calc = {
     this._carga = new Promise(ok => {
       const f = $('#calcFrame');
       f.addEventListener('load', () => setTimeout(() => ok(this.win()), 60), { once:true });
-      f.src = 'calculadora.html?v=166';
+      f.src = 'calculadora.html?v=167';
     });
     return this._carga;
   },

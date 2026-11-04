@@ -78,7 +78,8 @@ const Sitios = {
       html += hijos.map(x => `<div class="st-fila sitio" data-abrir="${x.id}"><div class="st-ico">${this.icoHtml(x)}</div><div class="st-tx"><b>${esc(x.nombre)}</b><small>${this.meta(x.id)}</small></div><button class="st-mas" data-menusitio="${x.id}" aria-label="Opciones">⋯</button><span class="st-chev">›</span></div>`).join(''); }
     if(cosas.length){ html += '<div class="st-sec">Cosas</div>';
       html += cosas.map(([cid, c]) => { const f = (c.fotos || []).map(x => Mio.foto(x)).filter(Boolean);
-        return `<div class="st-fila cosa" id="cosa-${cid}" data-cosa="${cid}"><div class="st-thumb">${f.length ? `<img src="${f[0]}" alt="" data-grande>` : '<span class="st-pto"></span>'}</div><div class="st-tx"><b>${c.texto ? esc(c.texto) : 'Foto'}</b>${f.length > 1 ? `<small>${f.length} fotos</small>` : ''}</div><button class="st-mas" data-cosa="${cid}" aria-label="Opciones">⋯</button></div>`; }).join(''); }
+        return `<div class="desl-fila st-dfila" data-id="${cid}"><div class="desl-del"><span>🗑 Eliminar</span></div><div class="desl-der"><span>↔️ Mover</span></div><div class="desl-cara st-fila cosa" id="cosa-${cid}" data-cosa="${cid}"><div class="st-thumb">${f.length ? `<img src="${f[0]}" alt="" data-grande>` : '<span class="st-pto"></span>'}</div><div class="st-tx"><b>${c.texto ? esc(c.texto) : 'Foto'}</b>${f.length > 1 ? `<small>${f.length} fotos</small>` : ''}</div><button class="st-mas" data-cosa="${cid}" aria-label="Opciones">⋯</button></div></div>`; }).join('')
+        + '<p class="desl-pista">👈 Desliza una cosa a la izquierda para eliminarla · a la derecha 👉 para moverla</p>'; }
     html += '</div>';
     $('#stCuerpo').innerHTML = html;
     $('#stBarra').innerHTML = `<button class="st-add sitio" data-nuevositio>＋ Sitio</button>${cur ? '<button class="st-add cosa" data-nuevacosa>＋ Cosa</button>' : '<button class="st-add otra" data-otracasa>🏠 Otra casa</button>'}`;
@@ -210,23 +211,77 @@ const Sitios = {
   copia(id){ const x = JSON.parse(JSON.stringify(this.s(id))); x.cosas = x.cosas || {}; return x; },
 
   /* ---------- Añadir cosas ---------- */
+  // Añadir una cosa: nombre y fotos (que se ven antes); no se guarda nada hasta pulsar «Guardar»
   nuevaCosa(){
     const rid = this.camino[this.camino.length - 1]; if(!rid) return;
+    const fotos = [];   // imágenes ya aligeradas, aún sin guardar
     const hj = hojaMio(`Añadir a ${esc(this.s(rid).nombre)}`, `
-      <input class="mp-input" id="stCosaIn" placeholder="Ej.: Llaves de la bici" enterkeyhint="done" autocomplete="off">
-      <div class="st-hint">Escribe y pulsa «Añadir». Puedes añadir varias seguidas.</div>
-      <div class="mp-fila"><button class="mp-b" data-a="foto">📷 Con foto</button><button class="mp-b mp-pri" data-a="add">Añadir</button></div>
-      <button class="sh-btn" data-a="x">Listo</button>`);
-    const i = $('#stCosaIn');
-    const add = async (fotos) => { const t = i.value.trim(); if(!t && !(fotos || []).length) return; const n = this.copia(rid), cid = nuevoId('c');
-      const ord = Object.values(n.cosas).map(c => c.orden || 0); n.cosas[cid] = { texto:t, fotos:fotos || [], orden:ord.length ? Math.min(...ord) - 1 : 0, creada:Date.now() };
-      await this.guardar(n); i.value = ''; i.focus(); toast('✅ Guardado: ' + (t || 'foto')); };
-    i.onkeydown = e => { if(e.key === 'Enter'){ e.preventDefault(); add(); } };
-    hj.onclick = async e => { const b = e.target.closest('[data-a]'); if(!b) return;
-      if(b.dataset.a === 'add') add();
-      else if(b.dataset.a === 'foto'){ const fs = await elegirFotos(false, true); if(!fs.length) return; toast('📷 Guardando…'); const ids = []; for(const f of fs) ids.push(await Mio.ponerFoto(await aligerarImg(f, 1280, .72), null, 'sitios')); await add(ids); }
-      else cerrarHojaMio(); };
+      <input class="mp-input" id="stCosaIn" placeholder="Nombre. Ej.: Llaves de la bici" enterkeyhint="done" autocomplete="off">
+      <div class="st-prev" id="stPrev"></div>
+      <button class="sh-op" data-a="foto">${icIn('camara')}Añadir foto</button>
+      <div class="mp-fila"><button class="mp-b" data-a="x">Cancelar</button><button class="mp-b mp-pri" data-a="ok">Guardar</button></div>`);
+    const i = $('#stCosaIn'), prev = $('#stPrev');
+    const pintarPrev = () => { prev.innerHTML = fotos.map((f, k) => `<div class="st-ph"><img src="${f}" alt="" data-grande><button data-quitar="${k}" aria-label="Quitar foto">✕</button></div>`).join(''); };
+    i.onkeydown = e => { if(e.key === 'Enter'){ e.preventDefault(); i.blur(); } };   // Intro solo cierra el teclado
+    hj.onclick = async e => {
+      const img = e.target.closest('img[data-grande]'); if(img){ verFotoGrande(img.src); return; }
+      const q = e.target.closest('[data-quitar]'); if(q){ fotos.splice(+q.dataset.quitar, 1); pintarPrev(); return; }
+      const b = e.target.closest('[data-a]'); if(!b) return; const a = b.dataset.a;
+      if(a === 'foto'){ const fs = await elegirFotos(false, true); if(!fs.length) return; toast('📷 Preparando…', null, null, 1200); for(const f of fs){ try{ fotos.push(await aligerarImg(f, 1280, .72)); }catch(er){ toast('⚠️ No se ha podido leer esa imagen'); } } pintarPrev(); }
+      else if(a === 'ok'){
+        const t = i.value.trim(); if(!t && !fotos.length){ toast('Escribe un nombre o añade una foto'); i.focus(); return; }
+        b.disabled = true;
+        const ids = []; for(const f of fotos) ids.push(await Mio.ponerFoto(f, null, 'sitios'));
+        const n = this.copia(rid), cid = nuevoId('c'), ord = Object.values(n.cosas).map(c => c.orden || 0);
+        n.cosas[cid] = { texto:t, fotos:ids, orden:ord.length ? Math.min(...ord) - 1 : 0, creada:Date.now() };
+        await this.guardar(n); cerrarHojaMio();
+        this.abrirSitio(rid); this.brillar('cosa-' + cid); toast('✅ Guardado: ' + (t || 'foto'), null, null, 1600);
+      }
+      else cerrarHojaMio();
+    };
     setTimeout(() => i.focus(), 120);
+  },
+  brillar(domId){ setTimeout(() => { const el = document.getElementById(domId); if(!el) return; el.scrollIntoView({ block:'center', behavior:'smooth' }); el.classList.add('hallada'); setTimeout(() => el.classList.remove('hallada'), 3200); }, 80); },
+  segDeshacer(){ return +(lsGet('ph3-st-deshacer') || 5); },
+  // deslizar a la izquierda: se borra, con «Deshacer» unos segundos (Configuración › Sitios)
+  async borrarCosaYa(rid, cid){
+    const r = this.s(rid), c = r && r.cosas && r.cosas[cid]; if(!c) return;
+    const n = this.copia(rid); delete n.cosas[cid]; await this.guardar(n);
+    const seg = this.segDeshacer();
+    toast('🗑 «' + (c.texto || 'Foto') + '» eliminado', 'Deshacer', async () => { const m = this.copia(rid); m.cosas[cid] = c; await this.guardar(m); this.brillar('cosa-' + cid); toast('↩️ Vuelve a estar'); }, seg * 1000);
+    setTimeout(() => { const m = this.s(rid); if(!m || !m.cosas || !m.cosas[cid]) Mio.quitarFotos(c.fotos || []); }, seg * 1000 + 1500);
+  },
+  // deslizar a la derecha (o «Mover»): ir entrando en casas y sitios hasta donde va, y Aceptar
+  moverCosa(rid, cid){
+    const r = this.s(rid), c = r && r.cosas && r.cosas[cid]; if(!c) return;
+    const casas = this.casas(); let casa = casas.length === 1 ? casas[0].id : null, ruta = [];
+    const pinta = () => {
+      const cur = ruta.length ? ruta[ruta.length - 1] : null;
+      const migas = `<div class="st-camino st-mv-migas"><button class="st-chip ${!casa ? 'cur' : ''}" data-mv="casas">🏘️ Casas</button>${casa ? `<span class="st-sep">›</span><button class="st-chip ${!ruta.length ? 'cur' : ''}" data-mv="casa">${this.icoHtml(this.s(casa), '🏠')} ${esc(this.s(casa).nombre)}</button>` : ''}${ruta.map((id, k) => `<span class="st-sep">›</span><button class="st-chip ${k === ruta.length - 1 ? 'cur' : ''}" data-mvn="${k}">${this.icoHtml(this.s(id))} ${esc(this.s(id).nombre)}</button>`).join('')}</div>`;
+      const ls = !casa ? casas.map(h => `<button class="st-dest" data-casa2="${h.id}"><b>${this.icoHtml(h, '🏠')} ${esc(h.nombre)}</b><span>${this.pl(this.cuenta(h.id).sitios, 'sitio', 'sitios')}</span><em>›</em></button>`)
+        : this.hijos(casa, cur).map(x => `<button class="st-dest" data-sit="${x.id}"><b>${this.icoHtml(x)} ${esc(x.nombre)}</b><span>${this.meta(x.id)}</span><em>›</em></button>`);
+      const puede = cur && cur !== rid;
+      hj.querySelector('.mio-hoja-c').innerHTML = `<div class="st-donde">Ahora está en:</div><div class="st-camino">${this.chipsRuta(rid)}</div>
+        <div class="st-donde" style="margin-top:12px">Llevar a: <small>(toca para entrar)</small></div>${migas}
+        <div class="st-dests">${ls.join('') || `<div class="st-hint">${casa ? 'Aquí dentro no hay más sitios.' : 'No hay casas.'}</div>`}</div>
+        <div class="st-hint">${puede ? 'Se pondrá en <b>' + esc(this.s(cur).nombre) + '</b>.' : cur === rid ? 'Ya está aquí: elige otro sitio.' : 'Entra en un sitio para poderla dejar allí.'}</div>
+        <div class="mp-fila"><button class="mp-b" data-x>Cancelar</button><button class="mp-b mp-pri" data-ok ${puede ? '' : 'disabled'}>✓ Aceptar</button></div>`;
+    };
+    const hj = hojaMio(`↔️ Mover «${esc(c.texto || 'Foto')}»`, '', 'st-mover'); pinta();
+    hj.onclick = async e => {
+      const b = e.target.closest('button'); if(!b) return; const d = b.dataset;
+      if('x' in d){ cerrarHojaMio(); return; }
+      if(d.mv === 'casas'){ casa = null; ruta = []; }
+      else if(d.mv === 'casa') ruta = [];
+      else if(d.mvn != null) ruta = ruta.slice(0, +d.mvn + 1);
+      else if(d.casa2){ casa = d.casa2; ruta = []; }
+      else if(d.sit) ruta.push(d.sit);
+      else if('ok' in d){ const to = ruta[ruta.length - 1]; if(!to || to === rid) return; cerrarHojaMio();
+        const de = this.copia(rid), aa = this.copia(to), cc = de.cosas[cid]; if(!cc) return; delete de.cosas[cid];
+        const ord = Object.values(aa.cosas).map(z => z.orden || 0); cc.orden = ord.length ? Math.min(...ord) - 1 : 0; aa.cosas[cid] = cc;
+        await this.guardar(de); await this.guardar(aa); toast('↔️ Movido a «' + aa.nombre + '»', 'Ir', () => { this.abrirSitio(to); this.brillar('cosa-' + cid); }, 5000); return; }
+      pinta();
+    };
   },
   async fotoCosa(rid, cid){ const fs = await elegirFotos(false, true); if(!fs.length) return; toast('📷 Guardando…'); const ids = []; for(const f of fs) ids.push(await Mio.ponerFoto(await aligerarImg(f, 1280, .72), null, 'sitios'));
     const n = this.copia(rid); if(!n.cosas[cid]) return; n.cosas[cid].fotos = [...(n.cosas[cid].fotos || []), ...ids]; await this.guardar(n); toast('📷 Foto añadida'); },
@@ -249,6 +304,7 @@ const Sitios = {
       .sort((a, b) => (a.ruta + ' ' + a.n).localeCompare(b.ruta + ' ' + b.n, 'es'));
   },
   moverSheet(tipo, a, b){
+    if(tipo !== 'sitio'){ cerrarHojaMio(); return this.moverCosa(a, b); }
     const esSitio = tipo === 'sitio', x = this.s(a), tit = esSitio ? x.nombre : (x.cosas[b].texto || 'Foto');
     const padre = esSitio ? (x.padre || null) : a, h = this.s(x.casa);
     const ls = this.destinos(x.casa, esSitio ? a : null).filter(d => d.id !== padre);
@@ -408,6 +464,8 @@ const Sitios = {
       else if(d.ir) this.irHallado(d.ir, d.ircosa);
       else if(d.quitaradj){ (async () => { if(!await confirmarMio('Quitar foto', '¿Quitar esta foto del sitio?', 'Quitar')) return; const id = this.camino[this.camino.length - 1], n = this.copia(id); n.fotos = (n.fotos || []).filter(f => f !== d.quitaradj); await this.guardar(n); await Mio.quitarFotos([d.quitaradj]); })(); }
     });
+    deslizarBorrar($('#stCuerpo'), cid => { const rid = this.camino[this.camino.length - 1]; if(rid) this.borrarCosaYa(rid, cid); },
+      { alDerecha: cid => { const rid = this.camino[this.camino.length - 1]; if(rid) this.moverCosa(rid, cid); } });
     $('#stBarra').addEventListener('click', e => { const b = e.target.closest('button'); if(!b) return; if('nuevositio' in b.dataset) this.editor('sitio', null); else if('nuevacosa' in b.dataset) this.nuevaCosa(); else if('otracasa' in b.dataset){ this.casa = null; this.camino = []; this.pintar(); this.editor('casa', null); } });
     Mio.al('sitios', () => { if(this.activa() && !(document.activeElement && document.activeElement.id === 'stQ')) this.pintar(); else if(this.activa() && this.q) this.buscar(this.q); });
   }

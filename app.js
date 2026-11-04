@@ -1,6 +1,6 @@
 /* PorHacer · app principal: tablero de columnas, tareas y editor */
 
-const VERSION = 'V15.4';
+const VERSION = 'V15.5';
 const $ = (s, r=document) => r.querySelector(s);
 const $$ = (s, r=document) => Array.from(r.querySelectorAll(s));
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -239,11 +239,11 @@ function pasaFiltro(t){
     case 'semana': { const [a,b] = semanaActual(); if(!(r && r[0] <= b && r[1] >= a)) return false; break; }
     case 'sinfecha': if(r) return false; break;
     case 'alta': if(t.prio !== 3) return false; break;
-    default: if(App.filtro.startsWith('p:') && t.personaId !== App.filtro.slice(2)) return false;
+    default: if(App.filtro.startsWith('p:') && !asignadas(t).includes(App.filtro.slice(2))) return false;
   }
   if(App.q){
     const p = persona(t.personaId);
-    const txt = norm([t.titulo, t.notas, nombreP(p), p?.email, (t.subs||[]).map(s=>s.t).join(' '), colDe(t.colId).nombre].join(' '));
+    const txt = norm([t.titulo, t.notas, nombreP(p), p?.email, asignadas(t).map(id => nombreP(persona(id))).join(' '), (t.subs||[]).map(s=>s.t).join(' '), colDe(t.colId).nombre].join(' '));
     if(!norm(App.q).split(/\s+/).every(w => txt.includes(w))) return false;
   }
   return true;
@@ -295,7 +295,8 @@ function htmlTarjeta(t){
   if(t.na) meta += `<span class="tag">🎙️ ${t.na}</span>`;
   if(t.emailEnviado || t.recordado) meta += `<span class="tag" title="Se le ha enviado por email">📧${t.recordado ? ' 🔔' : ''}</span>`;
   const comp = compartidaCon(t);
-  if(p || comp.length > 1) meta += `<button class="avatares" data-gente="${t.id}" title="Con quién se comparte">${p ? `<span class="avatar" style="background:${colorPersona(p)}">${esc(iniciales(p))}</span>` : ''}${comp.length > 1 ? `<span class="avatar mas">+${comp.length - (p ? 1 : 0)}</span>` : ''}</button>`;
+  const asg = asignadas(t).map(persona).filter(Boolean), extra = Math.max(0, comp.length - asg.length);
+  if(asg.length || comp.length > 1) meta += `<button class="avatares" data-gente="${t.id}" title="${asg.length ? 'Asignada a ' + esc(asg.map(nombreP).join(', ')) : 'Con quién se comparte'}">${asg.slice(0, 3).map(q => `<span class="avatar" style="background:${colorPersona(q)}">${esc(iniciales(q))}</span>`).join('')}${asg.length > 3 ? `<span class="avatar mas">+${asg.length - 3}</span>` : extra && comp.length > 1 ? `<span class="avatar mas">+${extra}</span>` : ''}</button>`;
   const fondo = fondoTarea(t.color);
   return `<article class="tarjeta ${col.hecha?'hecha':''}" data-id="${t.id}" style="${fondo?'--tc:'+fondo+';':''}--tb:${bordeDe(t)}">
     <button class="t-check" aria-label="Marcar como acabada">${col.hecha?'✓':''}</button>
@@ -631,6 +632,12 @@ function iniciarArrastre(){
 
 /* ---------- Editor de tarea ---------- */
 let selColorTarea = null;
+/* Varias personas asignadas: la del desplegable es la principal (la del email); debajo, discretamente, todas */
+function asignadas(t){ return [...new Set([t.personaId, ...(t.personas || [])].filter(id => id && persona(id)))]; }
+function pintarAsig(){
+  const as = (App.ed && App.ed.asig) || [], el = $('#edAsig'); if(!el) return;
+  el.innerHTML = as.length ? `<span class="ed-asig-t">👥 ${as.length > 1 ? 'Asignada a ' + as.length + ':' : 'Asignada a:'}</span>${as.map(id => `<span class="ed-asig-c">${esc(nombreP(persona(id)))}<button type="button" data-quitarasig="${id}" aria-label="Quitar">✕</button></span>`).join('')}<small>Elige otra persona arriba para añadirla también</small>` : '';
+}
 function opcionesPersonas(sel){
   return '<option value="">— Nadie —</option>' + App.personas.slice().sort((a,b)=>nombreP(a).localeCompare(nombreP(b))).map(p => `<option value="${p.id}" ${p.id===sel?'selected':''}>${esc(nombreP(p))}${p.email?'':' (sin email)'}</option>`).join('');
 }
@@ -660,6 +667,7 @@ async function abrirEditor(id, colId){
   Avisos.pintarEditor(t);
   Listas.rotuloTarea(t);
   $('#edPersona').innerHTML = opcionesPersonas(t.personaId);
+  App.ed.asig = asignadas(t); pintarAsig();
   $('#edEmail').checked = false;
   pintarSubs(); pintarDur(); pintarEmail(); pintarPunto();
   App.ed.pend = []; App.ed.acc = new Set(); pintarAcciones();
@@ -801,7 +809,7 @@ function leerEditor(){
   t.prio = +($('#edPrio .on')?.dataset.p || 0);
   t.ini = $('#edIni').value; t.fin = $('#edFin').value;
   if(t.ini && t.fin && t.fin < t.ini){ const x = t.ini; t.ini = t.fin; t.fin = x; }
-  t.personaId = $('#edPersona').value;
+  { const as = (App.ed && App.ed.asig) || [], sel = $('#edPersona').value; t.personas = as.slice(); t.personaId = as.includes(sel) ? sel : (as[0] || ''); }
   Avisos.leerEditor(t, App.tareas.find(x => x.id === t.id));
   return t;
 }
@@ -842,7 +850,7 @@ function pintarAcciones(){
 async function accionesTrasGuardar(t, acc0){
   const g = App.tareas.find(x => x.id === t.id) || t;
   // antes de hacerlo, se puede repensar: quitar alguno o cancelarlo todo
-  const NOM = { ics:['📅','Al calendario del móvil','Se descarga el evento con sus avisos'], dup:['⧉','Duplicar','Se crea una copia de la tarea'],
+  const NOM = { ics:['📅','Al calendario del móvil','Se descarga el evento con sus avisos y se apunta también en tu Agenda'], dup:['⧉','Duplicar','Se crea una copia de la tarea'],
     lista:['📝','Pasar a una lista','Te preguntará a qué lista'], teams:['📹','Reunión de Teams','Se abre la reunión rellenada para enviarla'] };
   const orden = ['ics','dup','lista','teams'].filter(k => acc0.includes(k));
   const acc = await popup({ tit:'✓ Tarea guardada', html:`<p>«${esc(g.titulo || '')}». Ahora se hará lo que marcaste:</p>
@@ -998,6 +1006,21 @@ function exportarIcs(t0){
     'SUMMARY:'+e(t.titulo),'DESCRIPTION:'+e(t.notas),...alarmas,'END:VEVENT','END:VCALENDAR'].join('\r\n');
   if(avs.length) toast('📅 Con ' + avs.length + (avs.length > 1 ? ' avisos' : ' aviso') + ' que sonarán en el calendario del móvil');
   descargar(new Blob([ics], { type:'text/calendar' }), (t.titulo||'tarea').replace(/[^\w\- áéíóúñç]/gi,'').slice(0,40)+'.ics');
+  aAgendaDesdeTarea(t, r[0], avs[0] && avs[0].f);
+}
+/* La app no puede leer el calendario del iPhone; por eso, al pasar una tarea al calendario del móvil,
+   también se apunta en la Agenda de PorHacer3 (el día de inicio), una sola vez por tarea */
+async function aAgendaDesdeTarea(t, dia, aviso){
+  try{
+    if(typeof Agenda === 'undefined' || !dia) return;
+    const items = [...Agenda.notas(dia)];
+    const txt = '📋 ' + (t.titulo || 'Tarea') + (t.notas ? ' — ' + String(t.notas).slice(0, 200) : '');
+    const ya = items.find(it => it.tarea === t.id);
+    if(ya){ ya.texto = txt; if(aviso) ya.aviso = aviso; }
+    else items.push({ id:nuevoId('n'), texto:txt, color:'azul', fotos:[], creada:Date.now(), tarea:t.id, ...(aviso ? { aviso } : {}) });
+    await Agenda.guardarDia(dia, items);
+    toast('📒 También apuntada en tu Agenda el ' + fechaCortaB(dia), 'Ver', () => { irA('agenda'); Agenda.ponerModo('dia'); Agenda.irDia(dia); }, 5000);
+  }catch(e){ console.warn('agenda desde tarea', e); }
 }
 
 /* Persona rápida desde el editor */
@@ -1060,8 +1083,10 @@ function eventos(){
     i.value = iso(d) + 'T' + String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0'); i.dispatchEvent(new Event('change')); });
   $$('#edIni, #edFin').forEach(i => i.addEventListener('input', pintarDur));
   $$('.fecha-x').forEach(b => b.onclick = e => { e.preventDefault(); $('#'+b.dataset.x).value = ''; pintarDur(); });
-  $('#edPersona').onchange = pintarEmail;
-  $('#edNuevaPersona').onclick = async () => { const p = await formPersona(); if(p){ $('#edPersona').innerHTML = opcionesPersonas(p.id); pintarEmail(); if(p.email) $('#edEmail').checked = true; } };
+  $('#edPersona').onchange = () => { const v = $('#edPersona').value, A = App.ed && App.ed.asig; if(A){ if(!v) A.length = 0; else if(!A.includes(v)){ A.push(v); if(A.length > 1) toast('👥 También asignada a ' + nombreP(persona(v)), null, null, 1600); } pintarAsig(); } pintarEmail(); };
+  $('#edAsig').onclick = e => { const b = e.target.closest('[data-quitarasig]'); if(!b || !App.ed) return; App.ed.asig = App.ed.asig.filter(x => x !== b.dataset.quitarasig);
+    if($('#edPersona').value === b.dataset.quitarasig) $('#edPersona').value = App.ed.asig[0] || ''; pintarAsig(); pintarEmail(); };
+  $('#edNuevaPersona').onclick = async () => { const p = await formPersona(); if(p){ $('#edPersona').innerHTML = opcionesPersonas(p.id); if(App.ed && !App.ed.asig.includes(p.id)) App.ed.asig.push(p.id); pintarAsig(); pintarEmail(); if(p.email) $('#edEmail').checked = true; } };
   $('#edSubAdd').onclick = añadirSub;
   $('#edSubNuevo').onkeydown = e => { if(e.key === 'Enter'){ e.preventDefault(); añadirSub(); } };
   $('#edSubs').onclick = e => {
@@ -1142,7 +1167,7 @@ async function iniciar(){
   setTimeout(() => document.body.classList.add('ya'), 1800);
   pedirPersistencia();
   Nube.iniciar();
-  Calc.iniciar(); Mio.iniciar(); Grabar.iniciar(); Escribir.iniciar(); if(typeof Guardar !== 'undefined') Guardar.iniciar(); Agenda.iniciar(); Tickets.iniciar(); Sitios.iniciar(); Portada.iniciar();
+  Calc.iniciar(); Mio.iniciar(); Grabar.iniciar(); Escribir.iniciar(); if(typeof Guardar !== 'undefined') Guardar.iniciar(); if(typeof Aparatos !== 'undefined') Aparatos.iniciar(); Agenda.iniciar(); Tickets.iniciar(); Sitios.iniciar(); Portada.iniciar();
   let ini = App.ajustes.inicio; try{ const c = localStorage.getItem('ph3-inicio'); if(c && (!ini || ini === 'portada')) ini = c; }catch(e){}
   irA({ tablero:'tareas' }[ini] || ini || 'portada', true);
   $('#nubeEstado').onclick = () => { if(!Nube.user) Nube.pantallaEntrar(); else Nube.explicarEstado(); };

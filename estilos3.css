@@ -1245,3 +1245,82 @@ ul.aj-lista b{display:inline;font-size:inherit;margin:0}
 .ab-cols i{width:16px!important;height:16px!important;flex:none}
 .ab-fechas label{min-width:0}
 .ab-fechas label input{width:100%;flex:none}
+
+/* V15.5 · Escribir: hojas A4 como en Word, con número de página, y reglas */
+.es-hoja{background:color-mix(in srgb,var(--dark) 6%,var(--bg))}
+.es-papel{background:transparent;border:0;box-shadow:none;border-radius:0;isolation:isolate}
+.es-hojas{position:absolute;inset:0;z-index:-1;pointer-events:none}
+.es-pag{position:absolute;left:0;right:0;background:#fff;border-radius:4px;border:1px solid var(--line);box-shadow:0 3px 12px rgba(0,0,0,.12)}
+.es-pag span{position:absolute;bottom:9px;left:0;right:0;text-align:center;font-size:11px;font-weight:800;color:#a3a3aa}
+.es-texto{padding:30px 18px 34px;border-radius:0}
+.es-regla-h{position:sticky;top:0;z-index:4;height:22px;margin:0 0 6px;background:var(--card);border:0;border-radius:4px;overflow:hidden;box-shadow:0 2px 6px rgba(0,0,0,.08)}
+.es-regla-h svg,.es-regla-v svg{display:block}
+.es-regla-v{position:absolute;left:-26px;top:0;width:20px;z-index:3;pointer-events:none}
+.es-hoja.con-regla-v{padding-left:38px}
+.es-regla-h line,.es-regla-v line{stroke:#8a8a92;stroke-width:1}
+.es-regla-h text,.es-regla-v text{font:700 8px -apple-system,system-ui,sans-serif;fill:#6a6a72;text-anchor:middle}
+.es-regla-v text{text-anchor:middle;writing-mode:horizontal-tb}
+.rg-mar{fill:color-mix(in srgb,var(--dark) 10%,transparent)}
+.rg-fondo{fill:var(--card)}
+#esRegla.on{background:#2fa84f;border-color:#2fa84f;color:#fff}
+.es-nomarch{display:flex;align-items:center;gap:6px}
+.es-nomarch input{flex:1;min-width:0;height:48px;border-radius:14px;border:2px solid var(--line);background:var(--colbg);padding:0 12px;font:inherit;font-size:16.5px;font-weight:700;color:var(--ink)}
+.es-nomarch span{font-weight:900;color:var(--ink2)}
+
+/* V15.5 · Deslizar a la derecha (mover) y Sitios */
+.desl-der{position:absolute;inset:0;display:flex;align-items:center;justify-content:flex-start;padding-left:18px;background:#f08a1a;color:#fff;font-weight:900;font-size:15px;opacity:0;border-radius:14px}
+.desl-fila.dir-der .desl-del{opacity:0!important}
+.desl-fila.dir-der.desliza .desl-der{opacity:.8}
+.desl-fila.dir-der.listo .desl-der{opacity:1;background:#e06f00}
+.st-dfila{border-radius:18px;margin-bottom:8px}
+.st-dfila + .st-dfila{margin-top:0}
+.st-dfila .desl-cara.st-fila{margin-bottom:0}
+.st-dfila .desl-del,.st-dfila .desl-der{border-radius:18px}
+.st-prev{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 10px}
+.st-prev:empty{display:none}
+.st-dests .st-dest{position:relative}
+.st-dest em{position:absolute;right:14px;top:50%;transform:translateY(-50%);font-style:normal;font-weight:900;color:var(--ink2)}
+.st-mv-migas{flex-wrap:wrap}
+.st-mover .mp-b[disabled]{opacity:.45}
+
+/* V15.5 · Gastos: colores arriba, paleta de la banderita, mover/copiar */
+.gx-filtros-arriba{border-bottom:0;padding-top:0;padding-bottom:6px}
+button.gx-nada.gx-nueva-abajo{display:block;width:calc(100% - 16px);margin:10px 8px 4px;padding:16px 10px;border:2px dashed var(--line);border-radius:16px;background:transparent;font:inherit;font-size:15px;font-weight:800;color:var(--ink2);text-align:center}
+button.gx-nueva-abajo:active{background:color-mix(in srgb,var(--accent) 8%,transparent)}
+.gx-paleta{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:8px 0 2px;padding:8px;border-radius:14px;background:var(--colbg);border:1px solid var(--line)}
+.gx-paleta button{width:38px;height:38px;border-radius:50%;border:2px solid transparent;background:transparent;padding:0;display:grid;place-items:center}
+.gx-paleta button i{width:26px;height:26px;border-radius:50%;border:1.5px solid rgba(0,0,0,.15);display:grid;place-items:center;font-style:normal;font-size:12px;color:#999}
+.gx-paleta button.on{border-color:var(--dark)}
+.gx-pfondo{display:flex;align-items:center;gap:8px;width:100%;margin-top:4px;font-size:14px;font-weight:800;color:var(--dark)}
+.gx-pfondo input{width:22px;height:22px;accent-color:var(--accent)}
+.gx-mc-seg{width:100%}
+.gx-mc-seg button{flex:1}
+.gx-mc-tabs{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:6px 0 12px;max-height:46vh;overflow-y:auto}
+.gx-mc-tabs button{display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:12px 12px;border:0;border-radius:14px 14px 4px 4px;background:var(--tc);color:#3b3340;font:inherit;font-size:15px;font-weight:900;text-align:left}
+.gx-mc-tabs button small{font-size:11.5px;font-weight:800;opacity:.75}
+.gx-mc-tabs button.actual{outline:3px solid var(--dark);outline-offset:-3px}
+.gx-pfondo input{appearance:auto;-webkit-appearance:checkbox;display:inline-block;position:static;opacity:1;margin:0;flex:none}
+/* V15.5 · Tareas: varias personas asignadas */
+.ed-asig{display:flex;flex-wrap:wrap;align-items:center;gap:5px;margin-top:6px;text-transform:none;letter-spacing:0}
+.ed-asig:empty{display:none}
+.ed-asig-t{font-size:12px;font-weight:800;color:var(--ink2)}
+.ed-asig-c{display:inline-flex;align-items:center;gap:3px;font-size:12.5px;font-weight:800;color:var(--dark);background:var(--colbg);border:1px solid var(--line);border-radius:12px;padding:2px 4px 2px 9px}
+.ed-asig-c button{width:20px;height:20px;border-radius:50%;border:0;background:transparent;color:var(--ink2);font-size:11px;font-weight:900;padding:0}
+.ed-asig small{flex-basis:100%;font-size:11px;font-weight:700;color:var(--ink2);opacity:.8}
+/* V15.5 · Tus aparatos */
+.gd-otros{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px;flex-basis:100%}
+.gd-otros:empty{display:none}
+.gd-otros small{font-size:11.5px;font-weight:800;color:var(--ink2);margin-right:2px;align-self:center}
+.gd-otros span{font-size:11.5px;font-weight:800;color:var(--dark);background:var(--colbg);border:1px solid var(--line);border-radius:10px;padding:2px 7px;white-space:nowrap}
+.gd-otros span.yo{border-color:var(--accent)}
+.gd-ap{padding:10px 12px;border-radius:14px;background:var(--colbg);border:1px solid var(--line);margin-bottom:8px}
+.gd-ap.yo{border-color:var(--accent)}
+.gd-ap-cab{display:flex;align-items:center;gap:10px}
+.gd-ap-ico{font-size:26px;flex:none}
+.gd-ap-tx{flex:1;min-width:0}
+.gd-ap-tx b{display:block;font-size:15px;color:var(--dark)}
+.gd-ap-tx b em{font-style:normal;font-weight:800;color:var(--accent);font-size:12.5px}
+.gd-ap-tx small{display:block;font-size:12px;font-weight:700;color:var(--ink2)}
+.gd-ap-b{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.gd-ap-b button{height:36px;padding:0 11px;border-radius:11px;border:1.5px solid var(--line);background:var(--card);font:inherit;font-size:13px;font-weight:800;color:var(--dark)}
+.gd-ap-b button[disabled]{opacity:.5}

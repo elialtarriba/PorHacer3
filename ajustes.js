@@ -153,14 +153,54 @@ const Ajustes = {
   dondeDe(k){ return k === 'listas' ? Listas.donde() : Guardar.NUEVOS[k] ? Guardar.donde(k) : Mio.donde(k); },
   p_donde(){
     const fila = ([k, ic, t]) => { const d = this.dondeDe(k);
-      return `<div class="gen-donde-f"><b>${ic} ${k === 'gastos' ? esc(Gastos.nombre()) + ' <small>(de Tickets)</small>' : t}</b><div class="seg" data-donde="${k}"><button data-v="nube" class="${d === 'nube' ? 'on' : ''}">☁️ Nube</button><button data-v="aparato" class="${d === 'aparato' ? 'on' : ''}">📱 Este aparato</button></div></div>`; };
+      return `<div class="gen-donde-f"><b>${ic} ${k === 'gastos' ? esc(Gastos.nombre()) + ' <small>(de Tickets)</small>' : t}</b><div class="seg" data-donde="${k}"><button data-v="nube" class="${d === 'nube' ? 'on' : ''}">☁️ Nube</button><button data-v="aparato" class="${d === 'aparato' ? 'on' : ''}">📱 Este aparato</button></div><div class="gd-otros" data-otros="${k}"></div></div>`; };
     return this.tarjeta('☁️ Siempre en la nube', `<div class="gd-fijos">${[['✅','Tareas'],['📅','Calendario Tareas'],['🧮','Calculadora'],['📖','Manual']].map(([i, t]) => `<span>${i} ${t}</span>`).join('')}</div>`,
         'Las tareas van con su tablero (para compartirlas y verlas en todos tus aparatos). La calculadora y el manual son parte de la app.')
       + this.tarjeta('📱 Tú eliges', `<div class="gen-donde">${this.DONDE.map(fila).join('')}</div>`,
-        `<b>☁️ Nube</b>: en tu cuenta; solo lo ves tú y lo tienes en todos tus aparatos (las notas secretas van <b>cifradas</b> también en la nube). <b>📱 Este aparato</b>: no sale de este móvil u ordenador; para pasarlo a otro, haz una ${this.enlace('copias', '💾 copia')}. Siempre queda una copia en el aparato, para que funcione sin internet.${Mio.uid ? '' : ' <b>Ahora no has entrado con tu cuenta</b>: lo de «nube» se subirá al entrar.'}`);
+        `<b>☁️ Nube</b>: en tu cuenta; solo lo ves tú y lo tienes en todos tus aparatos (las notas secretas van <b>cifradas</b> también en la nube). <b>📱 Este aparato</b>: no sale de este móvil u ordenador; para pasarlo a otro, haz una ${this.enlace('copias', '💾 copia')}. Siempre queda una copia en el aparato, para que funcione sin internet.${Mio.uid ? '' : ' <b>Ahora no has entrado con tu cuenta</b>: lo de «nube» se subirá al entrar.'}`)
+      + this.tarjeta('💻 Tus aparatos', '<div id="gdAparatos"></div>',
+        'Los móviles, tabletas y ordenadores donde has entrado con tu cuenta. Debajo de cada apartado de arriba ves cómo lo tiene cada uno. Desde aquí puedes pedirle a otro aparato que <b>cierre la sesión</b> o que <b>cambie</b> dónde guarda cada cosa: lo hará en cuanto esté abierto y con internet.');
+  },
+  nomDonde(sec){ return { agenda:'la Agenda', tickets:'los Tickets', gastos:'«' + Gastos.nombre() + '»', sitios:'los Sitios', listas:'las Listas', grabar:'Grabar', escribir:'Escribir', bloc:'las Notas secretas' }[sec] || sec; },
+  async aplicarDonde(sec, a, borrar){ if(Guardar.NUEVOS[sec]) await Guardar.cambiar(sec, a, borrar); else await Mio.cambiarDonde(sec, a, borrar); if(typeof Aparatos !== 'undefined') Aparatos.publicar(); },
+  pintarAparatos(){
+    const box = $('#gdAparatos'); if(!box) return;
+    if(typeof Aparatos === 'undefined' || !Aparatos.uid()){ box.innerHTML = '<p class="aj-ayuda">Entra con tu cuenta (☁️ Cuenta y nube) para ver tus aparatos.</p>'; $$('[data-otros]').forEach(x => x.innerHTML = ''); return; }
+    const yo = Aparatos.id(), ls = Aparatos.lista.length ? Aparatos.lista : [{ id:yo, nombre:Aparatos.nombre(), tipo:Aparatos.tipo(), visto:Date.now(), donde:Aparatos.dondeTodo() }];
+    const ico = a => Aparatos.ICO[a.tipo] || '🔌';
+    // debajo de cada apartado: cómo lo tiene cada aparato
+    $$('[data-otros]').forEach(x => { const k = x.dataset.otros, n = ls.filter(a => a.donde && a.donde[k]);
+      x.innerHTML = n.length > 1 || (n.length === 1 && n[0].id !== yo) ? `<small>En ${n.length} ${n.length === 1 ? 'aparato' : 'aparatos'} (☁️ nube · 💾 en el aparato):</small>` + n.map(a => `<span class="${a.id === yo ? 'yo' : ''}" title="${esc(a.nombre)}">${ico(a)} ${esc(a.nombre)} ${a.donde[k] === 'nube' ? '☁️' : '💾'}${a.pedir && a.pedir.donde && a.pedir.donde[k] ? ' ⏳' : ''}</span>`).join('') : ''; });
+    box.innerHTML = ls.map(a => { const esYo = a.id === yo, p = a.pedir || {};
+      const pend = [p.cerrar ? '⏳ Cerrará la sesión' : '', p.donde ? '⏳ Cambios pendientes' : ''].filter(Boolean).join(' · ');
+      return `<div class="gd-ap ${esYo ? 'yo' : ''}"><div class="gd-ap-cab"><span class="gd-ap-ico">${ico(a)}</span><span class="gd-ap-tx"><b>${esc(a.nombre)}${esYo ? ' <em>· este aparato</em>' : ''}</b><small>${esYo ? 'Ahora mismo' : 'Usado ' + Aparatos.hace(a.visto)}${a.version ? ' · ' + esc(a.version) : ''}${pend ? ' · ' + pend : ''}</small></span></div>
+        <div class="gd-ap-b">${esYo ? `<button data-apnom>✏️ Nombre</button>` : `<button data-apcambiar="${a.id}">⚙️ Nube o aparato</button><button data-apcerrar="${a.id}" ${p.cerrar ? 'disabled' : ''}>🚪 Cerrar sesión</button><button data-apolvidar="${a.id}">🗑</button>`}</div></div>`; }).join('');
+  },
+  async cambiarEnOtro(id){
+    const a = Aparatos.lista.find(x => x.id === id); if(!a) return;
+    const d = { ...(a.donde || {}), ...((a.pedir && a.pedir.donde) || {}) };
+    const v = await popup({ tit:(Aparatos.ICO[a.tipo] || '🔌') + ' ' + a.nombre, html:`<p class="aj-ayuda" style="margin:0 0 8px">Cómo quieres que guarde cada cosa <b>ese aparato</b>. Lo cambiará en cuanto se abra con internet (y deja una copia en la nube).</p>
+      <div class="gen-donde">${this.DONDE.map(([k, ic, t]) => `<div class="gen-donde-f"><b>${ic} ${t}</b><div class="seg" data-od="${k}"><button data-v="nube" class="${d[k] === 'nube' ? 'on' : ''}">☁️ Nube</button><button data-v="aparato" class="${d[k] === 'aparato' ? 'on' : ''}">📱 Ese aparato</button></div></div>`).join('')}</div>`,
+      botones:[{ txt:'Cancelar', val:null }, { txt:'Pedir el cambio', cls:'btn-pri', val:c => Object.fromEntries($$('[data-od]', c).map(x => [x.dataset.od, ($('.on', x) || {}).dataset ? $('.on', x).dataset.v : d[x.dataset.od]])) }],
+      alAbrir:c => $$('[data-od] button', c).forEach(b => b.onclick = () => $$('button', b.parentNode).forEach(x => x.classList.toggle('on', x === b))) });
+    if(!v) return;
+    const cambios = Object.fromEntries(Object.entries(v).filter(([k, val]) => val && val !== (a.donde || {})[k]));
+    if(!Object.keys(cambios).length){ toast('No has cambiado nada'); return; }
+    try{ await Aparatos.pedir(id, Object.fromEntries(Object.entries(cambios).map(([k, val]) => ['pedir.donde.' + k, val]))); toast('⏳ Pedido. ' + a.nombre + ' lo cambiará en cuanto se abra', null, null, 3500); }
+    catch(e){ console.warn(e); popAviso('No se ha podido', e.message || ''); }
   },
   e_donde(cont){
     this.enlazarEnlaces(cont);
+    this.pintarAparatos();
+    $('#gdAparatos', cont).onclick = async e => { const b = e.target.closest('button'); if(!b) return; const d = b.dataset;
+      if('apnom' in d){ const v = await popup({ tit:'✏️ Nombre de este aparato', html:`<input id="apNom" value="${esc(Aparatos.nombre())}" maxlength="30">`, botones:[{ txt:'Cancelar', val:null }, { txt:'Guardar', cls:'btn-pri', val:c => $('#apNom', c).value.trim() }] });
+        if(v){ lsSet('ph3-dev-nombre', v); await Aparatos.publicar(); this.pintarAparatos(); } }
+      else if(d.apcambiar) this.cambiarEnOtro(d.apcambiar);
+      else if(d.apcerrar){ const a = Aparatos.lista.find(x => x.id === d.apcerrar); if(!a || !await popConfirmar('🚪 Cerrar la sesión', 'Se cerrará la sesión en «' + a.nombre + '» en cuanto se abra con internet. Para volver a usar la nube allí habrá que entrar otra vez con el email y la contraseña.', 'Cerrar la sesión')) return;
+        try{ await Aparatos.pedir(a.id, { 'pedir.cerrar':true }); toast('⏳ Pedido: ' + a.nombre + ' cerrará la sesión'); }catch(er){ popAviso('No se ha podido', er.message || ''); } }
+      else if(d.apolvidar){ const a = Aparatos.lista.find(x => x.id === d.apolvidar); if(!a || !await popConfirmar('🗑 Quitar de la lista', '¿Quitar «' + a.nombre + '» de la lista? (Si se vuelve a abrir con tu cuenta, aparecerá otra vez. Para que no pueda entrar, usa antes «Cerrar sesión».)', 'Quitar')) return;
+        try{ await Aparatos.ref().doc(a.id).delete(); }catch(er){ popAviso('No se ha podido', er.message || ''); } }
+    };
     $$('[data-donde] button', cont).forEach(b => b.onclick = async () => {
       const sec = b.parentNode.dataset.donde, a = b.dataset.v, nom = { agenda:'la Agenda', tickets:'los Tickets', gastos:'«' + Gastos.nombre() + '»', sitios:'los Sitios', listas:'las Listas', grabar:'Grabar', escribir:'Escribir', bloc:'las Notas secretas' }[sec], n = ['agenda','gastos','grabar','escribir'].includes(sec) ? '' : 'n';
       const ahora = this.dondeDe(sec); if(ahora === a) return;
@@ -178,7 +218,7 @@ const Ajustes = {
         if(!await popConfirmar('☁️ Guardar ' + nom + ' en la nube', 'Ahora no has entrado con tu cuenta. Se guardará' + n + ' en el aparato y se subirá' + n + ' a la nube cuando entres.', 'De acuerdo')) return;
       }
       toast('⏳ Pasando ' + nom + '…', null, null, 20000);
-      try{ if(Guardar.NUEVOS[sec]) await Guardar.cambiar(sec, a, borrar); else await Mio.cambiarDonde(sec, a, borrar); toast(a === 'nube' ? '☁️ ' + capital(nom) + ' se guarda' + n + ' en la nube' : '📱 ' + capital(nom) + ' se guarda' + n + ' en este aparato'); }
+      try{ await this.aplicarDonde(sec, a, borrar); toast(a === 'nube' ? '☁️ ' + capital(nom) + ' se guarda' + n + ' en la nube' : '📱 ' + capital(nom) + ' se guarda' + n + ' en este aparato'); }
       catch(e){ console.warn(e); popAviso('No se ha podido cambiar', e.message || 'Inténtalo otra vez.'); }
       this.ir('donde', null, true); Portada.pintar();
     });
@@ -385,9 +425,11 @@ const Ajustes = {
         <div class="st-pals">${PAL_KEYS.map(k => `<button data-casa="${h.id}" data-pal="${k}" class="${k === h.color ? 'on' : ''}" title="${esc(PALETTES[k].name)}" style="background:${PALETTES[k].shades[1]};border-color:${PALETTES[k].ac}"></button>`).join('')}</div></details>`; }).join('');
     return this.tarjeta('🎨 Colores de Sitios (fondo y botones)', TemaSec.rejilla('sitios'), 'El fondo de «Mis sitios», los botones y las ventanas. También se cambia con el botón 🎨 de arriba, dentro de Sitios. Dentro de cada casa manda el color de la casa.')
       + this.tarjeta('🏠 El color de cada casa', filas || '<p class="aj-ayuda">Aún no tienes casas. Créalas en Sitios.</p>',
-      'Cada casa tiene su color: se ve en su tarjeta y dentro de la casa. También se cambia desde el ⋯ de cada casa.');
+      'Cada casa tiene su color: se ve en su tarjeta y dentro de la casa. También se cambia desde el ⋯ de cada casa.')
+      + this.tarjeta('↩️ Deshacer al eliminar', this.seg('ajStDes', [['3','3 s'],['5','5 s'],['8','8 s'],['10','10 s'],['15','15 s'],['30','30 s']], String(Sitios.segDeshacer())),
+      'Al deslizar una cosa a la izquierda se elimina, y sale «Deshacer» durante estos segundos.');
   },
-  e_sitios(cont){ TemaSec.enlazar(cont, 'sitios'); $$('[data-casa]', cont).forEach(b => b.onclick = async () => { const h = Sitios.s(b.dataset.casa); if(!h) return; await Sitios.guardar({ ...h, color:b.dataset.pal }); this.ir('sitios', null, true); toast('🎨 ' + h.nombre + ': ' + PALETTES[b.dataset.pal].name); }); },
+  e_sitios(cont){ this.enlazarSeg('ajStDes', v => { lsSet('ph3-st-deshacer', v); toast('↩️ «Deshacer» durante ' + v + ' segundos', null, null, 1500); }); TemaSec.enlazar(cont, 'sitios'); $$('[data-casa]', cont).forEach(b => b.onclick = async () => { const h = Sitios.s(b.dataset.casa); if(!h) return; await Sitios.guardar({ ...h, color:b.dataset.pal }); this.ir('sitios', null, true); toast('🎨 ' + h.nombre + ': ' + PALETTES[b.dataset.pal].name); }); },
 
   /* ---------- CALCULADORA y NOTAS SECRETAS ---------- */
   p_calc(){ return '<div id="ajCalc"></div>'; },
