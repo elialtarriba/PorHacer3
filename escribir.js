@@ -20,7 +20,7 @@ const Escribir = {
     const d = this.actual(); if(!d) return;
     $('#esTitulo').value = d.titulo || '';
     $('#esTexto').innerHTML = d.html || '';
-    this.figs = JSON.parse(JSON.stringify(d.figs || [])); this.sel = null;
+    this.figs = JSON.parse(JSON.stringify(d.figs || [])); this.sel = null; this.hf = d.hf ? JSON.parse(JSON.stringify(d.hf)) : null;
     this.pintarFigs(); this.contar();
     requestAnimationFrame(() => { this.migrar(); this.paginar(); });
   },
@@ -38,8 +38,9 @@ const Escribir = {
     clearTimeout(this._t);
     const l = this.lista(), d = l.find(x => x.id === this.id); if(!d || !$('#esTexto')) return;
     const html = this.htmlLimpio(), tit = $('#esTitulo').value.trim(), figs = JSON.stringify(this.figs || []);
-    if(d.html === html && (d.titulo || '') === tit && JSON.stringify(d.figs || []) === figs) { if(!Voz.activo) $('#esEstado').textContent = '✓ Guardado'; return; }
-    d.html = html; d.titulo = tit; d.figs = JSON.parse(figs); d.cambiado = Date.now(); this.ponerLista(l);
+    const hf = JSON.stringify(this.hf || null);
+    if(d.html === html && (d.titulo || '') === tit && JSON.stringify(d.figs || []) === figs && JSON.stringify(d.hf || null) === hf) { if(!Voz.activo) $('#esEstado').textContent = '✓ Guardado'; return; }
+    d.html = html; d.titulo = tit; d.figs = JSON.parse(figs); d.hf = JSON.parse(hf); d.cambiado = Date.now(); this.ponerLista(l);
     if(!Voz.activo) $('#esEstado').textContent = '✓ Guardado';
   },
   contar(){ const t = ($('#esTexto').innerText || '').trim(); const n = t ? t.split(/\s+/).length : 0; this._palabras = n + (n === 1 ? ' palabra' : ' palabras'); this.pintarPagina(); },
@@ -56,7 +57,17 @@ const Escribir = {
   },
   paginar(){
     const T = $('#esTexto'), P = $('#esPapel'); if(!T || !P || !this.activa()) return;
-    const { W, H, G } = this.medidas(), paso = H + G, M = this.PAG_M, MB = this.PAG_MB;
+    const { W, H, G } = this.medidas(), paso = H + G, { M, MB } = this.margenes();
+    T.style.paddingTop = M + 'px'; T.style.paddingBottom = MB + 'px';
+    const n = this.saltos(T, H, paso, M, MB);
+    this._paginas = n; P.style.minHeight = (n * paso - G) + 'px';
+    const hs = $('#esHojas'), clave = H + '|' + n + '|' + JSON.stringify(this.hf || null);
+    if(hs.dataset.k !== clave){ hs.dataset.k = clave; hs.innerHTML = Array.from({ length:n }, (_, i) => `<div class="es-pag" style="top:${i * paso}px;height:${H}px">${this.hojaHF(i)}</div>`).join(''); }
+    this.reglas(W, H, n);
+    this.pintarPagina();
+  },
+  // si un párrafo no cabe al final de una hoja, pasa entero a la siguiente; devuelve cuántas hojas hacen falta
+  saltos(T, H, paso, M, MB){
     T.querySelectorAll('[data-salto]').forEach(el => { el.style.marginTop = ''; el.removeAttribute('data-salto'); if(!el.getAttribute('style')) el.removeAttribute('style'); });
     for(const el of T.children){
       if(el.offsetHeight >= H - M - MB) continue;            // más alto que una hoja: no se puede mover
@@ -64,12 +75,198 @@ const Escribir = {
       if(bot > fin){ const extra = (k + 1) * paso + M - top; const mt = parseFloat(getComputedStyle(el).marginTop) || 0; el.style.marginTop = (mt + extra) + 'px'; el.setAttribute('data-salto', ''); }
     }
     const rg = document.createRange(); rg.selectNodeContents(T); const rb = rg.getBoundingClientRect(), tb = T.getBoundingClientRect();
-    const alto = rb.height ? rb.bottom - tb.top : 0, n = Math.max(1, Math.ceil((alto + MB) / paso));   // hasta donde llega lo escrito (no el alto de la caja)
-    this._paginas = n; P.style.minHeight = (n * paso - G) + 'px';
-    const hs = $('#esHojas');
-    if(hs.childElementCount !== n || hs.dataset.h !== String(H)){ hs.dataset.h = H; hs.innerHTML = Array.from({ length:n }, (_, i) => `<div class="es-pag" style="top:${i * paso}px;height:${H}px"><span>${i + 1}</span></div>`).join(''); }
-    this.reglas(W, H, n);
-    this.pintarPagina();
+    const alto = rb.height ? rb.bottom - tb.top : 0;   // hasta donde llega lo escrito (no el alto de la caja)
+    return Math.max(1, Math.ceil((alto + MB) / paso));
+  },
+  /* ---------- Cabecera y pie de página ---------- */
+  HF0(){ return { on:false, cab:'', pie:'', num:'abajo-centro', primera:true, alin:'centro' }; },
+  margenes(){
+    const h = this.hf || {}, on = !!h.on, arr = on && (h.cab || /^arriba/.test(h.num || '')), abj = on && (h.pie || /^abajo/.test(h.num || ''));
+    return { M:arr ? (h.cab ? 92 : 54) : this.PAG_M, MB:abj ? (h.pie ? 92 : 54) : this.PAG_MB };
+  },
+  // lo que lleva cada hoja: cabecera, pie y número (o, sin cabecera ni pie, solo el número de guía, que no se imprime)
+  hojaHF(i){
+    const h = this.hf || {};
+    if(!h.on) return `<span class="es-guia">${i + 1}</span>`;
+    if(i === 0 && h.primera === false) return '';
+    const num = h.num && h.num !== 'no' ? h.num : '', al = 'al-' + (h.alin || 'centro');
+    return (h.cab ? `<div class="es-pcab ${al} ${/^arriba/.test(num) ? 'con-num' : ''}">${h.cab}</div>` : '')
+      + (h.pie ? `<div class="es-ppie ${al} ${/^abajo/.test(num) ? 'con-num' : ''}">${h.pie}</div>` : '')
+      + (num ? `<span class="es-pnum ${num}">${i + 1}</span>` : '');
+  },
+  menuCabecera(){
+    this.guardarYa();
+    const h = this.hf = { ...this.HF0(), ...(this.hf || {}) };
+    const NUMS = [['arriba-izq','↖'],['arriba-centro','⬆'],['arriba-der','↗'],['abajo-izq','↙'],['abajo-centro','⬇'],['abajo-der','↘']];
+    const p = popMio(`<div class="ts-cab"><h3 class="mp-h">📑 Cabecera y pie</h3><button class="mp-b mp-pri ts-listo" data-x>✓ Volver</button></div>
+      <label class="check"><input type="checkbox" id="hfOn" ${h.on ? 'checked' : ''}><span class="caja"></span><span>Poner cabecera y pie de página<small>Se ven en cada hoja, al imprimir, en el PDF y en el .docx</small></span></label>
+      <div id="hfCuerpo" class="${h.on ? '' : 'hf-off'}">
+        <div class="ab-tit">⬆ Cabecera <small>(hasta 3 líneas)</small></div>
+        <div class="hf-ed" id="hfCab" contenteditable="true" data-ph="Escribe aquí la cabecera…">${h.cab}</div>
+        <div class="hf-bar"><button data-img="hfCab">📷 Imagen</button><button data-neg="hfCab"><b>B</b> Negrita</button><button data-vaciar="hfCab">🧹 Vaciar</button></div>
+        <div class="ab-tit">⬇ Pie de página <small>(hasta 3 líneas)</small></div>
+        <div class="hf-ed" id="hfPie" contenteditable="true" data-ph="Escribe aquí el pie de página…">${h.pie}</div>
+        <div class="hf-bar"><button data-img="hfPie">📷 Imagen</button><button data-neg="hfPie"><b>B</b> Negrita</button><button data-vaciar="hfPie">🧹 Vaciar</button></div>
+        <div class="ab-tit">Alineación del texto</div>
+        <div class="seg" id="hfAl">${[['izq','⇤ Izquierda'],['centro','↔ Centro'],['der','⇥ Derecha']].map(([v, t]) => `<button data-al="${v}" class="${h.alin === v ? 'on' : ''}">${t}</button>`).join('')}</div>
+        <div class="ab-tit">Número de página</div>
+        <div class="hf-nums"><div class="hf-hoja">${NUMS.map(([v, ic]) => `<button data-num="${v}" class="hf-n ${v} ${h.num === v ? 'on' : ''}" aria-label="${v}">${h.num === v ? '1' : ic}</button>`).join('')}</div>
+          <button data-num="no" class="hf-sin ${h.num === 'no' ? 'on' : ''}">Sin número</button></div>
+        <label class="check"><input type="checkbox" id="hfPri" ${h.primera === false ? 'checked' : ''}><span class="caja"></span><span>Sin cabecera ni pie en la primera página<small>Como en una portada</small></span></label>
+      </div>`, 'es-hf-pop');
+    const cab = $('#hfCab', p), pie = $('#hfPie', p);
+    const aplicar = () => { this.hf = { ...this.hf, on:$('#hfOn', p).checked, cab:cab.innerHTML.replace(/<br>$/, ''), pie:pie.innerHTML.replace(/<br>$/, ''), primera:!$('#hfPri', p).checked };
+      if(!(cab.textContent.trim() || cab.querySelector('img'))) this.hf.cab = ''; if(!(pie.textContent.trim() || pie.querySelector('img'))) this.hf.pie = '';
+      $('#hfCuerpo', p).classList.toggle('hf-off', !this.hf.on); this.paginar(); this.cambio(); };
+    [cab, pie].forEach(ed => {
+      ed.addEventListener('input', aplicar);
+      ed.addEventListener('keydown', e => { if(e.key === 'Enter' && (ed.innerText.replace(/\n$/, '').split('\n').length >= 3)){ e.preventDefault(); toast('Como mucho 3 líneas'); } });
+      ed.addEventListener('paste', e => { e.preventDefault(); document.execCommand('insertText', false, (e.clipboardData || window.clipboardData).getData('text/plain')); });
+    });
+    $('#hfOn', p).onchange = aplicar; $('#hfPri', p).onchange = aplicar;
+    p.addEventListener('mousedown', e => { if(e.target.closest('[data-neg]')) e.preventDefault(); });
+    p.onclick = async e => {
+      const b = e.target.closest('button'); if(!b) return; const d = b.dataset;
+      if('x' in d){ cerrarPopMio(); this.paginar(); return; }
+      if(d.al){ this.hf.alin = d.al; $$('[data-al]', p).forEach(x => x.classList.toggle('on', x === b)); }
+      else if(d.num){ this.hf.num = d.num; $$('[data-num]', p).forEach(x => { x.classList.toggle('on', x === b); if(x.classList.contains('hf-n')) x.textContent = x === b ? '1' : NUMS.find(n => n[0] === x.dataset.num)[1]; }); }
+      else if(d.vaciar){ $('#' + d.vaciar, p).innerHTML = ''; }
+      else if(d.neg){ const ed = $('#' + d.neg, p); ed.focus(); document.execCommand('bold'); }
+      else if(d.img){ const ed = $('#' + d.img, p), fs = await elegirFotos(false, true); if(!fs.length) return;
+        for(const f of fs){ try{ const src = await aligerarImg(f, 600, .8); const im = document.createElement('img'); im.src = src; ed.appendChild(im); }catch(er){ toast('⚠️ No se ha podido leer esa imagen'); } } }
+      else return;
+      if(!this.hf.on && (d.al || d.num || d.img)){ this.hf.on = true; $('#hfOn', p).checked = true; }
+      aplicar();
+    };
+  },
+
+  /* ---------- ✨ Títulos bonitos: letras grandes, varios estilos y un color para cada letra ---------- */
+  TIT_ESTILOS: [
+    ['clasico', 'Clásico', 'Georgia,"Times New Roman",serif'],
+    ['redondo', 'Redondo', 'ui-rounded,"SF Pro Rounded","Arial Rounded MT Bold",Arial,sans-serif'],
+    ['mano', 'A mano', '"Snell Roundhand","Segoe Script","Brush Script MT",cursive'],
+    ['tiza', 'Divertido', '"Marker Felt","Chalkboard SE","Comic Sans MS",cursive'],
+    ['fuerte', 'Grueso', 'Impact,"Arial Black","Helvetica Neue",sans-serif'],
+    ['maquina', 'Máquina', '"American Typewriter","Courier New",monospace'],
+    ['sombra', 'Con sombra', 'ui-rounded,"Arial Rounded MT Bold",Arial,sans-serif'],
+    ['borde', 'Con borde', '"Arial Black",Impact,sans-serif']
+  ],
+  TIT_COLORES: ['#e5201c','#f08a1a','#f2c418','#3fae5a','#14b8a6','#2f80ed','#8b5cf6','#e84898','#c49a6c','#7a4e2d','#1c1c1e','#9aa0a6'],
+  ARCOIRIS: ['#e5201c','#f08a1a','#f2c418','#3fae5a','#2f80ed','#8b5cf6','#e84898'],
+  titHtml(t){
+    const st = this.TIT_ESTILOS.find(e => e[0] === t.estilo) || this.TIT_ESTILOS[0], px = t.tam === 'enorme' ? 46 : t.tam === 'mediano' ? 28 : 36;
+    const letras = [...(t.texto || '')].map((ch, i) => ch === ' ' ? ' ' : `<span style="color:${(t.colores || [])[i] || t.color || '#e5201c'}">${esc(ch)}</span>`).join('');
+    return `<div class="es-tit tit-${st[0]}" contenteditable="false" data-tit="${esc(JSON.stringify(t))}" style="font-family:${st[2].replace(/"/g, "'")};font-size:${px}px;text-align:${t.alin || 'center'};font-weight:${st[0] === 'mano' ? 400 : 900}">${letras}</div>`;
+  },
+  tituloBonito(el){
+    if(!el) this.guardarCursor();
+    let t = el ? (() => { try{ return JSON.parse(el.dataset.tit); }catch(e){ return null; } })() : null;
+    t = t || { texto:'', estilo:'redondo', tam:'grande', color:'#e5201c', colores:[], alin:'center' };
+    let sel = null;   // letra elegida (null = todas)
+    const p = popMio(`<div class="ts-cab"><h3 class="mp-h">✨ ${el ? 'Cambiar el título' : 'Título bonito'}</h3><button class="mp-b mp-pri ts-listo" data-ok>✓ ${el ? 'Guardar' : 'Poner'}</button></div>
+      <input class="mp-input" id="tbTxt" placeholder="Escribe el título…" maxlength="60" value="${esc(t.texto)}" autocomplete="off">
+      <div class="tb-prev" id="tbPrev"></div>
+      <p class="aj-ayuda" id="tbAyuda" style="text-align:center;margin:2px 0 8px">Toca una letra para darle su color, o elige un color para todas.</p>
+      <div class="tb-cols" id="tbCols">${this.TIT_COLORES.map(c => `<button data-col="${c}" style="background:${c}" aria-label="Color"></button>`).join('')}<button data-arco class="tb-arco" aria-label="Arcoíris">🌈</button></div>
+      <div class="ab-tit">Estilo</div>
+      <div class="tb-est">${this.TIT_ESTILOS.map(([k, n, f]) => `<button data-est="${k}" class="tit-${k} ${t.estilo === k ? 'on' : ''}" style="font-family:${f.replace(/"/g, "'")}"><span>Aa</span><small>${n}</small></button>`).join('')}</div>
+      <div class="ab-tit">Tamaño y posición</div>
+      <div class="seg" id="tbTam">${[['mediano','Mediano'],['grande','Grande'],['enorme','Enorme']].map(([v, n]) => `<button data-tam="${v}" class="${t.tam === v ? 'on' : ''}">${n}</button>`).join('')}</div>
+      <div class="seg" id="tbAl" style="margin-top:8px">${[['left','⇤ Izquierda'],['center','↔ Centro'],['right','⇥ Derecha']].map(([v, n]) => `<button data-al="${v}" class="${(t.alin || 'center') === v ? 'on' : ''}">${n}</button>`).join('')}</div>
+      ${el ? '<button class="sh-op peligro" data-quitar style="margin-top:12px">🗑️ Quitar este título</button>' : ''}`, 'es-hf-pop');
+    const prev = $('#tbPrev', p), txt = $('#tbTxt', p);
+    const pintar = () => {
+      const st = this.TIT_ESTILOS.find(e => e[0] === t.estilo) || this.TIT_ESTILOS[0];
+      prev.className = 'tb-prev tit-' + st[0]; prev.style.fontFamily = st[2].replace(/"/g, "'"); prev.style.fontWeight = st[0] === 'mano' ? 400 : 900; prev.style.textAlign = t.alin || 'center';
+      prev.innerHTML = t.texto ? [...t.texto].map((ch, i) => ch === ' ' ? '<span class="tb-esp"> </span>' : `<button data-l="${i}" class="${sel === i ? 'on' : ''}" style="color:${t.colores[i] || t.color}">${esc(ch)}</button>`).join('') : '<em>Tu título</em>';
+      $('#tbAyuda', p).textContent = sel == null ? 'Toca una letra para darle su color, o elige un color para todas.' : 'Elige el color de la letra «' + [...t.texto][sel] + '» (toca otra vez la letra para elegir todas).';
+    };
+    txt.oninput = () => { const n = [...txt.value].length; t.texto = txt.value; t.colores = (t.colores || []).slice(0, n); if(sel != null && sel >= n) sel = null; pintar(); };
+    p.onclick = e => {
+      const b = e.target.closest('button'); if(!b) return; const d = b.dataset;
+      if(d.l != null){ sel = sel === +d.l ? null : +d.l; pintar(); return; }
+      if(d.col){ if(sel == null){ t.color = d.col; t.colores = []; } else { t.colores[sel] = d.col; } pintar(); return; }
+      if('arco' in d){ t.colores = [...t.texto].map((ch, i) => this.ARCOIRIS[i % this.ARCOIRIS.length]); sel = null; pintar(); return; }
+      if(d.est){ t.estilo = d.est; $$('[data-est]', p).forEach(x => x.classList.toggle('on', x === b)); pintar(); return; }
+      if(d.tam){ t.tam = d.tam; $$('[data-tam]', p).forEach(x => x.classList.toggle('on', x === b)); return; }
+      if(d.al){ t.alin = d.al; $$('[data-al]', p).forEach(x => x.classList.toggle('on', x === b)); pintar(); return; }
+      if('quitar' in d){ cerrarPopMio(); el.remove(); this.cambio(); toast('🗑️ Título quitado'); return; }
+      if('ok' in d){
+        if(!t.texto.trim()){ toast('Escribe el título'); txt.focus(); return; }
+        cerrarPopMio();
+        if(el){ el.outerHTML = this.titHtml(t); }
+        else { this.restaurarCursor(); document.execCommand('insertHTML', false, this.titHtml(t) + '<div><br></div>'); }
+        this.cambio(); toast('✨ Título ' + (el ? 'cambiado' : 'puesto') + '. Tócalo para cambiarlo', null, null, 2200);
+      }
+    };
+    pintar(); if(!el) setTimeout(() => txt.focus(), 250);
+  },
+
+  /* ---------- Imprimir · PDF · .docx (botón «💾 Guardar ▾») ---------- */
+  menuGuardar(){
+    const p = popMio(`<h3 class="mp-h">💾 Guardar o imprimir</h3>
+      <button class="mp-op" data-g="imp"><span class="mp-ic">🖨️</span><span><b>Imprimir</b><small>En hojas A4 de verdad, con letra de 12 (como Word), cabecera y pie</small></span></button>
+      <button class="mp-op" data-g="pdf"><span class="mp-ic">📕</span><span><b>Guardar en PDF</b><small>Igual que al imprimir. Primero lo ves; después lo guardas o lo compartes</small></span></button>
+      <button class="mp-op" data-g="docx"><span class="mp-ic">📄</span><span><b>Guardar en .docx</b><small>Para Word o Pages. Después se quita de la app (con «Deshacer»)</small></span></button>
+      <div class="mp-fila"><button class="mp-b" data-x>Cancelar</button></div>`);
+    p.onclick = e => { const b = e.target.closest('button'); if(!b) return; cerrarPopMio();
+      if(b.dataset.g === 'docx') this.docx(); else if(b.dataset.g === 'pdf') this.pdf(false); else if(b.dataset.g === 'imp') this.pdf(true); };
+  },
+  // cada hoja, como imagen y A TAMAÑO REAL (A4 con letra de 12, como en Word): en el móvil las hojas se ven con la letra
+  // grande para poder escribir, así que al imprimir se vuelve a repartir el texto en hojas de verdad
+  async hojasImagen(){
+    if(!window.html2canvas) await cargarScript('html2canvas.min.js');
+    this.guardarYa(); this.sel = null; this.pintarSel(); this.paginar();
+    const T = $('#esTexto'), A = 794, HA = 1123, fz = 16 / 18, LAT = 94;
+    const h = this.hf || {}, on = !!h.on, arr = on && (h.cab || /^arriba/.test(h.num || '')), abj = on && (h.pie || /^abajo/.test(h.num || ''));
+    const M = arr ? 124 : 94, MB = abj ? 124 : 94;
+    const marco = document.createElement('div'); marco.className = 'es-imprime';
+    marco.style.cssText = `position:fixed;left:-${A + 6000}px;top:0;width:${A}px;height:${HA}px;overflow:hidden;background:#fff`;
+    const papel = document.createElement('div'); papel.className = 'es-papel'; papel.style.cssText = `position:absolute;left:0;top:0;width:${A}px;margin:0;isolation:isolate`;
+    const hs = document.createElement('div'); hs.className = 'es-hojas';
+    const at = document.createElement('div'); at.className = 'es-capa es-atras';
+    const de = document.createElement('div'); de.className = 'es-capa es-delante';
+    const tx = T.cloneNode(true); tx.removeAttribute('id'); tx.removeAttribute('contenteditable');
+    tx.style.cssText = `padding:${M}px ${LAT}px ${MB}px;font-size:16px`;
+    tx.querySelectorAll('[style*="font-size"]').forEach(el => { const px = parseFloat(el.style.fontSize); if(px) el.style.fontSize = (px * fz).toFixed(1) + 'px'; });
+    papel.append(hs, at, tx, de); marco.appendChild(papel); document.body.appendChild(marco);
+    try{
+      await Promise.all([...marco.querySelectorAll('img')].map(im => im.complete ? 0 : new Promise(r => { im.onload = im.onerror = r; })));
+      const n = this.saltos(tx, HA, HA, M, MB);
+      // las figuras, junto al mismo párrafo que en la pantalla y a la misma escala que la letra
+      const hijosT = [...T.children], hijosC = [...tx.children], padT = parseFloat(getComputedStyle(T).paddingLeft) || 18;
+      for(const f of this.figs || []){
+        let k = -1; hijosT.forEach((c, i) => { if(c.offsetTop <= f.y + 2) k = i; });
+        const baseT = k >= 0 ? hijosT[k].offsetTop : (parseFloat(T.style.paddingTop) || 0), baseC = k >= 0 && hijosC[k] ? hijosC[k].offsetTop : M;
+        const g = { ...f, x:LAT + (f.x - padT) * fz, y:baseC + (f.y - baseT) * fz, w:f.w * fz, h:f.h * fz };
+        const el = document.createElement('div'); el.className = 'es-fg'; this.estiloFig(el, g); (f.capa === 'detras' ? at : de).appendChild(el);
+      }
+      hs.innerHTML = Array.from({ length:n }, (_, i) => `<div class="es-pag" style="top:${i * HA}px;height:${HA}px">${this.hojaHF(i)}</div>`).join('');
+      hs.querySelectorAll('.es-guia').forEach(x => x.remove());
+      papel.style.minHeight = (n * HA) + 'px';
+      const hojas = [];
+      for(let i = 0; i < n; i++){
+        papel.style.top = (-i * HA) + 'px';
+        const cv = await html2canvas(marco, { scale:1.6, backgroundColor:'#ffffff', useCORS:true, logging:false, width:A, height:HA });
+        hojas.push(cv.toDataURL('image/jpeg', 0.9));
+      }
+      return hojas;
+    }finally{ marco.remove(); }
+  },
+  async pdf(imprimir){
+    if(Voz.activo){ Voz.parar(); await new Promise(r => setTimeout(r, 400)); }
+    const d = this.actual(); if(!d || this.vacio(d)){ toast('La hoja está vacía: no hay nada que ' + (imprimir ? 'imprimir' : 'guardar')); return; }
+    const nom = (this.tituloDe(d) || 'Escrito').replace(/[\\/:*?"<>|…]/g, '').trim().slice(0, 60) || 'Escrito';
+    toast(imprimir ? '🖨️ Preparando las hojas…' : '📕 Preparando el PDF…', null, null, 30000);
+    try{
+      const hojas = await this.hojasImagen();
+      if(imprimir){ $('#toast').classList.remove('ver'); imprimirHojas(hojas, nom); return; }
+      if(!window.jspdf) await cargarScript('jspdf.min.js');
+      const { jsPDF } = window.jspdf, doc = new jsPDF({ unit:'mm', format:'a4', compress:true });
+      hojas.forEach((h, i) => { if(i) doc.addPage(); doc.addImage(h, 'JPEG', 0, 0, 210, 297); });
+      $('#toast').classList.remove('ver');
+      verPdf(hojas, doc.output('blob'), nom + '.pdf');
+    }catch(e){ console.warn(e); toast('⚠️ No se ha podido preparar (¿sin internet la primera vez?)'); }
   },
   paginaActual(){
     const P = $('#esPapel'); if(!P) return 1; const { H, G } = this.medidas(), pr = P.getBoundingClientRect();
@@ -93,7 +290,7 @@ const Escribir = {
     if(this.reglaV()){
       const paso = H + this.PAG_G, cmV = H / 29.7; let t = '';
       for(let p = 0; p < n; p++){ const y0 = p * paso;
-        t += `<rect x="0" y="${y0}" width="20" height="${H}" class="rg-fondo"/><rect x="0" y="${y0}" width="20" height="${this.PAG_M}" class="rg-mar"/><rect x="0" y="${y0 + H - this.PAG_MB}" width="20" height="${this.PAG_MB}" class="rg-mar"/>`;
+        t += `<rect x="0" y="${y0}" width="20" height="${H}" class="rg-fondo"/><rect x="0" y="${y0}" width="20" height="${this.margenes().M}" class="rg-mar"/><rect x="0" y="${y0 + H - this.margenes().MB}" width="20" height="${this.margenes().MB}" class="rg-mar"/>`;
         for(let i = 0; i <= 59; i++){ const y = y0 + (i / 2) * cmV, may = i % 2 === 0; t += `<line x1="${may ? 9 : 14}" y1="${y.toFixed(1)}" x2="20" y2="${y.toFixed(1)}"/>` + (may && i > 0 && i < 58 ? `<text x="7" y="${(y + 3).toFixed(1)}">${i / 2}</text>` : ''); } }
       const tot = n * paso - this.PAG_G;
       rv.innerHTML = `<svg width="20" height="${tot}" viewBox="0 0 20 ${tot}">${t}</svg>`; rv.style.height = tot + 'px';
@@ -108,7 +305,7 @@ const Escribir = {
     $('#rgH', p).onchange = ok; $('#rgV', p).onchange = ok;
     p.querySelector('[data-x]').onclick = () => cerrarPopMio();
   },
-  tituloDe(d){ if(d.titulo) return d.titulo; const t = (new DOMParser().parseFromString(d.html || '', 'text/html').body.textContent || '').replace(/\u200b/g, '').trim(); return t ? t.slice(0, 40) + (t.length > 40 ? '…' : '') : 'Sin título'; },
+  tituloDe(d){ if(d.titulo) return d.titulo; const b = new DOMParser().parseFromString(d.html || '', 'text/html').body, pri = [...b.childNodes].find(n => (n.textContent || '').replace(/\u200b/g, '').trim()); const t = ((pri && pri.textContent) || '').replace(/\u200b/g, '').trim(); return t ? t.slice(0, 40) + (t.length > 40 ? '…' : '') : 'Sin título'; },
 
   /* ---------- Formato: cada botón se enciende (verde) y se apaga ---------- */
   MARCA: '#fff3a3',
@@ -541,7 +738,7 @@ const Escribir = {
       botones:[{ txt:'Cancelar', val:null }, { txt:'📄 Guardar', cls:'btn-pri', val:c => limpio($('#esNomArch', c).value) || nom0 }],
       alAbrir:c => { const i = $('#esNomArch', c); setTimeout(() => { i.focus(); i.select(); }, 250); i.onkeydown = e => { if(e.key === 'Enter') $('#popBtns .btn-pri').click(); }; } });
     if(!nom) return false;
-    const blob = new Blob([DocxSimple.crear(nom, $('#esTexto'), this.figs, $('#esPapel'))], { type:'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+    const blob = new Blob([DocxSimple.crear(nom, $('#esTexto'), this.figs, $('#esPapel'), this.hf)], { type:'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
     const archivo = nom + '.docx';
     try{
       const f = new File([blob], archivo, { type:blob.type });
@@ -604,7 +801,10 @@ const Escribir = {
     document.addEventListener('selectionchange', () => { if(this.activa()) this.pintarPagina(); });
     e.addEventListener('load', () => this.paginar(), true);   // las fotos, al cargarse, cambian el alto
     $('#esSalir').onclick = () => this.salir();
-    $('#esDocx').onclick = () => this.docx();
+    $('#esDocx').onclick = () => this.menuGuardar();
+    $('#esCabPie').onclick = () => this.menuCabecera();
+    $('#esTitBonito').addEventListener('pointerdown', () => this.guardarCursor()); $('#esTitBonito').onclick = () => this.tituloBonito(null);
+    e.addEventListener('click', ev => { const t = ev.target.closest('.es-tit'); if(t){ ev.preventDefault(); this.tituloBonito(t); } });
     $('#esMic').addEventListener('mousedown', ev => ev.preventDefault());   // que no se pierda el cursor
     $('#esMic').onclick = () => this.dictar();
     $('#esMic').innerHTML = icIn('mic') + '<b>Dictar</b>';
@@ -634,6 +834,9 @@ const DocxSimple = {
       if(tag === 'I' || tag === 'EM' || st.fontStyle === 'italic') g.i = true;
       if(tag === 'U' || /underline/.test(st.textDecoration || st.textDecorationLine || '')) g.u = true;
       if(st.fontSize){ const px = parseFloat(st.fontSize); if(px) g.sz = Math.round(px * 4 / 3); }   // 18 px = 12 pt (igual que las figuras)
+      if(st.color){ const m = /rgb\((\d+),\s*(\d+),\s*(\d+)/.exec(st.color); g.color = m ? [m[1], m[2], m[3]].map(v => (+v).toString(16).padStart(2, '0')).join('') : (/^#[0-9a-f]{6}$/i.test(st.color) ? st.color.slice(1) : g.color); }
+      if(st.fontFamily){ g.font = st.fontFamily.split(',')[0].replace(/["']/g, '').trim(); if(/^ui-/.test(g.font)) g.font = 'Arial Rounded MT Bold'; }
+      if(/^[6-9]00$/.test(st.fontWeight || '')) g.b = true;
       const bg = st.backgroundColor; if(bg && !/transparent|rgba\(0, 0, 0, 0\)/.test(bg)) g.hl = true;
       if(tag === 'BR'){ nuevo(extra); return; }
       if(tag === 'IMG'){ const m = /^data:image\/(jpeg|jpg|png);base64,(.+)$/.exec(n.getAttribute('src') || ''); if(m){ nuevo({ ...extra, jc:'center', pre:'' }, n);   // cada foto en su propio párrafo, centrada
@@ -684,25 +887,61 @@ const DocxSimple = {
       + `<pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${ancho}" cy="${alto}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r>`;
   },
   documento(tit, raiz, figs, papel){
-    const run = r => r.img ? this.dibujo(r.img) : `<w:r><w:rPr><w:rFonts w:ascii="Calibri" w:hAnsi="Calibri" w:cs="Calibri"/>${r.b ? '<w:b/>' : ''}${r.i ? '<w:i/>' : ''}${r.u ? '<w:u w:val="single"/>' : ''}${r.hl ? '<w:highlight w:val="yellow"/>' : ''}<w:sz w:val="${r.sz || 24}"/></w:rPr><w:t xml:space="preserve">${this.x(r.t)}</w:t></w:r>`;
+    const run = r => r.img ? this.dibujo(r.img) : `<w:r><w:rPr><w:rFonts w:ascii="${this.x(r.font || 'Calibri')}" w:hAnsi="${this.x(r.font || 'Calibri')}" w:cs="${this.x(r.font || 'Calibri')}"/>${r.b ? '<w:b/>' : ''}${r.color ? `<w:color w:val="${r.color}"/>` : ''}${r.i ? '<w:i/>' : ''}${r.u ? '<w:u w:val="single"/>' : ''}${r.hl ? '<w:highlight w:val="yellow"/>' : ''}<w:sz w:val="${r.sz || 24}"/></w:rPr><w:t xml:space="preserve">${this.x(r.t)}</w:t></w:r>`;
     const par = p => `<w:p><w:pPr><w:spacing w:after="0" w:line="372" w:lineRule="atLeast"/>${p.pre ? '<w:ind w:left="360" w:hanging="360"/>' : ''}${p.jc ? `<w:jc w:val="${p.jc}"/>` : ''}</w:pPr>${(p.anclas || []).map(a => this.dibujoAncla(a)).join('')}${p.pre ? run({ t:p.pre, sz:p.runs[0] && p.runs[0].sz }) : ''}${p.runs.map(run).join('')}</w:p>`;
     const ps = this.parrafos(raiz); if(!ps.length) ps.push({ runs:[], anclas:[] });
     this.anclas(ps, figs, raiz, papel);
     return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"><w:body>${ps.map(par).join('')}<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1418" w:right="1418" w:bottom="1418" w:left="1418" w:header="709" w:footer="709" w:gutter="0"/></w:sectPr></w:body></w:document>`;
   },
-  crear(tit, raiz, figs, papel){
+  // cabecera o pie (con su número de página) como parte de Word
+  parteHF(tipo, html, num, al, run){
+    const div = document.createElement('div'); div.innerHTML = html || '';
+    div.querySelectorAll('img').forEach(im => { const w = im.naturalWidth || 300, h = im.naturalHeight || 100; im.dataset.w = Math.max(4, Math.min(100, Math.round(7.5 * w / h))); });
+    const jc = al === 'izq' ? 'left' : al === 'der' ? 'right' : 'center', base = this.fotos.length;
+    const ps = html ? this.parrafos(div) : [];
+    const par = (runs, j) => `<w:p><w:pPr><w:jc w:val="${j}"/></w:pPr>${runs}</w:p>`;
+    const txt = ps.map(p => par(p.runs.map(r => r.img ? this.dibujo(r.img) : run({ ...r, sz:r.sz || 20 })).join(''), p.runs.some(r => r.img) ? jc : (p.jc || jc))).join('');
+    const pnum = num ? par('<w:r><w:fldChar w:fldCharType="begin"/></w:r><w:r><w:instrText xml:space="preserve"> PAGE </w:instrText></w:r><w:r><w:fldChar w:fldCharType="separate"/></w:r><w:r><w:rPr><w:sz w:val="20"/></w:rPr><w:t>1</w:t></w:r><w:r><w:fldChar w:fldCharType="end"/></w:r>', /izq$/.test(num) ? 'left' : /der$/.test(num) ? 'right' : 'center') : '';
+    const cuerpo = (tipo === 'hdr' ? pnum + txt : txt + pnum) || '<w:p/>';
+    const raizTag = tipo === 'hdr' ? 'w:hdr' : 'w:ftr';
+    const rels = this.fotos.slice(base).map((f, i) => `<Relationship Id="rIdImg${base + i + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/foto${base + i + 1}.${f.ext}"/>`).join('');
+    return { xml:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><${raizTag} xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing">${cuerpo}</${raizTag}>`,
+      rels:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${rels}</Relationships>` };
+  },
+  crear(tit, raiz, figs, papel, hf){
     const ahora = new Date().toISOString().replace(/\.\d+Z$/, 'Z');
     this.fotos = [];
-    const doc = this.documento(tit, raiz, figs, papel), fotos = this.fotos;
+    let doc = this.documento(tit, raiz, figs, papel); const fotos = this.fotos;
+    // cabecera y pie (con número de página y «distinta en la primera página»)
+    let tipos = '', relsHF = ''; const partes = {};
+    if(hf && hf.on && (hf.cab || hf.pie || (hf.num && hf.num !== 'no'))){
+      const run = r => `<w:r><w:rPr><w:rFonts w:ascii="Calibri" w:hAnsi="Calibri" w:cs="Calibri"/>${r.b ? '<w:b/>' : ''}${r.i ? '<w:i/>' : ''}${r.u ? '<w:u w:val="single"/>' : ''}<w:sz w:val="${r.sz || 20}"/></w:rPr><w:t xml:space="preserve">${this.x(r.t)}</w:t></w:r>`;
+      const num = hf.num && hf.num !== 'no' ? hf.num : '';
+      const Hd = this.parteHF('hdr', hf.cab, /^arriba/.test(num) ? num : '', hf.alin, run), Ft = this.parteHF('ftr', hf.pie, /^abajo/.test(num) ? num : '', hf.alin, run);
+      partes['word/header1.xml'] = Hd.xml; partes['word/_rels/header1.xml.rels'] = Hd.rels; partes['word/footer1.xml'] = Ft.xml; partes['word/_rels/footer1.xml.rels'] = Ft.rels;
+      const T = n => `<Override PartName="/word/${n}.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.${n.startsWith('header') ? 'header' : 'footer'}+xml"/>`;
+      const R = (id, n) => `<Relationship Id="${id}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/${n.startsWith('header') ? 'header' : 'footer'}" Target="${n}.xml"/>`;
+      let refs = '<w:headerReference w:type="default" r:id="rIdH1"/><w:footerReference w:type="default" r:id="rIdF1"/>';
+      tipos = T('header1') + T('footer1'); relsHF = R('rIdH1', 'header1') + R('rIdF1', 'footer1');
+      if(hf.primera === false){   // primera página sin cabecera ni pie
+        const vacio = t => `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:${t} xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:p/></w:${t}>`;
+        partes['word/header2.xml'] = vacio('hdr'); partes['word/footer2.xml'] = vacio('ftr');
+        refs += '<w:headerReference w:type="first" r:id="rIdH2"/><w:footerReference w:type="first" r:id="rIdF2"/>';
+        tipos += T('header2') + T('footer2'); relsHF += R('rIdH2', 'header2') + R('rIdF2', 'footer2');
+        doc = doc.replace('</w:sectPr>', '<w:titlePg/></w:sectPr>');
+      }
+      doc = doc.replace('<w:sectPr>', '<w:sectPr>' + refs);
+    }
     const F = {
-      '[Content_Types].xml':'<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Default Extension="jpeg" ContentType="image/jpeg"/><Default Extension="png" ContentType="image/png"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/><Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/></Types>',
+      '[Content_Types].xml':'<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Default Extension="jpeg" ContentType="image/jpeg"/><Default Extension="png" ContentType="image/png"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/><Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/>' + tipos + '</Types>',
       '_rels/.rels':'<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/></Relationships>',
       'docProps/core.xml':`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><dc:title>${this.x(tit)}</dc:title><dc:creator>PorHacer3</dc:creator><dcterms:created xsi:type="dcterms:W3CDTF">${ahora}</dcterms:created><dcterms:modified xsi:type="dcterms:W3CDTF">${ahora}</dcterms:modified></cp:coreProperties>`,
       'word/document.xml':doc,
-      'word/_rels/document.xml.rels':`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${fotos.map((f, i) => `<Relationship Id="rIdImg${i + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/foto${i + 1}.${f.ext}"/>`).join('')}</Relationships>`
+      'word/_rels/document.xml.rels':`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${fotos.map((f, i) => `<Relationship Id="rIdImg${i + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/foto${i + 1}.${f.ext}"/>`).join('')}${relsHF}</Relationships>`
     };
     fotos.forEach((f, i) => { F['word/media/foto' + (i + 1) + '.' + f.ext] = Uint8Array.from(atob(f.b64), c => c.charCodeAt(0)); });
+    Object.assign(F, partes);
     return this.zip(F);
   },
   // ZIP sin comprimir (suficiente para un .docx de texto)
