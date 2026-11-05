@@ -141,7 +141,9 @@ const Agenda = {
     deslizarBorrar($('.mp-notas', p), id => this.borrarConDeshacer(k, id, () => { if(!$('.desl-fila', p)) this.elegirDia(k); }));
     p.onclick = e => { const b = e.target.closest('button[data-id]'); if(b) this.editor(k, b.dataset.id); else if(e.target.closest('[data-volver]')) this.elegirDia(k); };
   },
-  // Borrar una nota sin preguntar (al deslizarla), con «Deshacer» durante 5 segundos
+  // segundos para «Deshacer» (Configuración › Agenda)
+  segDeshacer(){ const n = +lsGet('ph3-ag-deshacer'); return n >= 2 && n <= 30 ? n : 5; },
+  // Borrar una nota sin preguntar (al deslizarla), con «Deshacer» durante unos segundos
   async borrarConDeshacer(k, id, despues){
     const it = this.notas(k).find(x => x.id === id); if(!it) return;
     await this.guardarDia(k, this.notas(k).filter(x => x.id !== id)); this.pintar();
@@ -149,9 +151,73 @@ const Agenda = {
       await this.guardarDia(k, [...this.notas(k), it]); this.pintar(); toast('↩️ La nota vuelve a estar');
       // si la lista de notas (o el menú de ese día) sigue abierta, se vuelve a ver con la nota
       const pop = $('#mioPop'); if(pop && pop.querySelector(`[data-dia-ag="${k}"]`)) this.elegirNota(k, true);
-    }, 5000);
-    setTimeout(() => { if(!this.notas(k).some(x => x.id === id)) this.quitarFotosLibres(it.fotos || []); }, 7000);
+    }, this.segDeshacer() * 1000);
+    setTimeout(() => { if(!this.notas(k).some(x => x.id === id)) this.quitarFotosLibres(it.fotos || []); }, this.segDeshacer() * 1000 + 2000);
     despues && despues();
+  },
+
+  /* ---------- Vista Día: mantener pulsada una nota y deslizarla ----------
+     ← a la izquierda (rojo): eliminar, con «Deshacer» · → a la derecha (naranja): cambiarla de día.
+     Sin mantener pulsado, deslizar sigue pasando la hoja como siempre. */
+  enlazarAgarre(c){
+    let A = null; const UMBRAL = 90;
+    const soltarTodo = () => { if(!A) return; clearTimeout(A.t); const a = A; A = null; this._agarre = false;
+      if(!a.on) return;
+      this._desliz = Date.now();
+      const id = a.item.dataset.nota, k = this.dia, dx = a.dx;
+      a.item.classList.remove('agarrada'); a.item.style.transition = 'transform .22s';
+      if(dx < -UMBRAL){ a.item.style.transform = 'translateX(-110%)'; setTimeout(() => this.borrarConDeshacer(k, id), 200); return; }
+      a.item.style.transform = ''; setTimeout(() => { if(a.fondo) a.fondo.remove(); a.item.style.transition = ''; a.item.style.zIndex = ''; }, 230);
+      if(dx > UMBRAL) setTimeout(() => this.cambiarDia(k, id), 160);
+    };
+    c.addEventListener('pointerdown', e => {
+      if(this.modo !== 'dia' || (e.pointerType === 'mouse' && e.button)) return;
+      const item = e.target.closest('.ag-item'); if(!item || e.target.closest('.ag-check, img')) return;
+      A = { item, x:e.clientX, y:e.clientY, id:e.pointerId, on:false, dx:0 };
+      A.t = setTimeout(() => {
+        if(!A) return; A.on = true; this._agarre = true;
+        try{ getSelection().removeAllRanges(); }catch(_){}
+        try{ navigator.vibrate && navigator.vibrate(15); }catch(_){}
+        const f = document.createElement('div'); f.className = 'ag-desl';
+        f.innerHTML = '<span class="ag-desl-der">📅 Cambiar día</span><span class="ag-desl-izq">Eliminar 🗑</span>';
+        Object.assign(f.style, { top:item.offsetTop + 'px', left:item.offsetLeft + 'px', width:item.offsetWidth + 'px', height:item.offsetHeight + 'px' });
+        item.parentNode.insertBefore(f, item); A.fondo = f; item.classList.add('agarrada'); item.style.zIndex = '2';
+      }, 380);
+    });
+    addEventListener('pointermove', e => {
+      if(!A || e.pointerId !== A.id) return;
+      if(!A.on){ if(Math.hypot(e.clientX - A.x, e.clientY - A.y) > 9){ clearTimeout(A.t); A = null; } return; }   // se movió antes: es pasar la hoja o desplazar
+      A.dx = e.clientX - A.x; A.item.style.transform = `translateX(${A.dx}px)`;
+      A.fondo.classList.toggle('izq', A.dx < 0); A.fondo.classList.toggle('der', A.dx > 0); A.fondo.classList.toggle('listo', Math.abs(A.dx) > UMBRAL);
+    });
+    addEventListener('pointerup', soltarTodo); addEventListener('pointercancel', soltarTodo);
+    c.addEventListener('touchmove', e => { if(A && A.on && e.cancelable) e.preventDefault(); }, { passive:false });   // que no se mueva la página mientras la llevas
+    c.addEventListener('contextmenu', e => { if(A) e.preventDefault(); });
+  },
+  // cambiar una nota de día: botones rápidos, las dos próximas semanas o cualquier fecha
+  cambiarDia(k, id){
+    const it = this.notas(k).find(x => x.id === id); if(!it) return;
+    const d0 = deIso(k), lun = new Date(d0.getFullYear(), d0.getMonth(), d0.getDate() - ((d0.getDay() + 6) % 7)), hoy = hoyIso();
+    const sigLun = sumaDias(k, 7 - ((d0.getDay() + 6) % 7));
+    const rap = [[hoy, 'Hoy'], [sumaDias(hoy, 1), 'Mañana'], [sumaDias(k, 1), 'Al día siguiente'], [sigLun, 'Próximo lunes'], [sumaDias(k, 7), '+1 semana']].filter(([x], i, a) => x !== k && a.findIndex(y => y[0] === x) === i);
+    let rej = ''; for(let i = 0; i < 14; i++){ const w = iso(new Date(lun.getFullYear(), lun.getMonth(), lun.getDate() + i)); rej += `<button data-ir="${w}" class="${w === k ? 'yo' : ''} ${w === hoy ? 'hoy' : ''}" ${w === k ? 'disabled' : ''}><small>${'LMXJVSD'[i % 7]}</small><b>${deIso(w).getDate()}</b></button>`; }
+    const p = popMio(`<h3 class="mp-h">📅 Cambiar de día</h3>
+      <p class="mp-p ag-cd-nota">«${it.texto ? esc(it.texto.slice(0, 80)) : '📷 Foto'}» · ahora el ${fechaCortaB(k)}</p>
+      <div class="ag-cd-rap">${rap.map(([x, t]) => `<button data-ir="${x}"><b>${t}</b><small>${fechaCortaB(x)}</small></button>`).join('')}</div>
+      <div class="ab-tit">Estas dos semanas</div>
+      <div class="ag-cd-rej">${rej}</div>
+      <label class="ag-cd-otro">📆 Otro día <input type="date" id="agCdFecha" value="${k}"></label>
+      <div class="mp-fila"><button class="mp-b" data-x>Cancelar</button></div>`);
+    const ir = async nk => { if(!nk || nk === k) return; cerrarPopMio();
+      const quitada = this.notas(k).filter(x => x.id !== id), nota = this.notas(k).find(x => x.id === id); if(!nota) return;
+      await this.guardarDia(k, quitada); await this.guardarDia(nk, [...this.notas(nk), nota]); this.pintar();
+      toast('📅 Movida al ' + fechaCortaB(nk) + (nota.serie ? ' (solo esta)' : ''), 'Deshacer', async () => {
+        const n2 = this.notas(nk).find(x => x.id === id); if(!n2) return;
+        await this.guardarDia(nk, this.notas(nk).filter(x => x.id !== id)); await this.guardarDia(k, [...this.notas(k), n2]); this.pintar(); toast('↩️ La nota vuelve a su día');
+      }, this.segDeshacer() * 1000);
+    };
+    p.onclick = e => { const b = e.target.closest('button'); if(!b) return; if(b.dataset.ir) ir(b.dataset.ir); else if('x' in b.dataset) cerrarPopMio(); };
+    $('#agCdFecha', p).onchange = e => ir(e.target.value);
   },
 
   /* ---------- Editor de una nota ---------- */
@@ -552,7 +618,9 @@ const Agenda = {
       else if(d.nota) this.editor(this.dia, d.nota);
     });
     c.addEventListener('change', e => { if(e.target.id === 'agElegirDia' && e.target.value){ this.dia = e.target.value; const d = deIso(this.dia); this.mes = new Date(d.getFullYear(), d.getMonth(), 1); this.pintar(); } });
+    this.enlazarAgarre(c);
     deslizarPaginas(c, {
+      bloqueado: () => !!this._agarre,
       ignorar: t => !!t.closest('input, .seg, .ag-semana'),
       puede: () => true,
       cont: () => $('#agCuerpo .ag-card'),

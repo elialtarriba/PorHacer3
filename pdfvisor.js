@@ -60,6 +60,7 @@ const VisorPdf = {
         <button data-a="atras" title="Deshacer">↶</button>
         <button data-a="menos" title="Más pequeño">－</button>
         <button data-a="mas" title="Más grande">＋</button>
+        <button data-a="z100" class="vpdf-100" title="Volver al tamaño normal">↺ 100%</button>
       </div>
       <div class="vpdf-cols" id="vpdfCols"></div>
       <div class="vpdf-zona" id="vpdfZona"><div class="vpdf-hojas" id="vpdfHojas"></div></div>
@@ -68,6 +69,7 @@ const VisorPdf = {
     v.addEventListener('click', e => this.click(e));
     this.zona = $('#vpdfZona', v); this.hojas = $('#vpdfHojas', v);
     this.zona.addEventListener('scroll', () => { this.pintarPie(); this.programarRender(); }, { passive:true });
+    this.enlazarPellizco();
     this._tecla = e => { if(e.key === 'Escape') this.cerrar(); if((e.metaKey || e.ctrlKey) && e.key === 'z'){ e.preventDefault(); this.atras(); } };
     addEventListener('keydown', this._tecla);
     this._res = () => { clearTimeout(this._tr); this._tr = setTimeout(() => this.montar(), 250); }; addEventListener('resize', this._res);
@@ -104,12 +106,65 @@ const VisorPdf = {
     else if(d.a === 'abrir') this.abrir();
     else if(d.a === 'guardar') this.exportar();
     else if(d.a === 'atras') this.atras();
-    else if(d.a === 'mas' || d.a === 'menos'){
-      const z0 = this.zoom, centro = (this.zona.scrollTop + this.zona.clientHeight / 2) / this.hojas.scrollHeight;
-      this.zoom = Math.max(0.6, Math.min(3, +(this.zoom + (d.a === 'mas' ? 0.25 : -0.25)).toFixed(2))); if(this.zoom === z0) return;
-      this.montar(); this.zona.scrollTop = centro * this.hojas.scrollHeight - this.zona.clientHeight / 2;
-      toast('🔍 ' + Math.round(this.zoom * 100) + ' %', null, null, 800);
-    }
+    else if(d.a === 'mas' || d.a === 'menos') this.ponerZoom(this.zoom + (d.a === 'mas' ? 0.25 : -0.25));
+    else if(d.a === 'z100') this.ponerZoom(1, null, null, true);
+  },
+  /* ---------- Zoom: con ＋/－, con dos dedos (iPad y móvil) o con Ctrl + rueda; «↺ 100%» vuelve al tamaño normal ---------- */
+  ZMIN:0.5, ZMAX:4,
+  // fx, fy: el punto de la pantalla que se queda quieto (si no, el centro)
+  async ponerZoom(z, fx, fy, aviso){
+    z = Math.max(this.ZMIN, Math.min(this.ZMAX, +(+z).toFixed(2)));
+    const zr = this.zona.getBoundingClientRect(); if(fx == null){ fx = zr.left + zr.width / 2; fy = zr.top + zr.height / 2; }
+    const r0 = this.hojas.getBoundingClientRect(), px = (fx - r0.left) / (r0.width || 1), py = (fy - r0.top) / (r0.height || 1);
+    this.hojas.style.transform = ''; this.hojas.style.transformOrigin = '';
+    if(z === this.zoom){ return; }
+    this.zoom = z; await this.montar();
+    const r1 = this.hojas.getBoundingClientRect();
+    this.zona.scrollLeft += r1.left + px * r1.width - fx; this.zona.scrollTop += r1.top + py * r1.height - fy;
+    this.pintarPie(); this.programarRender(true);
+    $$('#vpdf .vpdf-100').forEach(b => b.classList.toggle('on', this.zoom !== 1));
+    toast(aviso ? '↺ Tamaño normal' : '🔍 ' + Math.round(this.zoom * 100) + ' %', null, null, 800);
+  },
+  enlazarPellizco(){
+    const Z = this.zona; let P = null;
+    const dist = t => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY), mid = t => [(t[0].clientX + t[1].clientX) / 2, (t[0].clientY + t[1].clientY) / 2];
+    Z.addEventListener('touchstart', e => {
+      if(e.touches.length !== 2) return;
+      const r = this.hojas.getBoundingClientRect(), [mx, my] = mid(e.touches);
+      P = { d0:dist(e.touches), m0:[mx, my], s:1, ox:mx - r.left, oy:my - r.top, mx, my };
+      this._pellizco = true; this.quitarBurbuja && this.quitarBurbuja();
+      this.hojas.style.transformOrigin = P.ox + 'px ' + P.oy + 'px';
+    }, { passive:true });
+    Z.addEventListener('touchmove', e => {
+      if(!P || e.touches.length < 2) return; e.preventDefault();
+      const [mx, my] = mid(e.touches); P.mx = mx; P.my = my;
+      P.s = Math.max(this.ZMIN / this.zoom, Math.min(this.ZMAX / this.zoom, dist(e.touches) / P.d0));
+      this.hojas.style.transform = `translate(${mx - P.m0[0]}px, ${my - P.m0[1]}px) scale(${P.s})`;
+    }, { passive:false });
+    const fin = e => {
+      if(!P || e.touches.length >= 2) return; const p = P; P = null;
+      setTimeout(() => { this._pellizco = false; }, 250);
+      if(Math.abs(p.s - 1) < 0.04){ this.hojas.style.transform = ''; return; }
+      // el punto que estaba entre los dedos se queda entre los dedos
+      const r = this.hojas.getBoundingClientRect(), fx = p.mx, fy = p.my;
+      const px = (fx - r.left) / r.width, py = (fy - r.top) / r.height, z = Math.max(this.ZMIN, Math.min(this.ZMAX, +(this.zoom * p.s).toFixed(2)));
+      this.hojas.style.transform = ''; this.hojas.style.transformOrigin = '';
+      this.zoom = z; this.montar().then(() => {
+        const r1 = this.hojas.getBoundingClientRect(); this.zona.scrollLeft += r1.left + px * r1.width - fx; this.zona.scrollTop += r1.top + py * r1.height - fy;
+        this.pintarPie(); this.programarRender(true); $$('#vpdf .vpdf-100').forEach(b => b.classList.toggle('on', this.zoom !== 1)); });
+    };
+    Z.addEventListener('touchend', fin); Z.addEventListener('touchcancel', fin);
+    ['gesturestart', 'gesturechange'].forEach(t => Z.addEventListener(t, e => e.preventDefault()));   // que el iPad no amplíe toda la pantalla
+    // Ctrl + rueda (o pellizcar en el trackpad del ordenador)
+    Z.addEventListener('wheel', e => { if(!e.ctrlKey && !e.metaKey) return; e.preventDefault();
+      this._wz = (this._wz || this.zoom) * Math.exp(-e.deltaY * 0.01); this._wz = Math.max(this.ZMIN, Math.min(this.ZMAX, this._wz));
+      const r = this.hojas.getBoundingClientRect(); this.hojas.style.transformOrigin = (e.clientX - r.left) + 'px ' + (e.clientY - r.top) + 'px'; this.hojas.style.transform = `scale(${this._wz / this.zoom})`;
+      clearTimeout(this._wt); const fx = e.clientX, fy = e.clientY;
+      this._wt = setTimeout(() => { const z = this._wz; this._wz = null;
+        const r2 = this.hojas.getBoundingClientRect(), px = (fx - r2.left) / r2.width, py = (fy - r2.top) / r2.height;
+        this.hojas.style.transform = ''; this.hojas.style.transformOrigin = ''; this.zoom = +z.toFixed(2);
+        this.montar().then(() => { const r1 = this.hojas.getBoundingClientRect(); this.zona.scrollLeft += r1.left + px * r1.width - fx; this.zona.scrollTop += r1.top + py * r1.height - fy; this.pintarPie(); this.programarRender(true); $$('#vpdf .vpdf-100').forEach(b => b.classList.toggle('on', this.zoom !== 1)); });
+      }, 180); }, { passive:false });
   },
 
   /* ---------- Hojas (se dibujan solo las que se ven, para no gastar memoria) ---------- */
@@ -184,7 +239,7 @@ const VisorPdf = {
     const c = $('.vpdf-dib', pg.h); let T = null, pan = null;
     const punto = e => { const r = c.getBoundingClientRect(); return [Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)), Math.max(0, Math.min(1, (e.clientY - r.top) / r.height))]; };
     c.addEventListener('pointerdown', e => {
-      const h = this.herr; if(!['boli', 'marca', 'goma'].includes(h)) return;
+      const h = this.herr; if(!['boli', 'marca', 'goma'].includes(h) || this._pellizco) return;
       if(this.soloLapiz && e.pointerType === 'touch'){ pan = { y:e.clientY, x:e.clientX, st:this.zona.scrollTop, sl:this.zona.scrollLeft, id:e.pointerId }; return; }   // con el dedo se mueve
       e.preventDefault(); try{ c.setPointerCapture(e.pointerId); }catch(_){}
       if(h === 'goma'){ T = { goma:true }; this.borrarEn(pg, punto(e)); return; }
@@ -192,6 +247,7 @@ const VisorPdf = {
       T = { h, c:this.color, g:grosor / W, p:[punto(e)] };
     });
     c.addEventListener('pointermove', e => {
+      if(this._pellizco){ pan = null; if(T){ T = null; this.pintarTrazos(pg); } return; }
       if(pan && e.pointerId === pan.id){ this.zona.scrollTop = pan.st - (e.clientY - pan.y); this.zona.scrollLeft = pan.sl - (e.clientX - pan.x); return; }
       if(!T) return; e.preventDefault();
       if(T.goma){ this.borrarEn(pg, punto(e)); return; }

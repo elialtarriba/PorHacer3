@@ -20,7 +20,7 @@ const Escribir = {
     const d = this.actual(); if(!d) return;
     $('#esTitulo').value = d.titulo || '';
     $('#esTexto').innerHTML = d.html || '';
-    this.figs = JSON.parse(JSON.stringify(d.figs || [])); this.sel = null; this.hf = d.hf ? JSON.parse(JSON.stringify(d.hf)) : null;
+    this.figs = JSON.parse(JSON.stringify(d.figs || [])); this.sel = null; this.hf = d.hf ? JSON.parse(JSON.stringify(d.hf)) : null; this.orient = d.orient || 'v'; this.tabs = (d.tabs || []).slice();
     this.pintarFigs(); this.contar();
     requestAnimationFrame(() => { this.migrar(); this.paginar(); });
   },
@@ -38,9 +38,9 @@ const Escribir = {
     clearTimeout(this._t);
     const l = this.lista(), d = l.find(x => x.id === this.id); if(!d || !$('#esTexto')) return;
     const html = this.htmlLimpio(), tit = $('#esTitulo').value.trim(), figs = JSON.stringify(this.figs || []);
-    const hf = JSON.stringify(this.hf || null);
-    if(d.html === html && (d.titulo || '') === tit && JSON.stringify(d.figs || []) === figs && JSON.stringify(d.hf || null) === hf) { if(!Voz.activo) $('#esEstado').textContent = '✓ Guardado'; return; }
-    d.html = html; d.titulo = tit; d.figs = JSON.parse(figs); d.hf = JSON.parse(hf); d.cambiado = Date.now(); this.ponerLista(l);
+    const hf = JSON.stringify(this.hf || null), extra = JSON.stringify([this.orient || 'v', this.tabs || []]);
+    if(d.html === html && (d.titulo || '') === tit && JSON.stringify(d.figs || []) === figs && JSON.stringify(d.hf || null) === hf && JSON.stringify([d.orient || 'v', d.tabs || []]) === extra) { if(!Voz.activo) $('#esEstado').textContent = '✓ Guardado'; return; }
+    d.html = html; d.titulo = tit; d.figs = JSON.parse(figs); d.hf = JSON.parse(hf); d.orient = this.orient || 'v'; d.tabs = (this.tabs || []).slice(); d.cambiado = Date.now(); this.ponerLista(l);
     if(!Voz.activo) $('#esEstado').textContent = '✓ Guardado';
   },
   contar(){ const t = ($('#esTexto').innerText || '').trim(); const n = t ? t.split(/\s+/).length : 0; this._palabras = n + (n === 1 ? ' palabra' : ' palabras'); this.pintarPagina(); },
@@ -49,7 +49,9 @@ const Escribir = {
      El texto sigue siendo uno solo; si un párrafo no cabe al final de una hoja, pasa entero a la siguiente
      (se le pone un margen «data-salto» que no se guarda). */
   PAG_G: 22, PAG_M: 30, PAG_MB: 34,
-  medidas(){ const P = $('#esPapel'), W = P.clientWidth || 340; return { W, H:Math.round(W * 297 / 210), G:this.PAG_G }; },
+  horizontal(){ return this.orient === 'h'; },
+  medidas(){ const P = $('#esPapel'), W = P.clientWidth || 340; return { W, H:Math.round(W * (this.horizontal() ? 210 / 297 : 297 / 210)), G:this.PAG_G }; },
+  anchoCm(){ return this.horizontal() ? 29.7 : 21; },
   htmlLimpio(){
     const c = $('#esTexto').cloneNode(true);
     c.querySelectorAll('[data-salto]').forEach(el => { el.style.marginTop = ''; el.removeAttribute('data-salto'); if(!el.getAttribute('style')) el.removeAttribute('style'); });
@@ -59,9 +61,10 @@ const Escribir = {
     const T = $('#esTexto'), P = $('#esPapel'); if(!T || !P || !this.activa()) return;
     const { W, H, G } = this.medidas(), paso = H + G, { M, MB } = this.margenes();
     T.style.paddingTop = M + 'px'; T.style.paddingBottom = MB + 'px';
+    this.ajustarTabs(T, W / this.anchoCm());
     const n = this.saltos(T, H, paso, M, MB);
     this._paginas = n; P.style.minHeight = (n * paso - G) + 'px';
-    const hs = $('#esHojas'), clave = H + '|' + n + '|' + JSON.stringify(this.hf || null);
+    const hs = $('#esHojas'), clave = H + '|' + n + '|' + JSON.stringify(this.hf || null) + this.orient;
     if(hs.dataset.k !== clave){ hs.dataset.k = clave; hs.innerHTML = Array.from({ length:n }, (_, i) => `<div class="es-pag" style="top:${i * paso}px;height:${H}px">${this.hojaHF(i)}</div>`).join(''); }
     this.reglas(W, H, n);
     this.pintarPagina();
@@ -77,6 +80,104 @@ const Escribir = {
     const rg = document.createRange(); rg.selectNodeContents(T); const rb = rg.getBoundingClientRect(), tb = T.getBoundingClientRect();
     const alto = rb.height ? rb.bottom - tb.top : 0;   // hasta donde llega lo escrito (no el alto de la caja)
     return Math.max(1, Math.ceil((alto + MB) / paso));
+  },
+  /* ---------- Iconos del pie (sin color: toman el del texto del botón) ---------- */
+  ICO_CARPETA: '<svg class="es-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7.5V18a1.5 1.5 0 0 0 1.5 1.5h15A1.5 1.5 0 0 0 21 18V9.5A1.5 1.5 0 0 0 19.5 8h-7.4l-2-2.5H4.5A1.5 1.5 0 0 0 3 7z"/></svg>',
+  ICO_IMPRESORA: '<svg class="es-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 9V3.5h10V9"/><rect x="3" y="9" width="18" height="8" rx="1.8"/><path d="M7 14h10v6.5H7z"/><circle cx="17.5" cy="11.8" r=".6"/></svg>',
+  /* ---------- La barra de arriba: mantén pulsado un botón y arrástralo a otro sitio (el orden se guarda) ---------- */
+  claveBoton(b){ return b.id || (b.dataset.c ? 'c:' + b.dataset.c : ''); },
+  ordenBarra(){
+    const B = $('#esBarra'); if(!B || B._orden) return; B._orden = true;
+    const todos = () => [...B.children].filter(b => b.tagName === 'BUTTON');
+    this._ordenBase = todos().map(b => this.claveBoton(b));
+    let guard = []; try{ guard = JSON.parse(lsGet('ph3-es-barra') || '[]') || []; }catch(e){}
+    if(guard.length){ const mapa = {}; todos().forEach(b => { mapa[this.claveBoton(b)] = b; });
+      const orden = guard.filter(k => mapa[k]); this._ordenBase.forEach((k, i) => { if(!orden.includes(k)) orden.splice(Math.min(i, orden.length), 0, k); });
+      orden.forEach(k => B.appendChild(mapa[k])); }
+    let D = null;
+    const fin = () => { if(!D) return; clearTimeout(D.t); const d = D; D = null;
+      if(!d.on) return;
+      d.b.classList.remove('moviendo'); B.classList.remove('arrastrando'); this._sinClic = true; setTimeout(() => { this._sinClic = false; }, 400);
+      const o = todos().map(b => this.claveBoton(b)); lsSet('ph3-es-barra', o.join() === this._ordenBase.join() ? null : JSON.stringify(o));
+      toast('↔️ Botón cambiado de sitio · se queda así', null, null, 1400); };
+    B.addEventListener('pointerdown', e => { const b = e.target.closest('button'); if(!b || b.parentElement !== B || (e.pointerType === 'mouse' && e.button)) return;
+      D = { b, x:e.clientX, y:e.clientY, id:e.pointerId, on:false };
+      D.t = setTimeout(() => { if(!D) return; D.on = true; b.classList.add('moviendo'); B.classList.add('arrastrando'); try{ navigator.vibrate && navigator.vibrate(15); }catch(_){}
+        if(!lsGet('ph3-es-barra-av')){ lsSet('ph3-es-barra-av', '1'); toast('↔️ Ahora arrástralo a donde quieras', null, null, 1600); } }, 480); });
+    addEventListener('pointermove', e => { if(!D || e.pointerId !== D.id) return;
+      if(!D.on){ if(Math.hypot(e.clientX - D.x, e.clientY - D.y) > 8){ clearTimeout(D.t); D = null; } return; }
+      e.preventDefault();
+      const r = B.getBoundingClientRect(); if(e.clientX < r.left + 30) B.scrollLeft -= 10; else if(e.clientX > r.right - 30) B.scrollLeft += 10;
+      const t = todos().find(x => { if(x === D.b) return false; const q = x.getBoundingClientRect(); return e.clientX >= q.left && e.clientX <= q.right; });
+      if(t){ const q = t.getBoundingClientRect(); if(e.clientX < q.left + q.width / 2){ if(t.previousElementSibling !== D.b) B.insertBefore(D.b, t); } else if(t.nextElementSibling !== D.b) B.insertBefore(D.b, t.nextSibling); } }, { passive:false });
+    addEventListener('pointerup', fin); addEventListener('pointercancel', fin);
+    B.addEventListener('touchmove', e => { if(D && D.on && e.cancelable) e.preventDefault(); }, { passive:false });
+    B.addEventListener('contextmenu', e => { if(D) e.preventDefault(); });
+    B.addEventListener('click', e => { if(this._sinClic){ e.stopPropagation(); e.preventDefault(); this._sinClic = false; } }, true);
+  },
+  ordenBarraDeSiempre(){
+    lsSet('ph3-es-barra', null); const B = $('#esBarra'); if(!B || !this._ordenBase) return;
+    const mapa = {}; [...B.children].forEach(b => { mapa[this.claveBoton(b)] = b; }); this._ordenBase.forEach(k => mapa[k] && B.appendChild(mapa[k]));
+  },
+  /* ---------- Hoja vertical u horizontal ---------- */
+  menuHoja(){
+    const p = popMio(`<h3 class="mp-h">📄 La hoja</h3>
+      <div class="es-ori"><button data-or="v" class="${!this.horizontal() ? 'on' : ''}"><i class="v"></i>Vertical</button><button data-or="h" class="${this.horizontal() ? 'on' : ''}"><i class="h"></i>Horizontal</button></div>
+      <p class="aj-ayuda" style="margin-top:8px">Se ve así en las hojas y sale así al imprimir, en el PDF y en el .docx.</p>
+      <div class="mp-fila"><button class="mp-b mp-pri" data-x>Listo</button></div>`);
+    p.onclick = e => { const b = e.target.closest('button'); if(!b) return; if(b.dataset.or){ this.orient = b.dataset.or; $$('[data-or]', p).forEach(x => x.classList.toggle('on', x === b)); this.paginar(); this.cambio(); toast(this.horizontal() ? '📄 Hoja horizontal' : '📄 Hoja vertical', null, null, 1200); } else cerrarPopMio(); };
+  },
+  /* ---------- Tamaño de la letra: en puntos (6 a 120) o pequeña / normal / grande / título ---------- */
+  menuTam(){
+    const t = this.tamAqui(), act = t.startsWith('pt:') ? +t.slice(3) : { peq:10, normal:12, grande:16, titulo:21 }[t] || 12;
+    const nums = Array.from({ length:115 }, (_, i) => i + 6);
+    const p = popMio(`<h3 class="mp-h">Aa Tamaño de la letra</h3>
+      <div class="ab-tit">En puntos (pt) <small>· desliza y toca</small></div>
+      <div class="es-pts"><div class="es-pts-c" id="ptsC">${nums.map(n => `<button data-pt="${n}" class="${n === act ? 'on' : ''}">${n}</button>`).join('')}</div></div>
+      <div class="ab-tit">O rápido</div>
+      <div class="es-tams2">${[['peq','Pequeña'],['normal','Normal'],['grande','Grande'],['titulo','Título']].map(([k, n]) => `<button data-tam="${k}" class="${t === k ? 'on' : ''}" style="font-size:${this.TAM[k]}">${n}</button>`).join('')}</div>
+      <div class="mp-fila"><button class="mp-b" data-x>Cerrar</button></div>`);
+    const c = $('#ptsC', p), on = $('.on', c); if(on) setTimeout(() => { c.scrollLeft = on.offsetLeft - c.clientWidth / 2 + on.offsetWidth / 2; }, 30);
+    p.addEventListener('mousedown', e => { if(e.target.closest('button')) e.preventDefault(); });
+    p.onclick = e => { const b = e.target.closest('button'); if(!b) return;
+      if(b.dataset.pt){ cerrarPopMio(); this.restaurarCursor(); this.cmd('tam', 'pt:' + b.dataset.pt); toast('Aa ' + b.dataset.pt + ' pt', null, null, 900); }
+      else if(b.dataset.tam){ cerrarPopMio(); this.restaurarCursor(); this.cmd('tam', b.dataset.tam); }
+      else cerrarPopMio(); };
+  },
+  /* ---------- Tabuladores: «⇥ Tab» salta al siguiente palito de la regla (o, si no hay, al siguiente centímetro) ---------- */
+  ponerTab(){
+    const e = $('#esTexto'), s = getSelection(); if(!s.rangeCount || !e.contains(s.getRangeAt(0).startContainer)) return;
+    // a mano (no con insertHTML: al principio de un párrafo lo dejaba fuera)
+    const r = s.getRangeAt(0); r.deleteContents();
+    const sp = document.createElement('span'); sp.className = 'es-tab'; sp.contentEditable = 'false'; sp.textContent = '\u00a0';
+    const z = document.createTextNode('\u200b'); r.insertNode(z); r.insertNode(sp);
+    const q = document.createRange(); q.setStart(z, 1); q.collapse(true); s.removeAllRanges(); s.addRange(q);
+    this.ajustarTabs(e, $('#esPapel').clientWidth / this.anchoCm()); this.cambio();
+    if(!(this.tabs || []).length && !this._avisoTab){ this._avisoTab = true; toast('⇥ Salta de centímetro en centímetro. Para poner tus propios tabuladores, toca la regla de arriba (📏 Regla)', null, null, 4500); }
+  },
+  // cada tabulador ocupa justo hasta el siguiente palito (o centímetro)
+  ajustarTabs(T, cmPx, tabsCm){
+    const ts = $$('.es-tab', T); if(!ts.length) return;
+    const stops = (tabsCm || this.tabs || []).map(c => c * cmPx).sort((a, b) => a - b), cs = getComputedStyle(T), x0 = T.getBoundingClientRect().left + (parseFloat(cs.paddingLeft) || 0);
+    ts.forEach(t => { t.style.width = '0px'; });
+    ts.forEach(t => { const x = t.getBoundingClientRect().left - x0, sig = stops.find(v => v > x + 2); t.style.width = Math.max(4, (sig != null ? sig : (Math.floor(x / cmPx + 0.05) + 1) * cmPx) - x) + 'px'; });
+  },
+  // la regla de arriba: tocar = poner un palito; arrastrar un palito = moverlo; tirar hacia abajo = quitarlo
+  enlazarRegla(){
+    const rh = $('#esReglaH'); let D = null;
+    const cmDe = x => { const r = rh.getBoundingClientRect(), cm = r.width / this.anchoCm(); return Math.max(0, Math.round((x - r.left - 18) / cm * 4) / 4); };
+    const pinta = () => this.reglas(this.medidas().W, this.medidas().H, this._paginas || 1);
+    rh.addEventListener('pointerdown', e => {
+      e.preventDefault(); const c = cmDe(e.clientX), ls = this.tabs = this.tabs || [];
+      let i = ls.findIndex(v => Math.abs(v - c) < 0.4);
+      if(i < 0 || e.target.closest('.rg-palo')){ ls.push(c); i = ls.length - 1; }
+      D = { i, y:e.clientY, id:e.pointerId }; try{ rh.setPointerCapture(e.pointerId); }catch(_){} pinta();
+    });
+    rh.addEventListener('pointermove', e => { if(!D || e.pointerId !== D.id) return; this.tabs[D.i] = cmDe(e.clientX); rh.classList.toggle('quitar', e.clientY - D.y > 30); pinta(); });
+    const fin = e => { if(!D) return; const quitar = e.clientY - D.y > 30, v = this.tabs[D.i];
+      if(quitar) this.tabs.splice(D.i, 1); this.tabs = [...new Set(this.tabs)].sort((a, b) => a - b); D = null; rh.classList.remove('quitar');
+      this.paginar(); this.cambio(); toast(quitar ? '⌐ Tabulador quitado' : '⌐ Tabulador a ' + String(v).replace('.', ',') + ' cm · tira hacia abajo para quitarlo', null, null, 1800); };
+    rh.addEventListener('pointerup', fin); rh.addEventListener('pointercancel', fin);
   },
   /* ---------- Cabecera y pie de página ---------- */
   HF0(){ return { on:false, cab:'', pie:'', num:'abajo-centro', primera:true, alin:'centro' }; },
@@ -276,7 +377,7 @@ const Escribir = {
   async hojasImagen(){
     if(!window.html2canvas) await cargarScript('html2canvas.min.js');
     this.guardarYa(); this.sel = null; this.pintarSel(); this.paginar();
-    const T = $('#esTexto'), A = 794, HA = 1123, fz = 16 / 18, LAT = 94;
+    const T = $('#esTexto'), hz = this.horizontal(), A = hz ? 1123 : 794, HA = hz ? 794 : 1123, fz = 16 / 18, LAT = 94;
     const h = this.hf || {}, on = !!h.on, arr = on && (h.cab || /^arriba/.test(h.num || '')), abj = on && (h.pie || /^abajo/.test(h.num || ''));
     const M = arr ? 124 : 94, MB = abj ? 124 : 94;
     const marco = document.createElement('div'); marco.className = 'es-imprime';
@@ -291,6 +392,7 @@ const Escribir = {
     papel.append(hs, at, tx, de); marco.appendChild(papel); document.body.appendChild(marco);
     try{
       await Promise.all([...marco.querySelectorAll('img')].map(im => im.complete ? 0 : new Promise(r => { im.onload = im.onerror = r; })));
+      this.ajustarTabs(tx, A / this.anchoCm(), this.tabs);
       const n = this.saltos(tx, HA, HA, M, MB);
       // las figuras, junto al mismo párrafo que en la pantalla y a la misma escala que la letra
       const hijosT = [...T.children], hijosC = [...tx.children], padT = parseFloat(getComputedStyle(T).paddingLeft) || 18;
@@ -319,10 +421,10 @@ const Escribir = {
     toast(imprimir ? '🖨️ Preparando las hojas…' : '📕 Preparando el PDF…', null, null, 30000);
     try{
       const hojas = await this.hojasImagen();
-      if(imprimir){ $('#toast').classList.remove('ver'); imprimirHojas(hojas, nom); return; }
+      if(imprimir){ $('#toast').classList.remove('ver'); imprimirHojas(hojas, nom, this.horizontal()); return; }
       if(!window.jspdf) await cargarScript('jspdf.min.js');
-      const { jsPDF } = window.jspdf, doc = new jsPDF({ unit:'mm', format:'a4', compress:true });
-      hojas.forEach((h, i) => { if(i) doc.addPage(); doc.addImage(h, 'JPEG', 0, 0, 210, 297); });
+      const hz = this.horizontal(), { jsPDF } = window.jspdf, doc = new jsPDF({ unit:'mm', format:'a4', orientation:hz ? 'landscape' : 'portrait', compress:true });
+      hojas.forEach((h, i) => { if(i) doc.addPage('a4', hz ? 'landscape' : 'portrait'); doc.addImage(h, 'JPEG', 0, 0, hz ? 297 : 210, hz ? 210 : 297); });
       $('#toast').classList.remove('ver');
       verPdf(hojas, doc.output('blob'), nom + '.pdf');
     }catch(e){ console.warn(e); toast('⚠️ No se ha podido preparar (¿sin internet la primera vez?)'); }
@@ -339,18 +441,19 @@ const Escribir = {
   reglaH(){ return lsGet('ph3-es-regla-h') === '1'; },
   reglaV(){ return lsGet('ph3-es-regla-v') === '1'; },
   reglas(W, H, n){
-    const rh = $('#esReglaH'), rv = $('#esReglaV'), cm = W / 21, mI = 18 / cm;   // margen del texto (18 px)
+    const rh = $('#esReglaH'), rv = $('#esReglaV'), AC = this.anchoCm(), AL = this.horizontal() ? 21 : 29.7, cm = W / AC, mI = 18 / cm;   // margen del texto (18 px)
     rh.hidden = !this.reglaH(); rv.hidden = !this.reglaV(); $('#esHoja').classList.toggle('con-regla-v', this.reglaV());
     if(this.reglaH()){
-      let t = ''; for(let i = 0; i <= 42; i++){ const x = (i / 2) * cm, may = i % 2 === 0; t += `<line x1="${x.toFixed(1)}" y1="${may ? 9 : 14}" x2="${x.toFixed(1)}" y2="22"/>` + (may && i > 0 && i < 42 ? `<text x="${x.toFixed(1)}" y="8">${i / 2}</text>` : ''); }
-      rh.innerHTML = `<svg width="${W}" height="22" viewBox="0 0 ${W} 22"><rect x="0" y="0" width="${(mI * cm).toFixed(1)}" height="22" class="rg-mar"/><rect x="${(W - mI * cm).toFixed(1)}" y="0" width="${(mI * cm).toFixed(1)}" height="22" class="rg-mar"/>${t}</svg>`;
+      let t = ''; const nT = Math.floor(AC * 2); for(let i = 0; i <= nT; i++){ const x = (i / 2) * cm, may = i % 2 === 0; t += `<line x1="${x.toFixed(1)}" y1="${may ? 9 : 14}" x2="${x.toFixed(1)}" y2="22"/>` + (may && i > 0 && i < nT ? `<text x="${x.toFixed(1)}" y="8">${i / 2}</text>` : ''); }
+      const tabs = (this.tabs || []).map(c => { const x = 18 + c * cm; return `<path d="M${x.toFixed(1)} 22V12h6" class="rg-tab"/>`; }).join('');
+      rh.innerHTML = `<svg width="${W}" height="22" viewBox="0 0 ${W} 22"><rect x="0" y="0" width="${(mI * cm).toFixed(1)}" height="22" class="rg-mar"/><rect x="${(W - mI * cm).toFixed(1)}" y="0" width="${(mI * cm).toFixed(1)}" height="22" class="rg-mar"/>${t}${tabs}</svg><span class="rg-palo" title="Arrastra para poner un tabulador">⌐</span>`;
       rh.style.width = W + 'px';
     }
     if(this.reglaV()){
-      const paso = H + this.PAG_G, cmV = H / 29.7; let t = '';
+      const paso = H + this.PAG_G, cmV = H / AL; let t = '';
       for(let p = 0; p < n; p++){ const y0 = p * paso;
         t += `<rect x="0" y="${y0}" width="20" height="${H}" class="rg-fondo"/><rect x="0" y="${y0}" width="20" height="${this.margenes().M}" class="rg-mar"/><rect x="0" y="${y0 + H - this.margenes().MB}" width="20" height="${this.margenes().MB}" class="rg-mar"/>`;
-        for(let i = 0; i <= 59; i++){ const y = y0 + (i / 2) * cmV, may = i % 2 === 0; t += `<line x1="${may ? 9 : 14}" y1="${y.toFixed(1)}" x2="20" y2="${y.toFixed(1)}"/>` + (may && i > 0 && i < 58 ? `<text x="7" y="${(y + 3).toFixed(1)}">${i / 2}</text>` : ''); } }
+        const nV = Math.floor(AL * 2); for(let i = 0; i <= nV; i++){ const y = y0 + (i / 2) * cmV, may = i % 2 === 0; t += `<line x1="${may ? 9 : 14}" y1="${y.toFixed(1)}" x2="20" y2="${y.toFixed(1)}"/>` + (may && i > 0 && i < nV - 1 ? `<text x="7" y="${(y + 3).toFixed(1)}">${i / 2}</text>` : ''); } }
       const tot = n * paso - this.PAG_G;
       rv.innerHTML = `<svg width="20" height="${tot}" viewBox="0 0 20 ${tot}">${t}</svg>`; rv.style.height = tot + 'px';
     }
@@ -372,12 +475,13 @@ const Escribir = {
   // sube desde el cursor buscando un estilo (marcador o tamaño)
   subir(prueba){
     const s = getSelection(), e = $('#esTexto'); if(!s.rangeCount) return null;
-    let n = s.getRangeAt(0).startContainer; if(!e.contains(n)) return null;
+    const r = s.getRangeAt(0); let n = r.startContainer; if(!e.contains(n)) return null;
+    if(n.nodeType === 1 && n.childNodes[r.startOffset]){ let k = n.childNodes[r.startOffset]; while(k.firstChild) k = k.firstChild; n = k; }   // con el párrafo entero seleccionado, mira lo de dentro
     for(; n && n !== e; n = n.parentNode) if(n.nodeType === 1 && prueba(n)) return n;
     return null;
   },
   marcaAqui(){ return this.subir(n => this.esMarca(n.style && n.style.backgroundColor)); },
-  tamAqui(){ const n = this.subir(n => n.style && n.style.fontSize); if(!n) return 'normal'; const px = n.style.fontSize; return Object.keys(this.TAM).find(k => this.TAM[k] === px) || 'normal'; },
+  tamAqui(){ const n = this.subir(n => n.style && n.style.fontSize); if(!n) return 'normal'; const px = n.style.fontSize; return Object.keys(this.TAM).find(k => this.TAM[k] === px) || ('pt:' + Math.round(parseFloat(px) / 1.5)); },
   // con el cursor quieto (nada seleccionado), lo que escribas a partir de aquí lleva el estilo
   estiloAqui(estilo){
     const s = getSelection(), r = s.getRangeAt(0);
@@ -400,11 +504,12 @@ const Escribir = {
     const s = getSelection(); if(!s.rangeCount || !e.contains(s.getRangeAt(0).startContainer)){ const r = document.createRange(); r.selectNodeContents(e); r.collapse(false); s.removeAllRanges(); s.addRange(r); }
     const quieto = s.isCollapsed;
     if(c === 'tam'){
-      if(quieto) this.estiloAqui(v === 'titulo' ? { fontSize:this.TAM[v], fontWeight:'900' } : { fontSize:this.TAM[v] });
+      const px = this.TAM[v] || (String(v).startsWith('pt:') ? (+String(v).slice(3) * 1.5) + 'px' : '18px');
+      if(quieto) this.estiloAqui(v === 'titulo' ? { fontSize:px, fontWeight:'900' } : { fontSize:px });
       else {
         document.execCommand('styleWithCSS', false, false);
         document.execCommand('fontSize', false, '7');                      // marca lo seleccionado…
-        $$('font[size="7"]', e).forEach(f => { const sp = document.createElement('span'); sp.style.fontSize = this.TAM[v]; if(v === 'titulo') sp.style.fontWeight = '900'; while(f.firstChild) sp.appendChild(f.firstChild); f.replaceWith(sp); });   // …y le pone el tamaño
+        $$('font[size="7"]', e).forEach(f => { const sp = document.createElement('span'); sp.style.fontSize = px; if(v === 'titulo') sp.style.fontWeight = '900'; while(f.firstChild) sp.appendChild(f.firstChild); f.replaceWith(sp); });   // …y le pone el tamaño
       }
     } else if(c === 'marcar'){
       const ya = this.marcaAqui();
@@ -439,7 +544,7 @@ const Escribir = {
         else if(c === 'justifyLeft'){ try{ on = !document.queryCommandState('justifyCenter') && !document.queryCommandState('justifyRight'); }catch(err){} } }
       b.classList.toggle('on', on); });
     const t = dentro ? this.tamAqui() : 'normal', sel = $('#esTam');
-    sel.options[0].textContent = t === 'normal' ? 'Aa ▾' : 'Aa ' + { peq:'Pequeña', grande:'Grande', titulo:'Título' }[t] + ' ▾';
+    sel.textContent = t === 'normal' ? 'Aa 12 pt ▾' : 'Aa ' + (t.startsWith('pt:') ? t.slice(3) + ' pt' : { peq:'Pequeña', grande:'Grande', titulo:'Título' }[t]) + ' ▾';
     sel.classList.toggle('on', t !== 'normal');
   },
 
@@ -483,11 +588,32 @@ const Escribir = {
   /* ---------- Figuras: van encima (o detrás) del texto, se mueven arrastrándolas
      y se hacen más grandes o más pequeñas tirando de las esquinas ---------- */
   COLORES: ['transparente','#e5201c','#f08a1a','#f2c418','#3fae5a','#2f80ed','#8b5adf','#e84898','#8a5a3c','#3a3a3c','#9aa0a6','#ffffff','#ffd6d4','#ffe8c7','#fff6bf','#d6f2dc','#d4e6fb','#e6dcfb','#fbd6e8','#efe3d6'],
-  FORMAS: { cuadrado:'Cuadrado', redondeado:'Redondeado', ovalo:'Óvalo', redonda:'Redonda' },
+  FORMAS: { cuadrado:'Cuadrado', redondeado:'Redondeado', ovalo:'Óvalo', redonda:'Redonda', linea:'Línea', flecha:'Flecha fina', flecha2:'Flecha llena', doble:'Doble flecha' },
+  esLinea(t){ return t === 'linea' || t === 'flecha' || t === 'flecha2' || t === 'doble'; },
+  // las líneas y flechas: una raya de lado a lado (se giran con «Girar»); la punta, abierta (como una V) o llena
+  geoLinea(f, w, h, g){
+    const y = h / 2, Lv = Math.max(9, g * 4.2), Ll = Math.max(10, g * 3.6), cab = [];
+    let x1 = g / 2, x2 = w - g / 2;
+    const v = (x, d) => cab.push({ v:[[x - d * Lv * .87, y - Lv * .5], [x, y], [x - d * Lv * .87, y + Lv * .5]] });
+    if(f.tipo === 'flecha' || f.tipo === 'doble'){ x2 = w - g; v(x2, 1); }
+    if(f.tipo === 'doble'){ x1 = g; v(x1, -1); }
+    if(f.tipo === 'flecha2'){ const t = w - 1; cab.push({ llena:[[t, y], [t - Ll, y - Ll * .5], [t - Ll, y + Ll * .5]] }); x2 = t - Ll + 1; }
+    return { y, x1, x2, cab };
+  },
+  svgLinea(f, w, h, g){
+    const G = this.geoLinea(f, w, h, g), c = f.ribete === 'transparente' ? '#3a3a3c' : f.ribete, P = ps => ps.map(q => q.map(n => +n.toFixed(1)).join(',')).join(' ');
+    return `<svg xmlns="http://www.w3.org/2000/svg" width="${+w.toFixed(1)}" height="${+h.toFixed(1)}" viewBox="0 0 ${+w.toFixed(1)} ${+h.toFixed(1)}" style="display:block;overflow:visible"><g fill="none" stroke="${c}" stroke-width="${g}" stroke-linecap="round" stroke-linejoin="round">`
+      + `<line x1="${+G.x1.toFixed(1)}" y1="${G.y}" x2="${+G.x2.toFixed(1)}" y2="${G.y}"/>` + G.cab.map(k => k.v ? `<polyline points="${P(k.v)}"/>` : `<polygon points="${P(k.llena)}" fill="${c}"/>`).join('') + '</g></svg>';
+  },
   figs: [], sel: null,
   figSel(){ return this.figs.find(f => f.id === this.sel) || null; },
   estiloFig(el, f){
     if(!el) return;
+    if(this.esLinea(f.tipo)){
+      Object.assign(el.style, { left:f.x + 'px', top:f.y + 'px', width:f.w + 'px', height:f.h + 'px', transform:f.giro ? `rotate(${f.giro}deg)` : '', border:'0', background:'transparent', borderRadius:'0' });
+      el.innerHTML = this.svgLinea(f, f.w, f.h, f.grosor); el.classList.add('es-fl'); return;
+    }
+    el.innerHTML = ''; el.classList.remove('es-fl');
     const sin = f.ribete === 'transparente', br = f.tipo === 'redonda' || f.tipo === 'ovalo' ? '50%' : f.tipo === 'redondeado' ? Math.round(Math.min(f.w, f.h) * .2) + 'px' : '0';
     Object.assign(el.style, { left:f.x + 'px', top:f.y + 'px', width:f.w + 'px', height:f.h + 'px', transform:f.giro ? `rotate(${f.giro}deg)` : '',
       border:sin ? '0' : `${f.grosor}px solid ${f.ribete}`, background:f.relleno === 'transparente' ? 'transparent' : f.relleno, borderRadius:br });
@@ -621,6 +747,13 @@ const Escribir = {
     k = k || 2; const W = Math.max(2, Math.round(f.w * k)), H = Math.max(2, Math.round(f.h * k));
     const c = document.createElement('canvas'); c.width = W; c.height = H; const x = c.getContext('2d');
     const g = f.ribete === 'transparente' ? 0 : f.grosor * k, m = g / 2;
+    if(this.esLinea(f.tipo)){
+      const G = this.geoLinea(f, W, H, Math.max(1, f.grosor * k)), col = f.ribete === 'transparente' ? '#3a3a3c' : f.ribete;
+      x.strokeStyle = x.fillStyle = col; x.lineWidth = Math.max(1, f.grosor * k); x.lineCap = x.lineJoin = 'round';
+      x.beginPath(); x.moveTo(G.x1, G.y); x.lineTo(G.x2, G.y); x.stroke();
+      G.cab.forEach(c => { const ps = c.v || c.llena; x.beginPath(); x.moveTo(ps[0][0], ps[0][1]); ps.slice(1).forEach(q => x.lineTo(q[0], q[1])); if(c.llena){ x.closePath(); x.fill(); } x.stroke(); });
+      return c.toDataURL('image/png');
+    }
     x.beginPath();
     if(f.tipo === 'redonda' || f.tipo === 'ovalo') x.ellipse(W / 2, H / 2, Math.max(1, W / 2 - m), Math.max(1, H / 2 - m), 0, 0, Math.PI * 2);
     else if(f.tipo === 'redondeado'){ const rr = Math.max(0, Math.min(W, H) * .2 - m); if(x.roundRect) x.roundRect(m, m, W - 2 * m, H - 2 * m, rr); else x.rect(m, m, W - 2 * m, H - 2 * m); }
@@ -635,40 +768,49 @@ const Escribir = {
     if(!sel) this.guardarCursor();
     const F = Object.assign({ tipo:'redondeado', ribete:'#e5201c', grosor:4, relleno:'transparente', giro:0, capa:'delante' }, sel || {});
     const muestra = c => c === 'transparente' ? '<i class="es-transp"></i>' : `<i style="background:${c}"></i>`;
-    const medidas = t => t === 'redonda' ? [110, 110] : t === 'ovalo' ? [220, 96] : t === 'cuadrado' ? [130, 130] : [230, 80];
+    const medidas = t => this.esLinea(t) ? [220, 40] : t === 'redonda' ? [110, 110] : t === 'ovalo' ? [220, 96] : t === 'cuadrado' ? [130, 130] : [230, 80];
     const prevHtml = () => { const [w0, h0] = sel ? [sel.w, sel.h] : medidas(F.tipo), k = Math.min(1, 150 / w0, 90 / h0);
       return `<div class="es-fprev"><i style="width:${Math.round(w0 * k)}px;height:${Math.round(h0 * k)}px;${this.cssForma(F, w0 * k, h0 * k)}"></i></div>`; };
     const pintar = () => {
       const hj = hojaMio(sel ? '✏️ Cambiar la figura' : '◻︎ Poner una figura', `
         ${prevHtml()}
         <div class="st-et">Forma</div>
-        <div class="es-formas">${Object.entries(this.FORMAS).map(([k, t]) => `<button data-tipo="${k}" class="${F.tipo === k ? 'on' : ''}"><i style="${this.cssForma({ tipo:k, ribete:'#3a3a3c', grosor:2, relleno:'transparente' }, k === 'ovalo' ? 34 : k === 'redondeado' ? 34 : 24, k === 'ovalo' ? 20 : k === 'redondeado' ? 20 : 24)};width:${k === 'ovalo' || k === 'redondeado' ? 34 : 24}px;height:${k === 'ovalo' || k === 'redondeado' ? 20 : 24}px"></i>${t}</button>`).join('')}</div>
+        <div class="es-formas">${Object.entries(this.FORMAS).map(([k, t]) => { const [iw, ih] = this.esLinea(k) ? [34, 20] : k === 'ovalo' || k === 'redondeado' ? [34, 20] : [24, 24];
+          return `<button data-tipo="${k}" class="${F.tipo === k ? 'on' : ''}"><i style="${this.cssForma({ tipo:k, ribete:'#3a3a3c', grosor:2, relleno:'transparente' }, iw, ih)};width:${iw}px;height:${ih}px"></i>${t}</button>`; }).join('')}</div>
         <div class="st-et">¿Delante o detrás del texto?</div>
         <div class="es-tams es-capas"><button class="sh-op ${F.capa !== 'detras' ? 'on' : ''}" data-capa="delante">⬆️ Delante</button><button class="sh-op ${F.capa === 'detras' ? 'on' : ''}" data-capa="detras">⬇️ Detrás</button></div>
-        <div class="st-et">Ribete (borde)</div>
+        <div class="st-et">${this.esLinea(F.tipo) ? 'Color' : 'Ribete (borde)'}</div>
         <div class="es-cols">${this.COLORES.map(c => `<button data-rib="${c}" class="${F.ribete === c ? 'on' : ''}" aria-label="${c}">${muestra(c)}</button>`).join('')}</div>
+        <div class="st-et">Grosor · <b id="esGrosorV">${F.grosor}</b></div>
+        <div class="es-gros">${[1, 2, 3, 4, 6, 8, 12].map(g => `<button data-gr="${g}" class="${F.grosor === g ? 'on' : ''}" aria-label="Grosor ${g}"><i style="height:${g}px"></i><small>${g}</small></button>`).join('')}</div>
         <div class="es-grosor"><span>Fino</span><input type="range" min="1" max="20" value="${F.grosor}" id="esGrosor"><span>Grueso</span></div>
-        <div class="st-et">Relleno (dentro)</div>
-        <div class="es-cols">${this.COLORES.map(c => `<button data-rel="${c}" class="${F.relleno === c ? 'on' : ''}" aria-label="${c}">${muestra(c)}</button>`).join('')}</div>
+        ${this.esLinea(F.tipo) ? '' : `<div class="st-et">Relleno (dentro)</div>
+        <div class="es-cols">${this.COLORES.map(c => `<button data-rel="${c}" class="${F.relleno === c ? 'on' : ''}" aria-label="${c}">${muestra(c)}</button>`).join('')}</div>`}
         <div class="st-et">Girar · <b id="esGiroV">${F.giro}°</b></div>
         <div class="es-giro"><button data-g="-15" aria-label="Girar a la izquierda">↺ 15°</button><input type="range" min="-180" max="180" value="${F.giro}" id="esGiro"><button data-g="15" aria-label="Girar a la derecha">↻ 15°</button><button data-g0 aria-label="Sin girar">0°</button></div>
         <p class="es-nota">${sel ? 'El tamaño se cambia en la hoja, tirando de las esquinas.' : 'Después, arrástrala donde quieras y tira de las esquinas para hacerla más grande o más pequeña.'}</p>
         <div class="mp-fila">${sel ? '<button class="mp-b mp-borrar" data-a="quitar" aria-label="Quitar">🗑️</button>' : ''}<button class="mp-b" data-a="x">Cancelar</button><button class="mp-b mp-pri" data-a="ok">${sel ? 'Guardar' : 'Poner'}</button></div>`, 'es-fig');
       $$('.es-cols', hj).forEach(deslizarLado);
-      const prev = () => { $('.es-fprev', hj).outerHTML = prevHtml(); $('#esGiroV', hj).textContent = F.giro + '°'; $('#esGiro', hj).value = F.giro; };
+      const prev = () => { $('.es-fprev', hj).outerHTML = prevHtml(); $('#esGiroV', hj).textContent = F.giro + '°'; $('#esGiro', hj).value = F.giro;
+        $('#esGrosorV', hj).textContent = F.grosor; $('#esGrosor', hj).value = F.grosor; $$('[data-gr]', hj).forEach(x => x.classList.toggle('on', +x.dataset.gr === F.grosor)); };
       const gr = $('#esGrosor', hj); gr.oninput = () => { F.grosor = +gr.value; prev(); };
       const gi = $('#esGiro', hj); gi.oninput = () => { F.giro = +gi.value; prev(); };
       hj.onclick = ev => { const b = ev.target.closest('button'); if(!b) return; const d = b.dataset;
-        if(d.g){ F.giro = Math.max(-180, Math.min(180, F.giro + +d.g)); prev(); }
+        if(d.gr){ F.grosor = +d.gr; prev(); }
+        else if(d.g){ F.giro = Math.max(-180, Math.min(180, F.giro + +d.g)); prev(); }
         else if('g0' in d){ F.giro = 0; prev(); }
-        else if(d.tipo){ F.tipo = d.tipo; pintar(); }
+        else if(d.tipo){ const eraL = this.esLinea(F.tipo); F.tipo = d.tipo; if(this.esLinea(d.tipo) && !eraL && !sel && F.grosor === 4) F.grosor = 3; if(F.ribete === 'transparente' && this.esLinea(d.tipo)) F.ribete = '#e5201c'; pintar(); }
         else if(d.capa){ F.capa = d.capa; $$('[data-capa]', hj).forEach(x => x.classList.toggle('on', x === b)); }
         else if(d.rib){ F.ribete = d.rib; pintar(); }
         else if(d.rel){ F.relleno = d.rel; pintar(); }
         else if(d.a === 'ok'){
-          if(F.ribete === 'transparente' && F.relleno === 'transparente'){ toast('Pon color al ribete o al relleno; si no, no se ve'); return; }
+          if(this.esLinea(F.tipo) && F.ribete === 'transparente'){ toast('Elige un color para la línea'); return; }
+          if(!this.esLinea(F.tipo) && F.ribete === 'transparente' && F.relleno === 'transparente'){ toast('Pon color al ribete o al relleno; si no, no se ve'); return; }
           cerrarHojaMio();
-          if(sel){ const t0 = sel.tipo; Object.assign(sel, F); if(F.tipo !== t0 && (F.tipo === 'redonda' || F.tipo === 'cuadrado')) sel.h = sel.w = Math.round(Math.min(sel.w, sel.h)); }
+          if(sel){ const t0 = sel.tipo; Object.assign(sel, F);
+            if(this.esLinea(F.tipo) && !this.esLinea(t0)){ const c = sel.y + sel.h / 2; sel.h = 40; sel.y = Math.round(c - 20); }
+            else if(!this.esLinea(F.tipo) && this.esLinea(t0)){ const c = sel.y + sel.h / 2; sel.h = Math.round(Math.max(60, sel.w * .45)); sel.y = Math.round(c - sel.h / 2); }
+            if(F.tipo !== t0 && (F.tipo === 'redonda' || F.tipo === 'cuadrado')) sel.h = sel.w = Math.round(Math.min(sel.w, sel.h)); }
           else { const n = this.nuevaFig(F, medidas(F.tipo)); this.figs.push(n); this.sel = n.id; }
           this.pintarFigs(); if(!sel) this.seleccionar(this.sel); this.cambioFigs(); }
         else if(d.a === 'quitar'){ cerrarHojaMio(); this.quitarFig(sel); }
@@ -677,6 +819,7 @@ const Escribir = {
     pintar();
   },
   cssForma(f, w, h){
+    if(this.esLinea(f.tipo)) return `display:block;background:url('data:image/svg+xml,${encodeURIComponent(this.svgLinea(f, w, h, Math.max(1, f.grosor * Math.min(1, w / 120 + .4))))}') center/100% 100% no-repeat${f.giro ? ';transform:rotate(' + f.giro + 'deg)' : ''}`;
     const sin = f.ribete === 'transparente', br = f.tipo === 'redonda' || f.tipo === 'ovalo' ? '50%' : f.tipo === 'redondeado' ? Math.round(Math.min(w, h) * .2) + 'px' : '0';
     return `display:block;box-sizing:border-box;border:${sin ? '0' : Math.max(1, Math.round(f.grosor * Math.min(1, w / 120 + .4))) + 'px solid ' + f.ribete};background:${f.relleno === 'transparente' ? 'transparent' : f.relleno};border-radius:${br}${f.giro ? ';transform:rotate(' + f.giro + 'deg)' : ''}`;
   },
@@ -809,7 +952,7 @@ const Escribir = {
       botones:[{ txt:'Cancelar', val:null }, { txt:'📄 Guardar', cls:'btn-pri', val:c => limpio($('#esNomArch', c).value) || nom0 }],
       alAbrir:c => { const i = $('#esNomArch', c); setTimeout(() => { i.focus(); i.select(); }, 250); i.onkeydown = e => { if(e.key === 'Enter') $('#popBtns .btn-pri').click(); }; } });
     if(!nom) return false;
-    const blob = new Blob([DocxSimple.crear(nom, $('#esTexto'), this.figs, $('#esPapel'), this.hf)], { type:'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+    const blob = new Blob([DocxSimple.crear(nom, $('#esTexto'), this.figs, $('#esPapel'), this.hf, this.orient, this.tabs)], { type:'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
     const archivo = nom + '.docx';
     try{
       const f = new File([blob], archivo, { type:blob.type });
@@ -862,8 +1005,12 @@ const Escribir = {
     $('#esBarra').addEventListener('mousedown', ev => { if(ev.target.closest('button')) ev.preventDefault(); });   // que no se pierda lo seleccionado
     $('#esBarra').addEventListener('click', ev => { const b = ev.target.closest('button'); if(!b) return;
       if(b.id === 'esFoto'){ this.guardarCursor(); this.fotoBoton(); } else if(b.id === 'esForma') this.figura(); else if(b.id === 'esEmoji') this.iconos(); else if(b.dataset.c) this.cmd(b.dataset.c, b.dataset.v); });
-    $('#esTam').addEventListener('pointerdown', () => this.guardarCursor());
-    $('#esTam').onchange = ev => { if(ev.target.value){ this.restaurarCursor(); this.cmd('tam', ev.target.value); } ev.target.value = ''; };
+    ['esTam', 'esTabB'].forEach(id => { $('#' + id).addEventListener('pointerdown', () => this.guardarCursor()); $('#' + id).addEventListener('mousedown', ev => ev.preventDefault()); });
+    $('#esTam').onclick = () => this.menuTam();
+    $('#esTabB').onclick = () => { this.restaurarCursor(); this.ponerTab(); };
+    $('#esHojaOr').onclick = () => this.menuHoja();
+    e.addEventListener('keydown', ev => { if(ev.key === 'Tab' && !ev.shiftKey && !ev.metaKey && !ev.ctrlKey){ ev.preventDefault(); this.ponerTab(); } });
+    this.enlazarRegla();
     $('#esMis').onclick = () => this.misEscritos();
     $('#esAbrir').onclick = () => this.elegirArchivo();
     $('#esRegla').onclick = () => this.menuRegla(); $('#esRegla').classList.toggle('on', this.reglaH() || this.reglaV());
@@ -883,6 +1030,9 @@ const Escribir = {
     $('#esMic').onclick = () => this.dictar();
     $('#esMic').innerHTML = icIn('mic') + '<b>Dictar</b>';
     deslizarLado($('#esBarra'));
+    $('#esDocx').innerHTML = this.ICO_CARPETA + this.ICO_IMPRESORA + '<span class="es-largo">Guardar · imprimir</span><span class="es-flechita">▾</span>';
+    $('#esDocx').setAttribute('aria-label', 'Guardar o imprimir');
+    this.ordenBarra();
     document.addEventListener('visibilitychange', () => { if(document.hidden) this.guardarYa(); });
   }
 };
@@ -913,6 +1063,7 @@ const DocxSimple = {
       if(/^[6-9]00$/.test(st.fontWeight || '')) g.b = true;
       const bg = st.backgroundColor; if(bg && !/transparent|rgba\(0, 0, 0, 0\)/.test(bg)) g.hl = true;
       if(tag === 'BR'){ nuevo(extra); return; }
+      if(n.classList && n.classList.contains('es-tab')){ if(!cur) nuevo(extra); cur.runs.push({ tab:true, ...f }); return; }
       if(tag === 'IMG'){ const m = /^data:image\/(jpeg|jpg|png);base64,(.+)$/.exec(n.getAttribute('src') || ''); if(m){ nuevo({ ...extra, jc:'center', pre:'' }, n);   // cada foto en su propio párrafo, centrada
         cur.runs.push({ img:{ b64:m[2], ext:m[1] === 'png' ? 'png' : 'jpeg', w:n.naturalWidth || 800, h:n.naturalHeight || 600, pc:+(n.dataset.w || 100) } }); cur = null; } return; }
       const bloque = /^(DIV|P|LI|H1|H2|H3|BLOCKQUOTE)$/.test(tag);
@@ -961,12 +1112,17 @@ const DocxSimple = {
       + `<pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${ancho}" cy="${alto}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r>`;
   },
   documento(tit, raiz, figs, papel){
-    const run = r => r.img ? this.dibujo(r.img) : `<w:r><w:rPr><w:rFonts w:ascii="${this.x(r.font || 'Calibri')}" w:hAnsi="${this.x(r.font || 'Calibri')}" w:cs="${this.x(r.font || 'Calibri')}"/>${r.b ? '<w:b/>' : ''}${r.color ? `<w:color w:val="${r.color}"/>` : ''}${r.i ? '<w:i/>' : ''}${r.u ? '<w:u w:val="single"/>' : ''}${r.hl ? '<w:highlight w:val="yellow"/>' : ''}<w:sz w:val="${r.sz || 24}"/></w:rPr><w:t xml:space="preserve">${this.x(r.t)}</w:t></w:r>`;
-    const par = p => `<w:p><w:pPr><w:spacing w:after="0" w:line="372" w:lineRule="atLeast"/>${p.pre ? '<w:ind w:left="360" w:hanging="360"/>' : ''}${p.jc ? `<w:jc w:val="${p.jc}"/>` : ''}</w:pPr>${(p.anclas || []).map(a => this.dibujoAncla(a)).join('')}${p.pre ? run({ t:p.pre, sz:p.runs[0] && p.runs[0].sz }) : ''}${p.runs.map(run).join('')}</w:p>`;
+    const run = r => r.img ? this.dibujo(r.img) : r.tab ? '<w:r><w:tab/></w:r>' : `<w:r><w:rPr><w:rFonts w:ascii="${this.x(r.font || 'Calibri')}" w:hAnsi="${this.x(r.font || 'Calibri')}" w:cs="${this.x(r.font || 'Calibri')}"/>${r.b ? '<w:b/>' : ''}${r.color ? `<w:color w:val="${r.color}"/>` : ''}${r.i ? '<w:i/>' : ''}${r.u ? '<w:u w:val="single"/>' : ''}${r.hl ? '<w:highlight w:val="yellow"/>' : ''}<w:sz w:val="${r.sz || 24}"/></w:rPr><w:t xml:space="preserve">${this.x(r.t)}</w:t></w:r>`;
+    const par = p => `<w:p><w:pPr><w:spacing w:after="0" w:line="372" w:lineRule="atLeast"/>${p.runs.some(r => r.tab) ? this.tabsXml() : ''}${p.pre ? '<w:ind w:left="360" w:hanging="360"/>' : ''}${p.jc ? `<w:jc w:val="${p.jc}"/>` : ''}</w:pPr>${(p.anclas || []).map(a => this.dibujoAncla(a)).join('')}${p.pre ? run({ t:p.pre, sz:p.runs[0] && p.runs[0].sz }) : ''}${p.runs.map(run).join('')}</w:p>`;
     const ps = this.parrafos(raiz); if(!ps.length) ps.push({ runs:[], anclas:[] });
     this.anclas(ps, figs, raiz, papel);
     return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"><w:body>${ps.map(par).join('')}<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1418" w:right="1418" w:bottom="1418" w:left="1418" w:header="709" w:footer="709" w:gutter="0"/></w:sectPr></w:body></w:document>`;
+  },
+  // los tabuladores de la regla (o, si no hay, uno en cada centímetro)
+  tabsXml(){
+    const ls = (this.tabsCm && this.tabsCm.length ? this.tabsCm : Array.from({ length:16 }, (_, i) => i + 1)).map(c => Math.round(c * 567));
+    return '<w:tabs>' + ls.map(v => `<w:tab w:val="left" w:pos="${v}"/>`).join('') + '</w:tabs>';
   },
   // cabecera o pie (con su número de página) como parte de Word
   parteHF(tipo, html, num, al, run){
@@ -983,10 +1139,11 @@ const DocxSimple = {
     return { xml:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><${raizTag} xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing">${cuerpo}</${raizTag}>`,
       rels:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${rels}</Relationships>` };
   },
-  crear(tit, raiz, figs, papel, hf){
+  crear(tit, raiz, figs, papel, hf, orient, tabs){
     const ahora = new Date().toISOString().replace(/\.\d+Z$/, 'Z');
-    this.fotos = [];
+    this.fotos = []; this.tabsCm = (tabs || []).slice().sort((a, b) => a - b);
     let doc = this.documento(tit, raiz, figs, papel); const fotos = this.fotos;
+    if(orient === 'h') doc = doc.replace('<w:pgSz w:w="11906" w:h="16838"/>', '<w:pgSz w:w="16838" w:h="11906" w:orient="landscape"/>');
     // cabecera y pie (con número de página y «distinta en la primera página»)
     let tipos = '', relsHF = ''; const partes = {};
     if(hf && hf.on && (hf.cab || hf.pie || (hf.num && hf.num !== 'no'))){

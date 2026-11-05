@@ -1,6 +1,6 @@
 /* PorHacer · app principal: tablero de columnas, tareas y editor */
 
-const VERSION = 'V15.7';
+const VERSION = 'V15.9';
 const $ = (s, r=document) => r.querySelector(s);
 const $$ = (s, r=document) => Array.from(r.querySelectorAll(s));
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -139,6 +139,7 @@ function deslizarPaginas(zona, o){
   const empezar = (x, y, t) => { if(pasando || (o.ignorar && o.ignorar(t))) return; D = { x, y, ctx:null, m:[[x, performance.now()]], v:0, no:false }; };
   const mover = (x, y) => {
     if(!D || D.no) return false;
+    if(o.bloqueado && o.bloqueado() && !D.ctx){ D.no = true; return false; }   // p. ej. una nota cogida para deslizarla
     const dx = x - D.x, dy = y - D.y;
     if(!D.ctx){
       if(Math.abs(dx) < 8 && Math.abs(dy) < 8) return false;

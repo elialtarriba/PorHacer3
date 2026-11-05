@@ -1439,3 +1439,71 @@ button.gx-nueva-abajo:active{background:color-mix(in srgb,var(--accent) 8%,trans
 .vpb-b button{height:32px;padding:0 10px;border-radius:10px;border:0;background:#3a3a3f;color:#fff;font:inherit;font-size:13px;font-weight:800}
 .vpdf-pal{position:fixed;z-index:950;background:rgba(255,216,77,.45);border-radius:3px;pointer-events:none}
 @media (max-width:520px){.vpdf-g{font-size:13px;padding:0 8px}}
+/* ===== V15.8 · Escribir: hoja vertical/horizontal, tamaño en pt, tabuladores, figuras con línea y flecha, pie y barra ===== */
+.es-ori{display:flex;gap:10px}
+.es-ori button{flex:1;display:flex;flex-direction:column;align-items:center;gap:8px;padding:14px 6px;border-radius:14px;border:2px solid var(--line);background:var(--colbg);font:inherit;font-weight:900;font-size:15px;color:var(--dark)}
+.es-ori button.on{border-color:var(--accent);color:var(--accent);background:color-mix(in srgb,var(--accent) 10%,var(--card))}
+.es-ori i{display:block;background:#fff;border:2px solid currentColor;border-radius:3px;box-shadow:0 2px 0 rgba(0,0,0,.12);background-image:repeating-linear-gradient(180deg,transparent 0 6px,color-mix(in srgb,currentColor 25%,transparent) 6px 7px);background-clip:content-box;padding:6px 5px}
+.es-ori i.v{width:42px;height:58px}.es-ori i.h{width:58px;height:42px}
+.es-pts{position:relative;margin:4px -4px 10px;border-radius:16px;background:var(--colbg);border:1.5px solid var(--line);overflow:hidden}
+.es-pts::before,.es-pts::after{content:"";position:absolute;top:0;bottom:0;width:26px;z-index:1;pointer-events:none}
+.es-pts::before{left:0;background:linear-gradient(90deg,var(--colbg),transparent)}.es-pts::after{right:0;background:linear-gradient(270deg,var(--colbg),transparent)}
+.es-pts-c{display:flex;gap:4px;overflow-x:auto;scroll-snap-type:x proximity;padding:8px 26px;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.es-pts-c::-webkit-scrollbar{display:none}
+.es-pts-c button{flex:none;scroll-snap-align:center;width:52px;height:52px;border-radius:12px;border:1.5px solid transparent;background:var(--card);font:inherit;font-size:20px;font-weight:900;color:var(--dark);font-variant-numeric:tabular-nums}
+.es-pts-c button.on{background:var(--accent);color:var(--accentInk,#fff);border-color:var(--accent)}
+.es-tams2{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:8px}
+.es-tams2 button{min-height:48px;padding:4px;border-radius:12px;border:1.5px solid var(--line);background:var(--colbg);font-family:inherit;font-weight:800;color:var(--dark);overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.es-tams2 button.on{border-color:var(--accent);color:var(--accent)}
+.es-tab{display:inline-block;height:1em;vertical-align:baseline;min-width:4px}
+#esReglaH{cursor:copy;touch-action:none;-webkit-user-select:none;user-select:none}
+.es-regla-h{position:sticky}
+.es-regla-h .rg-tab{fill:none;stroke:#e5201c;stroke-width:2.5;stroke-linecap:round;cursor:ew-resize}
+.es-regla-h .rg-palo{position:absolute;right:2px;top:1px;height:20px;padding:0 5px;border-radius:5px;background:color-mix(in srgb,#e5201c 14%,var(--card));color:#e5201c;font-weight:900;font-size:14px;line-height:20px;cursor:grab}
+.es-regla-h.quitar{background:color-mix(in srgb,#e5201c 22%,var(--card))}
+.es-regla-h.quitar .rg-tab{opacity:.35}
+.es-fl svg{width:100%;height:100%}
+.es-gros{display:flex;gap:6px;margin:2px 0 8px;overflow-x:auto;scrollbar-width:none}
+.es-gros button{flex:1;min-width:40px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;height:50px;border-radius:12px;border:1.5px solid var(--line);background:var(--colbg);color:var(--dark);font:inherit}
+.es-gros button i{display:block;width:26px;border-radius:9px;background:currentColor}
+.es-gros button small{font-size:11px;font-weight:900}
+.es-gros button.on{border-color:var(--accent);color:var(--accent);background:color-mix(in srgb,var(--accent) 10%,var(--card))}
+/* el pie: los tres botones iguales que «Salir», en el color del tema */
+.es-pie .es-salir,.es-pie .es-docx,.es-pie .es-mic{height:50px;min-width:50px;padding:0 16px;border-radius:16px;font:inherit;font-weight:900;font-size:16px;box-shadow:none;display:flex;align-items:center;justify-content:center;gap:6px;flex:none}
+.es-pie .es-docx,.es-pie .es-mic{background:var(--accent);color:var(--accentInk,#fff);border:1.5px solid var(--accent)}
+.es-pie .es-mic .ic-in *{stroke:var(--accentInk,#fff)}
+.es-ico{width:22px;height:22px;flex:none;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.es-flechita{font-size:13px;opacity:.85}
+@media (max-width:520px){.es-pie .es-salir,.es-pie .es-docx,.es-pie .es-mic{padding:0 12px}}
+/* mover los botones de la barra */
+.es-barra button{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+.es-barra.arrastrando{cursor:grabbing;scroll-snap-type:none}
+.es-barra button.moviendo{transform:scale(1.12);background:var(--accent);border-color:var(--accent);color:var(--accentInk,#fff);box-shadow:0 6px 14px rgba(0,0,0,.25);z-index:2;position:relative;transition:transform .12s}
+/* visor de PDF: dos dedos para ampliar, sin que se mueva toda la pantalla */
+.vpdf-zona{touch-action:pan-x pan-y}
+.vpdf-hojas{will-change:transform}
+.vpdf-herr .vpdf-100{font-size:13px;font-weight:900;padding:0 10px;width:auto}
+.vpdf-herr .vpdf-100.on{background:#ffd60a;color:#1c1c1e}
+/* ===== V15.9 ===== */
+/* «＋ Nueva tarea»: al pulsar se hunde (sin sombra) en su sitio, sin irse a un lado */
+.fab:active,.tk-fab:active{transform:translateX(-50%)!important;box-shadow:0 0 0 transparent!important;filter:brightness(.94)}
+/* Agenda · vista Día: mantener pulsada una nota y deslizarla */
+.ag-dcuerpo{position:relative}
+.ag-item{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;position:relative}
+.ag-item.agarrada{transform:scale(1.03);box-shadow:0 10px 22px rgba(0,0,0,.18);cursor:grabbing}
+.ag-desl{position:absolute;z-index:1;border-radius:15px;display:flex;align-items:center;justify-content:space-between;padding:0 18px;font-weight:900;font-size:16px;color:#fff;background:var(--line);overflow:hidden;transition:background .15s}
+.ag-desl span{opacity:0;transition:opacity .15s,transform .15s}
+.ag-desl.izq{background:#e0261d}.ag-desl.izq .ag-desl-izq{opacity:1}
+.ag-desl.der{background:#f08a1a}.ag-desl.der .ag-desl-der{opacity:1}
+.ag-desl.listo span{transform:scale(1.12)}
+.ag-cd-nota{margin:0 0 10px}
+.ag-cd-rap{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:6px;margin-bottom:6px}
+.ag-cd-rap button{display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:10px 12px;border-radius:14px;border:1.5px solid color-mix(in srgb,#f08a1a 45%,var(--line));background:color-mix(in srgb,#f08a1a 10%,var(--card));color:var(--dark);font:inherit;text-align:left}
+.ag-cd-rap b{font-size:15px;font-weight:900}.ag-cd-rap small{font-size:12px;color:var(--ink2);font-weight:700}
+.ag-cd-rej{display:grid;grid-template-columns:repeat(7,1fr);gap:5px;margin-bottom:10px}
+.ag-cd-rej button{display:flex;flex-direction:column;align-items:center;padding:6px 0;border-radius:12px;border:1.5px solid var(--line);background:var(--colbg);color:var(--dark);font:inherit}
+.ag-cd-rej small{font-size:11px;font-weight:800;color:var(--ink2)}.ag-cd-rej b{font-size:17px;font-weight:900}
+.ag-cd-rej button.hoy{border-color:var(--accent)}
+.ag-cd-rej button.yo{opacity:.35;background:var(--line)}
+.ag-cd-otro{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;border-radius:14px;border:1.5px solid var(--line);background:var(--colbg);font-weight:900;margin-bottom:6px}
+.ag-cd-otro input{font:inherit;font-weight:800;border:0;background:transparent;color:var(--dark)}

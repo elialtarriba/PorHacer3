@@ -530,12 +530,16 @@ function verPdf(hojas, blob, nombre){
     } });
 }
 // Imprimir unas hojas (imágenes A4): una por página
-function imprimirHojas(hojas, nombre){
+function imprimirHojas(hojas, nombre, horizontal){
   const f = document.createElement('iframe'); f.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0'; document.body.appendChild(f);
   const d = f.contentDocument;
-  d.open(); d.write(`<!doctype html><html><head><title>${esc(nombre || 'PorHacer3')}</title><style>@page{size:A4;margin:0}html,body{margin:0;padding:0}img{display:block;width:210mm;height:297mm;object-fit:contain;page-break-after:always;break-after:page}img:last-child{page-break-after:auto;break-after:auto}</style></head><body>${hojas.map(h => `<img src="${h}">`).join('')}</body></html>`); d.close();
+  d.open(); d.write(`<!doctype html><html><head><title>${esc(nombre || 'PorHacer3')}</title><style id="hz"></style><style>html,body{margin:0;padding:0}img{display:block;object-fit:contain;page-break-after:always;break-after:page}img:last-child{page-break-after:auto;break-after:auto}</style></head><body>${hojas.map(h => `<img src="${h}">`).join('')}</body></html>`); d.close();
   const ir = () => { try{ f.contentWindow.focus(); f.contentWindow.print(); }catch(e){ toast('⚠️ No se ha podido imprimir: usa «📤 Guardar» y luego Imprimir'); } setTimeout(() => f.remove(), 60000); };
-  const imgs = [...d.images]; Promise.all(imgs.map(i => i.complete ? 0 : new Promise(r => { i.onload = i.onerror = r; }))).then(() => setTimeout(ir, 200));
+  const imgs = [...d.images]; Promise.all(imgs.map(i => i.complete ? 0 : new Promise(r => { i.onload = i.onerror = r; }))).then(() => {
+    // hoja horizontal o vertical (si no se dice, se mira la primera imagen)
+    const hz = horizontal != null ? horizontal : !!(imgs[0] && imgs[0].naturalWidth > imgs[0].naturalHeight);
+    d.getElementById('hz').textContent = `@page{size:A4 ${hz ? 'landscape' : 'portrait'};margin:0}img{width:${hz ? '297mm' : '210mm'};height:${hz ? '210mm' : '297mm'}}`;
+    setTimeout(ir, 200); });
 }
 // Una fila que se desliza de lado: con el dedo ya va sola; con el ratón, arrastrando (y sin que cuente como clic)
 function deslizarLado(el){
@@ -544,7 +548,7 @@ function deslizarLado(el){
   const marcar = () => { el.classList.toggle('mas-der', el.scrollLeft + el.clientWidth < el.scrollWidth - 4); el.classList.toggle('mas-izq', el.scrollLeft > 4); };
   el.addEventListener('scroll', marcar, { passive:true }); setTimeout(marcar, 60);
   el.addEventListener('pointerdown', e => { if(e.pointerType !== 'mouse' || e.button) return; D = { x:e.clientX, s:el.scrollLeft, mov:false }; });
-  addEventListener('pointermove', e => { if(!D) return; const dx = e.clientX - D.x; if(Math.abs(dx) > 5) D.mov = true; if(D.mov){ el.scrollLeft = D.s - dx; e.preventDefault(); } });
+  addEventListener('pointermove', e => { if(!D || el.classList.contains('arrastrando')) return; const dx = e.clientX - D.x; if(Math.abs(dx) > 5) D.mov = true; if(D.mov){ el.scrollLeft = D.s - dx; e.preventDefault(); } });
   addEventListener('pointerup', () => { if(D && D.mov){ const quita = ev => { ev.stopPropagation(); ev.preventDefault(); }; el.addEventListener('click', quita, { capture:true, once:true }); setTimeout(() => el.removeEventListener('click', quita, true), 50); } D = null; });
   el.addEventListener('wheel', e => { if(Math.abs(e.deltaY) > Math.abs(e.deltaX) && el.scrollWidth > el.clientWidth){ el.scrollLeft += e.deltaY; e.preventDefault(); } }, { passive:false });
 }
