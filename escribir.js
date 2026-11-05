@@ -318,8 +318,8 @@ const Escribir = {
     const letras = [...(t.texto || '')].map((ch, i) => ch === ' ' ? ' ' : `<span style="color:${(t.colores || [])[i] || t.color || '#e5201c'}">${esc(ch)}</span>`).join('');
     return `<div class="es-tit tit-${st[0]}" contenteditable="false" data-tit="${esc(JSON.stringify(t))}" style="font-family:${st[2].replace(/"/g, "'")};font-size:${px}px;text-align:${t.alin || 'center'};font-weight:${st[0] === 'mano' ? 400 : 900}">${letras}</div>`;
   },
-  tituloBonito(el){
-    if(!el) this.guardarCursor();
+  tituloBonito(el, alAcabar){
+    if(!el && !alAcabar) this.guardarCursor();
     let t = el ? (() => { try{ return JSON.parse(el.dataset.tit); }catch(e){ return null; } })() : null;
     t = t || { texto:'', estilo:'redondo', tam:'grande', color:'#e5201c', colores:[], alin:'center' };
     let sel = null;   // letra elegida (null = todas)
@@ -350,10 +350,11 @@ const Escribir = {
       if(d.est){ t.estilo = d.est; $$('[data-est]', p).forEach(x => x.classList.toggle('on', x === b)); pintar(); return; }
       if(d.tam){ t.tam = d.tam; $$('[data-tam]', p).forEach(x => x.classList.toggle('on', x === b)); return; }
       if(d.al){ t.alin = d.al; $$('[data-al]', p).forEach(x => x.classList.toggle('on', x === b)); pintar(); return; }
-      if('quitar' in d){ cerrarPopMio(); el.remove(); this.cambio(); toast('🗑️ Título quitado'); return; }
+      if('quitar' in d){ cerrarPopMio(); if(alAcabar){ alAcabar(null); return; } el.remove(); this.cambio(); toast('🗑️ Título quitado'); return; }
       if('ok' in d){
         if(!t.texto.trim()){ toast('Escribe el título'); txt.focus(); return; }
         cerrarPopMio();
+        if(alAcabar){ alAcabar(t); return; }
         if(el){ el.outerHTML = this.titHtml(t); }
         else { this.restaurarCursor(); document.execCommand('insertHTML', false, this.titHtml(t) + '<div><br></div>'); }
         this.cambio(); toast('✨ Título ' + (el ? 'cambiado' : 'puesto') + '. Tócalo para cambiarlo', null, null, 2200);
@@ -606,9 +607,18 @@ const Escribir = {
       + `<line x1="${+G.x1.toFixed(1)}" y1="${G.y}" x2="${+G.x2.toFixed(1)}" y2="${G.y}"/>` + G.cab.map(k => k.v ? `<polyline points="${P(k.v)}"/>` : `<polygon points="${P(k.llena)}" fill="${c}"/>`).join('') + '</g></svg>';
   },
   figs: [], sel: null,
+  FIGID: { papel:'#esPapel', atras:'#esAtras', delante:'#esDelante', boton:'#esForma' },   // dónde están (la hoja de cálculo usa los suyos)
   figSel(){ return this.figs.find(f => f.id === this.sel) || null; },
   estiloFig(el, f){
     if(!el) return;
+    if(f.tipo === 'img' || f.tipo === 'tit'){
+      Object.assign(el.style, { left:f.x + 'px', top:f.y + 'px', width:f.w + 'px', height:f.h + 'px', transform:f.giro ? `rotate(${f.giro}deg)` : '', border:'0', background:'transparent', borderRadius:'0' });
+      el.classList.remove('es-fl'); el.classList.toggle('es-fimg', f.tipo === 'img'); el.classList.toggle('es-ftit', f.tipo === 'tit');
+      if(f.tipo === 'img'){ if(!el.firstChild || el.firstChild.tagName !== 'IMG' || el.firstChild.getAttribute('src') !== f.src) el.innerHTML = `<img src="${f.src}" alt="" draggable="false">`; }
+      else { el.innerHTML = this.titHtml(f.t || {}); const d = el.firstChild; if(d){ d.style.fontSize = Math.max(8, f.h * .78) + 'px'; d.style.margin = '0'; d.style.lineHeight = f.h + 'px'; d.style.whiteSpace = 'nowrap'; d.removeAttribute('contenteditable'); } }
+      return;
+    }
+    el.classList.remove('es-fimg', 'es-ftit');
     if(this.esLinea(f.tipo)){
       Object.assign(el.style, { left:f.x + 'px', top:f.y + 'px', width:f.w + 'px', height:f.h + 'px', transform:f.giro ? `rotate(${f.giro}deg)` : '', border:'0', background:'transparent', borderRadius:'0' });
       el.innerHTML = this.svgLinea(f, f.w, f.h, f.grosor); el.classList.add('es-fl'); return;
@@ -621,26 +631,26 @@ const Escribir = {
   ponerCaja(el, f){ if(el) Object.assign(el.style, { left:f.x + 'px', top:f.y + 'px', width:f.w + 'px', height:f.h + 'px', transform:f.giro ? `rotate(${f.giro}deg)` : '' }); },
   caja(f){ const a = (f.giro || 0) * Math.PI / 180, c = Math.abs(Math.cos(a)), s = Math.abs(Math.sin(a)), W = f.w * c + f.h * s, H = f.w * s + f.h * c; return { x:f.x + f.w / 2 - W / 2, y:f.y + f.h / 2 - H / 2, w:W, h:H }; },
   pintarFigs(){
-    const at = $('#esAtras'), de = $('#esDelante'); if(!at) return;
+    const at = $(this.FIGID.atras), de = $(this.FIGID.delante); if(!at) return;
     at.innerHTML = ''; de.innerHTML = '';
     for(const f of this.figs){ const el = document.createElement('div'); el.className = 'es-fg'; el.dataset.id = f.id; this.estiloFig(el, f); (f.capa === 'detras' ? at : de).appendChild(el); }
     this.pintarSel();
   },
   pintarSel(){
     // (además de las esquinas, la bolita de arriba con ↻ gira la figura con el dedo)
-    $$('#esDelante .es-sel, #esDelante .es-mbar').forEach(x => x.remove());
-    const f = this.figSel(); $('#esForma').classList.toggle('on', !!f);
+    $$(this.FIGID.delante + ' .es-sel, ' + this.FIGID.delante + ' .es-mbar').forEach(x => x.remove());
+    const f = this.figSel(); $(this.FIGID.boton).classList.toggle('on', !!f);
     if(!f){ this.sel = null; return; }
     const s = document.createElement('div'); s.className = 'es-sel'; this.ponerCaja(s, f);
     s.innerHTML = ['nw', 'ne', 'sw', 'se'].map(k => `<i class="es-h es-h-${k}" data-h="${k}"></i>`).join('') + '<i class="es-rot" data-rot aria-label="Girar"><b>↻</b></i><span class="es-gv"></span>';
     const b = document.createElement('div'); b.className = 'es-mbar';
     b.innerHTML = `<button data-capa="delante" class="${f.capa !== 'detras' ? 'on' : ''}">⬆️ Delante</button><button data-capa="detras" class="${f.capa === 'detras' ? 'on' : ''}">⬇️ Detrás</button><button data-quitar aria-label="Quitar la figura">🗑️</button>`;
     if(this.caja(f).y < 50) s.classList.add('rot-abajo');      // arriba del todo: la bolita de girar va abajo
-    $('#esDelante').append(s, b); this.ponerBarra(b, f);
+    $(this.FIGID.delante).append(s, b); this.ponerBarra(b, f);
   },
   ponerBarra(b, f){
-    if(!b) return; const r = this.caja(f), W = $('#esPapel').clientWidth, bw = b.offsetWidth || 220;
-    const H = $('#esPapel').clientHeight; let top = r.y + r.h + 14; if(top > H - 50 && r.y > 110) top = r.y - 100;
+    if(!b) return; const r = this.caja(f), W = $(this.FIGID.papel).clientWidth, bw = b.offsetWidth || 220;
+    const H = $(this.FIGID.papel).clientHeight; let top = r.y + r.h + 14; if(top > H - 50 && r.y > 110) top = r.y - 100;
     b.style.left = Math.max(4, Math.min(W - bw - 4, r.x + r.w / 2 - bw / 2)) + 'px'; b.style.top = top + 'px';
   },
   seleccionar(id){
@@ -649,7 +659,7 @@ const Escribir = {
       const n = +(lsGet('ph3-es-pista2') || 0); if(n < 3){ try{ localStorage.setItem('ph3-es-pista2', n + 1); }catch(e){}
         toast('Arrástrala para moverla · esquinas: tamaño · ↻ azul: girarla · «◻︎ Figura»: colores', null, null, 4500); } }
   },
-  punto(ev){ const r = $('#esPapel').getBoundingClientRect(); return { x:ev.clientX - r.left, y:ev.clientY - r.top }; },
+  punto(ev){ const r = $(this.FIGID.papel).getBoundingClientRect(); return { x:ev.clientX - r.left, y:ev.clientY - r.top }; },
   // las figuras de detrás quedan debajo del texto: se cogen tocando su borde
   figEnBorde(p){
     for(const f of [...this.figs].reverse()){
@@ -666,14 +676,14 @@ const Escribir = {
     return null;
   },
   cursorEn(x, y){
-    const P = $('#esPapel'), e = $('#esTexto'); P.classList.add('es-sinp');
+    const P = $(this.FIGID.papel), e = $('#esTexto'); P.classList.add('es-sinp');
     let r = null; try{ r = document.caretRangeFromPoint ? document.caretRangeFromPoint(x, y) : null; if(!r && document.caretPositionFromPoint){ const c = document.caretPositionFromPoint(x, y); if(c){ r = document.createRange(); r.setStart(c.offsetNode, c.offset); } } }catch(err){}
     P.classList.remove('es-sinp');
     e.focus(); if(r && e.contains(r.startContainer)){ const s = getSelection(); s.removeAllRanges(); s.addRange(r); }
   },
   figDown(ev){
     if(ev.button > 0) return;
-    const t = ev.target, P = $('#esPapel');
+    const t = ev.target, P = $(this.FIGID.papel);
     if(t.closest('.es-mbar')) return;
     const p0 = this.punto(ev), hh = t.closest('.es-h'), rot = t.closest('.es-rot');
     let f = null, modo = 'mover';
@@ -699,7 +709,7 @@ const Escribir = {
         const im = Math.round(g / 45) * 45; if(Math.abs(g - im) < 4) g = im;
         f.giro = Math.round(g); const gv = $('.es-gv', P); if(gv){ gv.textContent = f.giro + '°'; gv.style.opacity = 1; gv.style.transform = `translate(-50%,-50%) rotate(${-f.giro}deg)`; }
       }
-      else if(modo === 'mover'){ f.x = Math.round(Math.max(-f.w / 2, Math.min($('#esPapel').clientWidth - f.w / 2, ini.x + dx))); f.y = Math.round(Math.max(0, ini.y + dy)); }
+      else if(modo === 'mover'){ f.x = Math.round(Math.max(-f.w / 2, Math.min($(this.FIGID.papel).clientWidth - f.w / 2, ini.x + dx))); f.y = Math.round(Math.max(0, ini.y + dy)); }
       else {
         const g = (f.giro || 0) * Math.PI / 180, cs = Math.cos(g), sn = Math.sin(g);
         const lx = dx * cs + dy * sn, ly = -dx * sn + dy * cs, sx = h.includes('e') ? 1 : -1, sy = h.includes('s') ? 1 : -1;

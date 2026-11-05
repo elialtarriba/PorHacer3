@@ -1511,33 +1511,127 @@ button.gx-nueva-abajo:active{background:color-mix(in srgb,var(--accent) 8%,trans
 #vCeldas{background:var(--bg)}
 .ce-fx{display:flex;align-items:center;gap:6px;margin:0 12px 6px;padding:5px;border-radius:14px;background:var(--card);border:1.5px solid var(--line);flex:none}
 .ce-ref{flex:none;min-width:52px;padding:0 8px;height:38px;display:grid;place-items:center;border-radius:10px;background:var(--colbg);font-weight:900;font-size:14px;color:var(--dark);font-variant-numeric:tabular-nums}
-#ceIn{flex:1;min-width:0;height:38px;border:0;outline:0;background:transparent;font:inherit;font-size:17px;font-weight:700;color:var(--dark);padding:0 4px}
+
 .ce-ok,.ce-no{flex:none;width:40px;height:38px;border-radius:10px;border:0;font-size:18px;font-weight:900;display:none}
 .ce-ok{background:var(--accent);color:var(--accentInk,#fff)}.ce-no{background:var(--colbg);color:var(--dark)}
 #vCeldas.editando .ce-ok,#vCeldas.editando .ce-no{display:block}
 #vCeldas.editando .ce-fx{border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 18%,transparent)}
 .ce-barra .ce-fxb{background:var(--accent);border-color:var(--accent);color:var(--accentInk,#fff)}
 .ce-barra button.on{background:#2fa84f;border-color:#2fa84f;color:#fff}
-.ce-zona{flex:1;min-height:0;overflow:auto;-webkit-overflow-scrolling:touch;margin:0 12px;border-radius:14px;border:1.5px solid var(--line);background:var(--card);overscroll-behavior:contain}
-.ce-tabla{border-collapse:separate;border-spacing:0;font-size:16px;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+
+
 .ce-tabla th{position:sticky;top:0;z-index:2;background:var(--colbg);color:var(--ink2);font-size:12px;font-weight:900;height:30px;border-right:1px solid var(--line);border-bottom:1px solid var(--line)}
 .ce-tabla tbody th{left:0;z-index:1;min-width:40px;width:40px;text-align:center}
 .ce-tabla th.ce-esq{left:0;z-index:3;min-width:40px}
 .ce-tabla th.on{background:color-mix(in srgb,var(--accent) 20%,var(--colbg));color:var(--dark)}
-.ce-tabla td{min-width:92px;max-width:92px;height:40px;padding:0 7px;border-right:1px solid var(--line);border-bottom:1px solid var(--line);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--dark);background:var(--card);cursor:cell;position:relative}
+
 .ce-tabla td.num{text-align:right;font-variant-numeric:tabular-nums}
 .ce-tabla td.neg{color:#d12a1f}
-.ce-tabla td.fx{background:color-mix(in srgb,#2f80ed 6%,var(--card))}
+
 .ce-tabla td.err{color:#d12a1f;font-weight:900;font-size:13px;text-align:center}
 .ce-tabla td.neg-b{font-weight:900}
-.ce-tabla td.en-rango{background:color-mix(in srgb,var(--accent) 12%,var(--card))}
-.ce-tabla td.sel{box-shadow:inset 0 0 0 2.5px var(--accent);z-index:0}
+
+
 .ce-tabla td.editando-c{background:#fff;color:#111;text-align:left}
-.ce-tabla td.ref-r{background:color-mix(in srgb,#2f80ed 22%,var(--card));box-shadow:inset 0 0 0 1.5px #2f80ed}
+
 #vCeldas.modo-ref .ce-zona{touch-action:none;border-color:#2f80ed}
 .ce-fx{position:relative}
 #vCeldas.modo-ref .ce-fx::after{content:"👆 toca o arrastra por las celdas";position:absolute;right:10px;top:calc(100% + 4px);z-index:5;font-size:12px;font-weight:900;color:#fff;background:#2f80ed;padding:3px 9px;border-radius:9px;pointer-events:none}
 #vCeldas.marcando .ce-zona{touch-action:none}
 .ce-dec{margin-bottom:8px}
 #vCeldas .es-pie .es-docx{background:var(--accent);color:var(--accentInk,#fff);border:1.5px solid var(--accent);height:50px;box-shadow:none}
-@media (min-width:760px){.ce-zona,.ce-fx{margin-left:24px;margin-right:24px}.ce-tabla td{min-width:110px;max-width:110px}}
+
+
+/* ===== V16.2 · Hoja de cálculo: colores, ribetes, tamaños, figuras ===== */
+.ce-zona{grid-area:z;min-height:0;min-width:0;overflow:auto;-webkit-overflow-scrolling:touch;border-radius:14px;border:1.5px solid var(--line);background:var(--colbg);overscroll-behavior:none}
+@media (min-width:760px){.ce-marco,.ce-fx,.ce-pest{margin-left:24px!important;margin-right:24px!important}}
+.ce-papel{position:relative;width:max-content;min-width:100%;background:var(--ce-fondo,var(--card))}
+.ce-tabla{position:relative;table-layout:fixed;border-collapse:separate;border-spacing:0;font-size:16px;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+.ce-tabla tbody th{top:auto;z-index:3}
+.ce-tabla thead th{z-index:4}
+.ce-tabla th.ce-esq{z-index:5;cursor:pointer;color:var(--ink2);font-size:11px}
+.ce-tabla th.ce-esq:active{background:color-mix(in srgb,var(--accent) 25%,var(--colbg))}
+.ce-tabla td{height:inherit;padding:0 7px;border-right:1px solid var(--line);border-bottom:1px solid var(--line);color:var(--dark);background:transparent;cursor:cell;position:relative;overflow:hidden;vertical-align:middle}
+.ce-tabla td .cv{white-space:pre;overflow:hidden;text-overflow:ellipsis;max-height:var(--h,38px);line-height:1.25}
+.ce-tabla tr{--h:38px}
+.ce-tabla td.ml{vertical-align:top;padding-top:4px}
+.ce-tabla td.cur .cv{font-style:italic}.ce-tabla td.tach .cv{text-decoration:line-through}
+.ce-tabla td .bd{position:absolute;inset:0;pointer-events:none;box-sizing:border-box;z-index:1}
+.ce-tabla td.sel{outline:2.5px solid var(--accent);outline-offset:-2.5px}
+.ce-tabla td.en-rango::after,.ce-tabla td.ref-r::after{content:"";position:absolute;inset:0;pointer-events:none;background:color-mix(in srgb,var(--accent) 16%,transparent)}
+.ce-tabla td.ref-r::after{background:color-mix(in srgb,#2f80ed 24%,transparent);box-shadow:inset 0 0 0 1.5px #2f80ed}
+.ce-tabla td.fx .cv{color:color-mix(in srgb,#2f80ed 30%,var(--dark))}
+.ce-tabla td.editando-c{background:#fff!important;color:#111}
+#vCeldas.sin-rejilla .ce-tabla td,.ce-imprime.sin-rejilla .ce-tabla td{border-color:transparent}
+#vCeldas.ver-todo .ce-tabla{table-layout:auto;width:auto!important}
+#vCeldas.ver-todo .ce-tabla td .cv{max-height:none;overflow:visible}
+#vCeldas.ver-todo .ce-tabla td{overflow:visible}
+.ce-tir-c,.ce-tir-f{position:absolute;touch-action:none;z-index:2}
+.ce-tir-c{right:-7px;top:0;bottom:0;width:14px;cursor:col-resize}
+.ce-tir-f{left:0;right:0;bottom:-7px;height:14px;cursor:row-resize}
+.ce-tir-c::after{content:"";position:absolute;left:6px;top:7px;bottom:7px;width:2px;border-radius:2px;background:color-mix(in srgb,var(--dark) 22%,transparent)}
+.ce-tir-f::after{content:"";position:absolute;top:6px;left:12px;right:12px;height:2px;border-radius:2px;background:color-mix(in srgb,var(--dark) 22%,transparent)}
+#vCeldas.tirando{cursor:grabbing}#vCeldas.tirando .ce-zona{touch-action:none}
+.ce-medir{position:absolute;left:-9999px;top:0;visibility:hidden;white-space:pre;font-size:16px;padding:0 7px;line-height:1.25}
+.ce-medir.neg-b{font-weight:900}
+#ceIn{flex:1;min-width:0;height:38px;max-height:110px;border:0;outline:0;background:transparent;font:inherit;font-size:17px;font-weight:700;color:var(--dark);padding:8px 4px;resize:none;line-height:1.3;box-sizing:border-box}
+.ce-salto{flex:none;width:40px;height:38px;border-radius:10px;border:1.5px solid var(--line);background:var(--colbg);color:var(--dark);font-size:18px;font-weight:900;display:none}
+#vCeldas.editando .ce-salto{display:block}
+.ce-aviso{position:absolute;left:50%;bottom:calc(84px + var(--safeB));transform:translate(-50%,10px);opacity:0;pointer-events:none;z-index:20;padding:7px 14px;border-radius:12px;background:var(--dark);color:#fff;font-size:13px;font-weight:800;max-width:86%;text-align:center;transition:opacity .2s,transform .2s;box-shadow:0 6px 18px rgba(0,0,0,.25)}
+.ce-aviso.ver{opacity:.94;transform:translate(-50%,0)}
+.ce-cols{display:grid;grid-template-columns:repeat(auto-fill,minmax(36px,1fr));gap:6px}
+.ce-cols button{height:36px;border-radius:10px;border:1.5px solid color-mix(in srgb,var(--dark) 18%,transparent)}
+.ce-cols button.on{outline:3px solid var(--accent);outline-offset:2px}
+.ce-rib-dnd{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.ce-rib-dnd button{display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 2px;border-radius:12px;border:1.5px solid var(--line);background:var(--colbg);color:var(--dark);font:inherit}
+.ce-rib-dnd b{font-size:22px;line-height:1}.ce-rib-dnd small{font-size:12px;font-weight:800}
+.ce-papel .es-delante .es-fg{pointer-events:auto}
+.es-fimg img{display:block;width:100%;height:100%;object-fit:fill;pointer-events:none;-webkit-user-drag:none}
+.es-ftit{display:flex;align-items:center;overflow:visible}
+.es-ftit .es-tit{width:100%;cursor:move}
+.ce-pop .es-gros{margin-bottom:6px}
+
+/* ===== V16.3 · Hojas DIN A4, regla y pestañas ===== */
+.ce-marco{flex:1;min-height:0;margin:0 12px;display:grid;grid-template-columns:auto 1fr;grid-template-rows:auto 1fr;grid-template-areas:"e h" "v z"}
+.ce-rg-esq{grid-area:e}.ce-rg-h{grid-area:h;display:none;height:18px;overflow:hidden;padding-left:1.5px;margin-bottom:2px}.ce-rg-v{grid-area:v;display:none;width:18px;overflow:hidden;padding-top:1.5px;margin-right:2px}
+.ce-marco.con-rh .ce-rg-h,.ce-marco.con-rv .ce-rg-v{display:block}
+.ce-marco.con-rh.con-rv .ce-rg-esq{width:18px;height:18px}
+.ce-rg-h svg,.ce-rg-v svg{display:block;background:var(--card);border-radius:4px}
+.ce-rg-h line,.ce-rg-v line{stroke:#8a8a92;stroke-width:1}
+.ce-rg-h text,.ce-rg-v text{font:700 8px -apple-system,system-ui,sans-serif;fill:#6a6a72;text-anchor:middle}
+.ce-rg-h .mar,.ce-rg-v .mar{fill:var(--colbg)}
+.ce-rg-h .fin,.ce-rg-v .fin{fill:rgba(229,32,28,.16)}
+.ce-rg-h .lim,.ce-rg-v .lim{stroke:#e5201c;stroke-width:2}
+.ce-rg-h .pag,.ce-rg-v .pag{stroke:#2f80ed;stroke-width:2.5}
+.ce-pags{position:absolute;inset:0;pointer-events:none;z-index:1}
+.ce-pags .pv{position:absolute;border-left:2px dashed #2f80ed;margin-left:-1px}
+.ce-pags .ph{position:absolute;border-top:2px dashed #2f80ed;margin-top:-1px}
+.ce-pags .pn{position:absolute;font-size:10px;font-weight:900;color:#2f80ed;background:rgba(255,255,255,.85);padding:1px 5px;border-radius:6px;white-space:nowrap}
+.ce-mar button{display:flex;flex-direction:column;align-items:center;line-height:1.1}.ce-mar small{font-size:11px;font-weight:700;opacity:.75}
+.ce-pest{display:flex;gap:4px;margin:0 12px;padding:0 2px 2px;overflow-x:auto;scrollbar-width:none;flex:none;align-items:flex-start}
+.ce-pest::-webkit-scrollbar{display:none}
+.ce-pt{--pc:var(--card);flex:none;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;height:36px;padding:0 14px;border:1.5px solid color-mix(in srgb,var(--dark) 18%,var(--line));border-top:0;border-radius:0 0 12px 12px;background:var(--pc);color:#1c1c1e;font:inherit;font-size:14px;font-weight:800;opacity:.78;box-shadow:0 2px 0 rgba(0,0,0,.08)}
+.ce-pt.osc{color:#fff}
+.ce-pt.on{opacity:1;height:40px;font-weight:900;border-color:var(--accent);border-width:2px;border-top:0;box-shadow:0 4px 10px rgba(0,0,0,.15)}
+.ce-pt.on small{font-size:10px;opacity:.7}
+.ce-pt-mas{--pc:var(--colbg);color:var(--accent);font-size:20px;padding:0 16px;opacity:1}
+.ce-pt-ops{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.ce-pt-ops button{height:44px;border-radius:12px;border:1.5px solid var(--line);background:var(--colbg);color:var(--dark);font:inherit;font-weight:800}
+.ce-pt-ops button.peligro{color:#d12a1f}.ce-pt-ops button:disabled{opacity:.35}
+.ce-imprime .ce-tabla th{position:static!important;visibility:hidden}
+.ce-imprime .ce-pags{display:none}
+
+/* ===== V16.4 · Formato condicional y SI ===== */
+.ce-reglas{display:flex;flex-direction:column;gap:6px;margin-bottom:8px}
+.ce-regla{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:12px;background:var(--colbg);border:1.5px solid var(--line);font-size:14px}
+.ce-regla i{flex:none;width:22px;height:22px;border-radius:7px;border:1px solid rgba(0,0,0,.15)}
+.ce-regla span{flex:1;min-width:0}
+.ce-regla button{flex:none;width:36px;height:34px;border-radius:10px;border:1.5px solid var(--line);background:var(--card)}
+.ce-cr-vals{display:flex;align-items:center;gap:8px;margin-top:6px}.ce-cr-vals .mp-input{flex:1;min-width:0;margin:0}
+.ce-cr-prev{margin-top:10px;display:flex;align-items:center;gap:8px;font-weight:800;font-size:14px}.ce-cr-prev i{width:26px;height:26px;border-radius:8px;border:1px solid rgba(0,0,0,.15)}
+.ce-si{display:flex;align-items:center;gap:6px;margin:6px 0;flex-wrap:wrap}.ce-si span{font-weight:900;min-width:44px}.ce-si .mp-input{flex:1;min-width:70px;margin:0}
+.ce-chuleta{margin-top:10px;border-radius:12px;background:var(--colbg);padding:4px 12px;font-size:13px;color:var(--ink2)}
+.ce-chuleta summary{cursor:pointer;font-weight:800;padding:6px 0;list-style:none}
+.ce-chuleta summary::-webkit-details-marker{display:none}
+.ce-chuleta p{margin:6px 0;line-height:1.45}.ce-chuleta code{background:var(--card);padding:1px 5px;border-radius:5px;color:var(--dark);font-size:12.5px}
+.ce-si2 select{flex:2!important}.ce-si2 input{flex:1!important;min-width:60px}.ce-si span{min-width:auto}
