@@ -140,6 +140,65 @@ const Escribir = {
     };
   },
 
+  /* ---------- Tipo de letra y color de la letra ---------- */
+  // Las letras que suelen tener el iPhone/iPad, el Mac, Windows y Android: se muestran solo las que hay en ESTE aparato.
+  LETRAS: ['Arial','Arial Black','Arial Rounded MT Bold','Avenir','Avenir Next','Baskerville','Bodoni 72','Bradley Hand','Calibri','Cambria','Candara','Chalkboard SE','Chalkduster','Comic Sans MS','Consolas','Constantia','Copperplate','Corbel','Courier New','Didot','Futura','Garamond','Georgia','Gill Sans','Helvetica','Helvetica Neue','Hoefler Text','Impact','Lucida Grande','Marker Felt','Menlo','Noteworthy','Optima','Palatino','Papyrus','Roboto','Rockwell','Savoye LET','Segoe Print','Segoe Script','Segoe UI','Snell Roundhand','Tahoma','Times New Roman','Trebuchet MS','Verdana','American Typewriter','Apple Chancery','Brush Script MT','Noto Serif','Noto Sans','Droid Serif','Cochin','Charter','Big Caslon','Kailasa','Zapfino','Party LET','Luminari','Herculanum','Trattatello','Ink Free','Lucida Handwriting','Lucida Console','Book Antiqua','Century Gothic','Franklin Gothic Medium','Gabriola','Georgia Pro','Sitka Text','Bahnschrift'],
+  hayLetra(f){
+    try{
+      const c = this._cvL || (this._cvL = document.createElement('canvas').getContext('2d')), txt = 'mmmmmmmmmlliWWOO@#0123';
+      return ['monospace', 'serif', 'sans-serif'].some(base => { c.font = '40px ' + base; const a = c.measureText(txt).width; c.font = `40px "${f}", ${base}`; return c.measureText(txt).width !== a; });
+    }catch(e){ return false; }
+  },
+  letrasAqui(){ if(!this._letras){ this._letras = this.LETRAS.filter(f => this.hayLetra(f)).sort((a, b) => a.localeCompare(b)); } return this._letras; },
+  menuLetra(){
+    const recientes = (() => { try{ return JSON.parse(lsGet('ph3-es-letras') || '[]'); }catch(e){ return []; } })();
+    const fila = f => `<button class="es-fuente" data-font="${esc(f)}" style="font-family:'${esc(f)}',sans-serif">${esc(f)}</button>`;
+    const pintar = (ls, q) => { const n = norm(q || ''); return ls.filter(f => !n || norm(f).includes(n)).map(fila).join('') || '<p class="aj-ayuda">No hay ninguna con ese nombre.</p>'; };
+    const puedeTodas = 'queryLocalFonts' in window;
+    const p = popMio(`<div class="ts-cab"><h3 class="mp-h">𝐀 Tipo de letra</h3><button class="mp-b mp-pri ts-listo" data-x>✓ Listo</button></div>
+      <p class="aj-ayuda" style="margin:0 0 8px">Selecciona antes el texto (o elígela y escribe). Salen las letras que tiene <b>este aparato</b>.</p>
+      <div class="gx-buscar" style="margin-bottom:8px"><span>🔍</span><input id="lfQ" type="search" placeholder="Buscar letra…" autocomplete="off"></div>
+      ${recientes.length ? `<div class="ab-tit">Usadas hace poco</div><div class="es-fuentes">${recientes.map(fila).join('')}</div>` : ''}
+      <div class="ab-tit">De este aparato <small id="lfN"></small></div>
+      <button class="es-fuente es-fuente-def" data-font="">Normal (la de siempre)</button>
+      <div class="es-fuentes" id="lfLista"></div>
+      ${puedeTodas ? '<button class="sh-op" data-todas>🔍 Ver TODAS las letras de este ordenador</button>' : ''}`, 'es-hf-pop');
+    let lista = this.letrasAqui();
+    const re = () => { $('#lfLista', p).innerHTML = pintar(lista, $('#lfQ', p).value); $('#lfN', p).textContent = '(' + lista.length + ')'; };
+    re(); $('#lfQ', p).oninput = re;
+    p.addEventListener('mousedown', e => { if(e.target.closest('button')) e.preventDefault(); });
+    p.onclick = async e => {
+      const b = e.target.closest('button'); if(!b) return;
+      if('x' in b.dataset){ cerrarPopMio(); return; }
+      if('todas' in b.dataset){ try{ const fs = await window.queryLocalFonts(); lista = [...new Set([...lista, ...fs.map(f => f.family)])].sort((a, c) => a.localeCompare(c)); re(); toast('🔍 ' + lista.length + ' letras'); }catch(er){ toast('No se ha dado permiso para ver las letras'); } return; }
+      if(b.dataset.font != null){
+        const f = b.dataset.font; cerrarPopMio(); this.restaurarCursor();
+        this.cmd('letra', f ? `"${f}"` : 'inherit');
+        if(f){ const r = [f, ...recientes.filter(x => x !== f)].slice(0, 6); lsSet('ph3-es-letras', JSON.stringify(r)); }
+        toast('𝐀 ' + (f || 'Letra normal'), null, null, 1200);
+      }
+    };
+  },
+  COLORES_LETRA: ['#000000','#434343','#666666','#999999','#b7b7b7','#d9d9d9',
+    '#c4170f','#e5201c','#f08a1a','#f2c418','#3fae5a','#14b8a6','#2f80ed','#1a3fa8','#8b5cf6','#e84898',
+    '#f4b3cf','#ffd5bf','#fbe3a0','#c8ead8','#cfe4f7','#ddd6f6',
+    '#7a4e2d','#c49a6c','#a3cf3e','#0b6e4f','#7b1fa2','#ff6f61'],
+  menuColor(){
+    const recientes = (() => { try{ return JSON.parse(lsGet('ph3-es-colores') || '[]'); }catch(e){ return []; } })();
+    const bot = c => `<button data-col="${c}" style="background:${c}" aria-label="${c}"></button>`;
+    const p = popMio(`<h3 class="mp-h">🎨 Color de la letra</h3>
+      <p class="aj-ayuda" style="margin:0 0 8px">Selecciona antes el texto (o elige el color y escribe).</p>
+      ${recientes.length ? `<div class="ab-tit">Usados hace poco</div><div class="es-cols">${recientes.map(bot).join('')}</div>` : ''}
+      <div class="ab-tit">Colores</div><div class="es-cols">${this.COLORES_LETRA.map(bot).join('')}</div>
+      <div class="mp-fila" style="margin-top:12px"><label class="mp-b es-colotro">🎨 Otro color…<input type="color" id="ecOtro" value="#e5201c"></label><button class="mp-b" data-col="auto">Automático</button></div>
+      <div class="mp-fila"><button class="mp-b mp-pri" data-x>Listo</button></div>`);
+    const poner = c => { cerrarPopMio(); this.restaurarCursor(); this.cmd('color', c === 'auto' ? '#222222' : c);
+      if(c !== 'auto'){ lsSet('ph3-es-colores', JSON.stringify([c, ...recientes.filter(x => x !== c)].slice(0, 8))); $('#esColMu').style.color = c; } else $('#esColMu').style.color = ''; };
+    p.addEventListener('mousedown', e => { if(e.target.closest('button')) e.preventDefault(); });
+    p.onclick = e => { const b = e.target.closest('button'); if(!b) return; if('x' in b.dataset){ cerrarPopMio(); return; } if(b.dataset.col) poner(b.dataset.col); };
+    $('#ecOtro', p).onchange = ev => poner(ev.target.value);
+  },
+
   /* ---------- ✨ Títulos bonitos: letras grandes, varios estilos y un color para cada letra ---------- */
   TIT_ESTILOS: [
     ['clasico', 'Clásico', 'Georgia,"Times New Roman",serif'],
@@ -356,6 +415,10 @@ const Escribir = {
         document.execCommand('styleWithCSS', false, false);
         if(ya) $$('span', e).forEach(x => { if(/transparent|rgba\(0, 0, 0, 0\)/.test(x.style.backgroundColor)){ x.style.backgroundColor = ''; if(!x.getAttribute('style')){ x.replaceWith(...x.childNodes); } } });
       }
+    } else if(c === 'letra' || c === 'color'){
+      const est = c === 'letra' ? { fontFamily:v } : { color:v };
+      if(quieto) this.estiloAqui(est);
+      else { document.execCommand('styleWithCSS', false, true); document.execCommand(c === 'letra' ? 'fontName' : 'foreColor', false, v); document.execCommand('styleWithCSS', false, false); }
     } else if(c === 'limpiar'){
       if(quieto){ try{ s.modify('move', 'backward', 'paragraphboundary'); s.modify('extend', 'forward', 'paragraphboundary'); }catch(err){} }
       document.execCommand('removeFormat');
@@ -690,6 +753,14 @@ const Escribir = {
     i.style.display = 'none'; document.body.appendChild(i); i.click();
   },
   async abrirArchivo(f, quitarId){
+    // un PDF: ¿verlo tal cual (con fotos y diseño) o pasar solo su texto a un escrito?
+    if((/\.pdf$/i.test(f.name) || f.type === 'application/pdf') && !this._pdfTexto){
+      const v = await popup({ tit:'📕 ' + f.name, html:`<button class="opcion opc2" data-v="ver">📕 Verlo tal cual<small>Con sus fotos y su diseño. Puedes escribir encima, subrayar con marcador y traducir palabras</small></button>
+          <button class="opcion opc2" data-v="texto">✍️ Pasar su texto a un escrito<small>Para cambiarlo. Solo el texto: sin fotos ni diseño</small></button>`,
+        botones:[{ txt:'Cancelar', val:null }], alAbrir:(c, fin) => $$('[data-v]', c).forEach(b => b.onclick = () => fin(b.dataset.v)) });
+      if(!v) return;
+      if(v === 'ver'){ VisorPdf.cargar(f); return; }
+    }
     const nom = f.name.replace(/\.(docx|pdf)$/i, '');
     toast('📂 Abriendo «' + f.name + '»…', null, null, 15000);
     let html = '';
@@ -803,6 +874,9 @@ const Escribir = {
     $('#esSalir').onclick = () => this.salir();
     $('#esDocx').onclick = () => this.menuGuardar();
     $('#esCabPie').onclick = () => this.menuCabecera();
+    ['esLetra', 'esColor'].forEach(id => { $('#' + id).addEventListener('pointerdown', () => this.guardarCursor()); $('#' + id).addEventListener('mousedown', ev => ev.preventDefault()); });
+    $('#esLetra').onclick = () => this.menuLetra(); $('#esColor').onclick = () => this.menuColor();
+    $('#esPdfVisor').onclick = () => VisorPdf.abrir();
     $('#esTitBonito').addEventListener('pointerdown', () => this.guardarCursor()); $('#esTitBonito').onclick = () => this.tituloBonito(null);
     e.addEventListener('click', ev => { const t = ev.target.closest('.es-tit'); if(t){ ev.preventDefault(); this.tituloBonito(t); } });
     $('#esMic').addEventListener('mousedown', ev => ev.preventDefault());   // que no se pierda el cursor

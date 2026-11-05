@@ -1389,3 +1389,53 @@ button.gx-nueva-abajo:active{background:color-mix(in srgb,var(--accent) 8%,trans
 .es-imprime .es-pnum.abajo-izq,.es-imprime .es-pnum.abajo-centro,.es-imprime .es-pnum.abajo-der{bottom:40px}
 .es-imprime .es-pnum.arriba-izq,.es-imprime .es-pnum.abajo-izq{left:94px}
 .es-imprime .es-pnum.arriba-der,.es-imprime .es-pnum.abajo-der{right:94px}
+
+/* V15.7 · Escribir: tipo de letra y color */
+.es-colmuestra{font-weight:900;text-decoration:underline;text-decoration-thickness:3px;text-underline-offset:2px}
+.es-fuentes{display:flex;flex-direction:column;gap:4px;margin-bottom:6px}
+.es-fuente{display:block;width:100%;text-align:left;padding:10px 12px;border-radius:12px;border:1.5px solid var(--line);background:var(--colbg);font-size:19px;color:var(--dark);margin-bottom:4px}
+.es-fuente-def{font-family:inherit;font-size:15px;font-weight:800}
+.es-cols{display:grid;grid-template-columns:repeat(auto-fill,minmax(38px,1fr));gap:8px}
+.es-cols button{height:38px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1.5px var(--line);padding:0}
+.es-colotro{position:relative;overflow:hidden}
+.es-colotro input{position:absolute;inset:0;opacity:0;width:100%;height:100%;cursor:pointer}
+
+/* V15.7 · Visor de PDF */
+.vpdf{position:fixed;inset:0;z-index:940;background:#4a4a50;display:flex;flex-direction:column;padding-top:var(--safeT,env(safe-area-inset-top));padding-left:env(safe-area-inset-left);padding-right:env(safe-area-inset-right)}
+.vpdf-top{display:flex;align-items:center;gap:8px;padding:8px 10px;background:#2c2c30;color:#fff}
+.vpdf-nom{flex:1;min-width:0;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.vpdf-b{height:40px;min-width:40px;padding:0 10px;border-radius:12px;border:0;background:#45454b;color:#fff;font:inherit;font-size:16px;font-weight:800}
+.vpdf-g{background:var(--accent)}
+.vpdf-herr{display:flex;align-items:center;gap:6px;padding:8px 10px;background:#38383d;overflow-x:auto;scrollbar-width:none}
+.vpdf-herr::-webkit-scrollbar{display:none}
+.vpdf-herr button{flex:none;height:42px;min-width:44px;padding:0 10px;border-radius:12px;border:2px solid transparent;background:#4e4e55;color:#fff;font-size:20px}
+.vpdf-herr button.on{background:#fff;color:#000;border-color:var(--accent)}
+.vpdf-sep{flex:1}
+.vpdf-cols{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:6px 10px;background:#f4f4f6;min-height:44px;font-size:13px;font-weight:700;color:#333}
+.vpdf-cols button{display:flex;align-items:center;gap:6px;height:34px;padding:0 10px 0 6px;border-radius:17px;border:2px solid #ddd;background:#fff;font:inherit;font-size:13px;font-weight:800;color:#333}
+.vpdf-cols button i{width:22px;height:22px;border-radius:50%;background:var(--c)}
+.vpdf-cols button.es-marc i{border-radius:5px;opacity:.75}
+.vpdf-cols button.on{border-color:#333}
+.vpdf-lapiz{display:flex;align-items:center;gap:6px;margin-left:auto}
+.vpdf-lapiz small{font-weight:600;color:#777}
+.vpdf-cols select{height:34px;border-radius:10px;border:1.5px solid #ccc;font:inherit;font-weight:800;padding:0 8px}
+.vpdf-ayu{color:#444}
+.vpdf-zona{flex:1;min-height:0;overflow:auto;-webkit-overflow-scrolling:touch;padding:10px 8px 40px}
+.vpdf-hojas{margin:0 auto;display:flex;flex-direction:column;gap:12px}
+.vpdf-hoja{position:relative;background:#fff;box-shadow:0 4px 16px rgba(0,0,0,.35);flex:none}
+.vpdf-pdf,.vpdf-dib{position:absolute;inset:0;width:100%;height:100%;display:block}
+.vpdf-txt{position:absolute;inset:0;overflow:hidden;line-height:1;opacity:1}
+.vpdf-txt span{position:absolute;white-space:pre;color:transparent;transform-origin:0 0;font-family:sans-serif;cursor:text}
+.vpdf-dib{z-index:2;touch-action:none}
+.vpdf[data-herr="mano"] .vpdf-dib,.vpdf[data-herr="traducir"] .vpdf-dib{pointer-events:none}
+.vpdf[data-herr="mano"] .vpdf-txt span{cursor:default}
+.vpdf-num{position:absolute;right:6px;bottom:4px;font-size:10px;font-weight:800;color:#999;z-index:3;pointer-events:none}
+.vpdf-pie{padding:6px 10px calc(6px + var(--safeB,env(safe-area-inset-bottom)));background:#2c2c30;color:#ddd;font-size:12.5px;font-weight:700;text-align:center}
+.vpdf-burbuja{position:fixed;z-index:960;max-width:min(320px,90vw);background:#1c1c1e;color:#fff;border-radius:14px;padding:10px 12px;box-shadow:0 8px 24px rgba(0,0,0,.4);font-size:15px;line-height:1.35}
+.vpdf-burbuja .vpb-w{display:block;font-size:13px;color:#ffd84d}
+.vpdf-burbuja .vpb-t{display:block;font-size:17px;font-weight:800}
+.vpdf-burbuja small{display:block;font-size:11px;color:#aaa;margin-top:2px}
+.vpb-b{display:flex;gap:6px;margin-top:8px}
+.vpb-b button{height:32px;padding:0 10px;border-radius:10px;border:0;background:#3a3a3f;color:#fff;font:inherit;font-size:13px;font-weight:800}
+.vpdf-pal{position:fixed;z-index:950;background:rgba(255,216,77,.45);border-radius:3px;pointer-events:none}
+@media (max-width:520px){.vpdf-g{font-size:13px;padding:0 8px}}
