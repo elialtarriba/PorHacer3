@@ -1507,3 +1507,37 @@ button.gx-nueva-abajo:active{background:color-mix(in srgb,var(--accent) 8%,trans
 .ag-cd-rej button.yo{opacity:.35;background:var(--line)}
 .ag-cd-otro{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;border-radius:14px;border:1.5px solid var(--line);background:var(--colbg);font-weight:900;margin-bottom:6px}
 .ag-cd-otro input{font:inherit;font-weight:800;border:0;background:transparent;color:var(--dark)}
+/* ===== V16 · Hoja de cálculo ===== */
+#vCeldas{background:var(--bg)}
+.ce-fx{display:flex;align-items:center;gap:6px;margin:0 12px 6px;padding:5px;border-radius:14px;background:var(--card);border:1.5px solid var(--line);flex:none}
+.ce-ref{flex:none;min-width:52px;padding:0 8px;height:38px;display:grid;place-items:center;border-radius:10px;background:var(--colbg);font-weight:900;font-size:14px;color:var(--dark);font-variant-numeric:tabular-nums}
+#ceIn{flex:1;min-width:0;height:38px;border:0;outline:0;background:transparent;font:inherit;font-size:17px;font-weight:700;color:var(--dark);padding:0 4px}
+.ce-ok,.ce-no{flex:none;width:40px;height:38px;border-radius:10px;border:0;font-size:18px;font-weight:900;display:none}
+.ce-ok{background:var(--accent);color:var(--accentInk,#fff)}.ce-no{background:var(--colbg);color:var(--dark)}
+#vCeldas.editando .ce-ok,#vCeldas.editando .ce-no{display:block}
+#vCeldas.editando .ce-fx{border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 18%,transparent)}
+.ce-barra .ce-fxb{background:var(--accent);border-color:var(--accent);color:var(--accentInk,#fff)}
+.ce-barra button.on{background:#2fa84f;border-color:#2fa84f;color:#fff}
+.ce-zona{flex:1;min-height:0;overflow:auto;-webkit-overflow-scrolling:touch;margin:0 12px;border-radius:14px;border:1.5px solid var(--line);background:var(--card);overscroll-behavior:contain}
+.ce-tabla{border-collapse:separate;border-spacing:0;font-size:16px;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+.ce-tabla th{position:sticky;top:0;z-index:2;background:var(--colbg);color:var(--ink2);font-size:12px;font-weight:900;height:30px;border-right:1px solid var(--line);border-bottom:1px solid var(--line)}
+.ce-tabla tbody th{left:0;z-index:1;min-width:40px;width:40px;text-align:center}
+.ce-tabla th.ce-esq{left:0;z-index:3;min-width:40px}
+.ce-tabla th.on{background:color-mix(in srgb,var(--accent) 20%,var(--colbg));color:var(--dark)}
+.ce-tabla td{min-width:92px;max-width:92px;height:40px;padding:0 7px;border-right:1px solid var(--line);border-bottom:1px solid var(--line);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--dark);background:var(--card);cursor:cell;position:relative}
+.ce-tabla td.num{text-align:right;font-variant-numeric:tabular-nums}
+.ce-tabla td.neg{color:#d12a1f}
+.ce-tabla td.fx{background:color-mix(in srgb,#2f80ed 6%,var(--card))}
+.ce-tabla td.err{color:#d12a1f;font-weight:900;font-size:13px;text-align:center}
+.ce-tabla td.neg-b{font-weight:900}
+.ce-tabla td.en-rango{background:color-mix(in srgb,var(--accent) 12%,var(--card))}
+.ce-tabla td.sel{box-shadow:inset 0 0 0 2.5px var(--accent);z-index:0}
+.ce-tabla td.editando-c{background:#fff;color:#111;text-align:left}
+.ce-tabla td.ref-r{background:color-mix(in srgb,#2f80ed 22%,var(--card));box-shadow:inset 0 0 0 1.5px #2f80ed}
+#vCeldas.modo-ref .ce-zona{touch-action:none;border-color:#2f80ed}
+.ce-fx{position:relative}
+#vCeldas.modo-ref .ce-fx::after{content:"👆 toca o arrastra por las celdas";position:absolute;right:10px;top:calc(100% + 4px);z-index:5;font-size:12px;font-weight:900;color:#fff;background:#2f80ed;padding:3px 9px;border-radius:9px;pointer-events:none}
+#vCeldas.marcando .ce-zona{touch-action:none}
+.ce-dec{margin-bottom:8px}
+#vCeldas .es-pie .es-docx{background:var(--accent);color:var(--accentInk,#fff);border:1.5px solid var(--accent);height:50px;box-shadow:none}
+@media (min-width:760px){.ce-zona,.ce-fx{margin-left:24px;margin-right:24px}.ce-tabla td{min-width:110px;max-width:110px}}

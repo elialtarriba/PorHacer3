@@ -10,10 +10,10 @@
 <meta name="theme-color" content="#eeeff1">
 <title>PorHacer3</title>
 <link rel="icon" href="logo.png" type="image/png">
-<link rel="apple-touch-icon" href="apple-touch-icon.png?v=171">
+<link rel="apple-touch-icon" href="apple-touch-icon.png?v=173">
 <link rel="manifest" href="manifest.json">
-<link rel="stylesheet" href="estilos.css?v=171">
-<link rel="stylesheet" href="estilos3.css?v=171">
+<link rel="stylesheet" href="estilos.css?v=173">
+<link rel="stylesheet" href="estilos3.css?v=173">
 </head>
 <body>
 
@@ -47,7 +47,7 @@
         <button class="ibtn ibtn-portada" data-portada title="Portada" aria-label="Ir a la portada"></button>
       </div>
       <div class="insignias">
-            <span class="ver" id="verTxt">V15.9</span>
+            <span class="ver" id="verTxt">V16.1</span>
             <button class="nube-estado off" id="nubeEstado" hidden title="Nube" aria-label="Nube"></button>
           </div>
     </div>
@@ -122,7 +122,7 @@
     <header class="po-cab">
       <img src="logo.png" alt="" class="po-logo">
       <div class="po-tit"><h1>Por<span>Hacer</span><sup>3</sup></h1><small id="poSaludo"></small></div>
-      <div class="po-der"><span class="ver" id="verTxt2">V15.9</span><div class="po-der-f"><button class="po-nube" id="poNube" data-nube aria-label="Conexión"></button><button class="ibtn ibtn-tema po-tema-b" data-temasec="portada" title="Colores de la portada" aria-label="Colores de la portada"></button></div></div>
+      <div class="po-der"><span class="ver" id="verTxt2">V16.1</span><div class="po-der-f"><button class="po-nube" id="poNube" data-nube aria-label="Conexión"></button><button class="ibtn ibtn-tema po-tema-b" data-temasec="portada" title="Colores de la portada" aria-label="Colores de la portada"></button></div></div>
     </header>
     <div class="po-hoy" id="poHoy"></div>
     <div class="po-rejilla" id="poRejilla"></div>
@@ -168,6 +168,36 @@
   </header>
   <div class="st-cuerpo" id="stCuerpo"></div>
   <div class="st-barra" id="stBarra"></div>
+</section>
+
+<!-- ============ HOJA DE CÁLCULO ============ -->
+<section id="vCeldas" class="vista">
+  <header class="top sec-top es-top">
+    <button class="ibtn" id="ceMis" title="Mis hojas" aria-label="Mis hojas">📊</button>
+    <input class="es-titulo" id="ceTitulo" placeholder="Nombre de la hoja" autocomplete="off" enterkeyhint="done">
+    <button class="ibtn ibtn-tema" data-temasec="hoja" title="Colores de la hoja de cálculo" aria-label="Colores de la hoja de cálculo"></button>
+    <button class="ibtn ibtn-portada" data-portada title="Portada" aria-label="Ir a la portada"></button>
+  </header>
+  <div class="ce-fx"><b class="ce-ref" id="ceRef">A1</b><input id="ceIn" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="done" placeholder="Toca una celda y escribe…"><button id="ceNo" class="ce-no" aria-label="Cancelar">✕</button><button id="ceOk" class="ce-ok" aria-label="Aceptar">✓</button></div>
+  <div class="es-barra ce-barra" id="ceBarra">
+    <button id="ceFx" class="ce-fxb">Σ Fórmulas ▾</button>
+    <button id="ceTipo">✨ Auto ▾</button>
+    <button id="ceEur" aria-label="Euros">€</button>
+    <button id="ceD0" aria-label="Sin decimales">0</button>
+    <button id="ceD1" aria-label="Un decimal">0,0</button>
+    <button id="ceD2" aria-label="Dos decimales">0,00</button>
+    <button id="ceNeg" aria-label="Negrita"><b>B</b></button>
+    <button id="ceBorrar" aria-label="Borrar">🧹 Borrar</button>
+    <button id="ceFila">＋ Filas</button>
+    <button id="ceCol">＋ Columna</button>
+    <button id="ceAtras" aria-label="Deshacer">↶</button>
+  </div>
+  <div class="ce-zona" id="ceZona"><table class="ce-tabla" id="ceTabla"></table></div>
+  <div class="es-pie">
+    <button class="es-salir" id="ceSalir">‹ Salir</button>
+    <span class="es-info"><b id="ceEstado">✓ Guardado</b><small id="ceCuenta"></small></span>
+    <button class="es-docx" id="ceSacar">📤 <span class="es-largo">Abrir · guardar</span> ▾</button>
+  </div>
 </section>
 
 <!-- ============ GRABAR NOTAS DE VOZ ============ -->
@@ -454,36 +484,37 @@
 
 <div class="toast" id="toast"></div>
 
-<script src="iconos.js?v=171"></script>
-<script src="iconos-home.js?v=171"></script>
-<script src="temas.js?v=171"></script>
-<script src="db.js?v=171"></script>
-<script src="firebase-config.js?v=171"></script>
-<script src="email-config.js?v=171"></script>
-<script src="correo.js?v=171"></script>
-<script src="audio.js?v=171"></script>
-<script src="listas.js?v=171"></script>
-<script src="bloc.js?v=171"></script>
-<script src="avisos.js?v=171"></script>
-<script src="fiesta.js?v=171"></script>
-<script src="nube.js?v=171"></script>
-<script src="fotos.js?v=171"></script>
-<script src="videos.js?v=171"></script>
-<script src="voz.js?v=171"></script>
-<script src="calendario.js?v=171"></script>
-<script src="ajustes.js?v=171"></script>
-<script src="copias.js?v=171"></script>
-<script src="mio.js?v=171"></script>
-<script src="agenda.js?v=171"></script>
-<script src="tickets.js?v=171"></script>
-<script src="gastos.js?v=171"></script>
-<script src="guardar.js?v=171"></script>
-<script src="aparatos.js?v=171"></script>
-<script src="pdfvisor.js?v=171"></script>
-<script src="sitios.js?v=171"></script>
-<script src="grabar.js?v=171"></script>
-<script src="escribir.js?v=171"></script>
-<script src="portada.js?v=171"></script>
-<script src="app.js?v=171"></script>
+<script src="iconos.js?v=173"></script>
+<script src="iconos-home.js?v=173"></script>
+<script src="temas.js?v=173"></script>
+<script src="db.js?v=173"></script>
+<script src="firebase-config.js?v=173"></script>
+<script src="email-config.js?v=173"></script>
+<script src="correo.js?v=173"></script>
+<script src="audio.js?v=173"></script>
+<script src="listas.js?v=173"></script>
+<script src="bloc.js?v=173"></script>
+<script src="avisos.js?v=173"></script>
+<script src="fiesta.js?v=173"></script>
+<script src="nube.js?v=173"></script>
+<script src="fotos.js?v=173"></script>
+<script src="videos.js?v=173"></script>
+<script src="voz.js?v=173"></script>
+<script src="calendario.js?v=173"></script>
+<script src="ajustes.js?v=173"></script>
+<script src="copias.js?v=173"></script>
+<script src="mio.js?v=173"></script>
+<script src="agenda.js?v=173"></script>
+<script src="tickets.js?v=173"></script>
+<script src="gastos.js?v=173"></script>
+<script src="guardar.js?v=173"></script>
+<script src="aparatos.js?v=173"></script>
+<script src="pdfvisor.js?v=173"></script>
+<script src="sitios.js?v=173"></script>
+<script src="grabar.js?v=173"></script>
+<script src="escribir.js?v=173"></script>
+<script src="celdas.js?v=173"></script>
+<script src="portada.js?v=173"></script>
+<script src="app.js?v=173"></script>
 </body>
 </html>

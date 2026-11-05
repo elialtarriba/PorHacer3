@@ -1,7 +1,7 @@
 /* PorHacer3 · Portada: la pantalla con todos los apartados.
    Cada apartado tiene un solo botón (arriba a la izquierda) para volver aquí. */
 
-const VISTAS = { grabar:'vGrabar', calc:'vCalc', portada:'vPortada', tareas:'vTablero', listas:'vListas', cal:'vCal', agenda:'vAgenda', tickets:'vTickets', sitios:'vSitios', escribir:'vEscribir' };
+const VISTAS = { grabar:'vGrabar', calc:'vCalc', portada:'vPortada', tareas:'vTablero', listas:'vListas', cal:'vCal', agenda:'vAgenda', tickets:'vTickets', sitios:'vSitios', escribir:'vEscribir', hoja:'vCeldas' };
 function soloVista(id){
   $$('.vista').forEach(v => v.classList.toggle('activa', v.id === id));
   TemaSec.aplicar(TemaSec.DE_VISTA[id] || null);
@@ -24,7 +24,8 @@ function irA(sec){
     sitios:  () => Sitios.abrir(),
     calc:    () => Calc.abrir(),
     grabar:  () => Grabar.abrir(),
-    escribir:() => Escribir.abrir()
+    escribir:() => Escribir.abrir(),
+    hoja:    () => Celdas.abrir()
   })[sec]();
   Portada.actual = sec;
 }
@@ -45,7 +46,7 @@ const Portada = {
     { k:'web1',    t:'Personal',   ico:'web',        c:'var(--accent)' },
     { k:'web2',    t:'Personal 2', ico:'web',        c:'var(--dark)' },
     { k:'manual',  t:'Manual',     ico:'manual',     c:'var(--accent)' },
-    { k:'guardar', t:'Guardar',    ico:'guardar',    c:'var(--dark)' }
+    { k:'hoja',    t:'Hoja de cálculo', ico:'hoja',  c:'var(--dark)' }
   ],
   saludo(){
     const h = new Date().getHours(), n = (typeof Nube !== 'undefined' && Nube.perfil && Nube.perfil.nombre) || '';
@@ -78,6 +79,7 @@ const Portada = {
       if(k === 'web1' || k === 'web2') return Webs.info(k);
       if(k === 'manual') return 'Cómo funciona todo';
       if(k === 'guardar'){ const n = ['agenda','tickets','gastos','sitios'].filter(s => Mio.donde(s) === 'nube').length + (Listas.donde() === 'nube' ? 1 : 0) + Object.keys(Guardar.NUEVOS).filter(s => Guardar.donde(s) === 'nube').length; return '☁️ ' + n + ' en la nube · 📱 ' + (8 - n) + ' aquí'; }
+      if(k === 'hoja'){ const n = Celdas.lista().filter(d => !Celdas.vacio(d)).length; return n ? pl(n, 'hoja', 'hojas') : 'Números y sumas'; }
       if(k === 'escribir'){ const n = Escribir.lista().length; return n ? pl(n, 'escrito', 'escritos') : 'Escribe o dicta'; }
       if(k === 'grabar'){ const n = Grabar.lista.length; return n ? pl(n, 'nota de voz', 'notas de voz') : 'Notas de voz'; }
       if(k === 'sitios'){ const s = Mio.todos('sitios'), casas = s.filter(x => x.tipo === 'casa').length, cosas = s.reduce((n, x) => n + Object.keys(x.cosas || {}).length, 0);
@@ -324,7 +326,7 @@ const Calc = {
     this._carga = new Promise(ok => {
       const f = $('#calcFrame');
       f.addEventListener('load', () => setTimeout(() => ok(this.win()), 60), { once:true });
-      f.src = 'calculadora.html?v=171';
+      f.src = 'calculadora.html?v=173';
     });
     return this._carga;
   },
@@ -363,8 +365,8 @@ const Calc = {
    Cada uno puede tener su tema o «Como la app». Al entrar en el apartado se ponen sus colores
    (también en sus ventanas) y al salir vuelven los de toda la app. Se guarda en este aparato. */
 const TemaSec = {
-  NOMBRES: { escribir:'Escribir', tareas:'Tareas', cal:'Calendario Tareas', agenda:'Agenda', grabar:'Grabar', sitios:'Sitios', conf:'Configuración', portada:'Portada' },
-  DE_VISTA: { vPortada:'portada', vTablero:'tareas', vCal:'cal', vAgenda:'agenda', vGrabar:'grabar', vSitios:'sitios', vEscribir:'escribir' },
+  NOMBRES: { escribir:'Escribir', tareas:'Tareas', cal:'Calendario Tareas', agenda:'Agenda', grabar:'Grabar', sitios:'Sitios', hoja:'Hoja de cálculo', conf:'Configuración', portada:'Portada' },
+  DE_VISTA: { vPortada:'portada', vTablero:'tareas', vCal:'cal', vAgenda:'agenda', vGrabar:'grabar', vSitios:'sitios', vEscribir:'escribir', vCeldas:'hoja' },
   actual: null,
   de(sec){ const k = ((App.ajustes && App.ajustes.temaSec) || {})[sec]; return k && TEMAS[k] ? k : null; },
   colores(sec){ const k = sec && this.de(sec); return k ? TEMAS[k].c : App.ajustes.colores; },

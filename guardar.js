@@ -36,7 +36,7 @@ const NubeTrozos = {
 };
 
 const Guardar = {
-  NUEVOS: { grabar:'Grabar', escribir:'Escribir', bloc:'las Notas secretas' },
+  NUEVOS: { grabar:'Grabar', escribir:'Escribir', bloc:'las Notas secretas', hojas:'las Hojas de cálculo' },
   _subs: {}, _clave: {},
   donde(sec){ return lsGet('ph3-donde-' + sec) === 'nube' ? 'nube' : 'aparato'; },
   uid(){ return (typeof Nube !== 'undefined' && Nube.user && Nube.user.emailVerified !== false) ? Nube.user.uid : null; },
@@ -86,6 +86,39 @@ const Guardar = {
       for(const d of l){ if(Escribir.vacio(d) && !n[d.id]) continue; if(n[d.id] !== (d.cambiado || 0)){ try{ await NubeTrozos.poner('escritos', d.id, d); n[d.id] = d.cambiado || 0; con.add(d.id); }catch(e){ console.warn(e); } } }
       for(const id of Object.keys(n)) if(!l.some(d => d.id === id)){ await NubeTrozos.quitar('escritos', id).catch(() => {}); delete n[id]; con.delete(id); }
       this._nubeEscribir = n; this.ponerConocidos('escribir', con);
+    }, 2000);
+  },
+
+  /* ---------- Hojas de cálculo: cada hoja, un documento ---------- */
+  escuchar_hojas(){
+    return NubeTrozos.escuchar('hojas', async nube => {
+      const loc = Celdas.lista(), con = this.conocidos('hojas'), out = [], subir = [];
+      let cambio = false;
+      for(const [id, c] of Object.entries(nube)){
+        const l = loc.find(x => x.id === id);
+        if(!l || (c.cambiado || 0) > (l.cambiado || 0)){ out.push(c); cambio = true; }
+        else { out.push(l); if((l.cambiado || 0) > (c.cambiado || 0)) subir.push(l); }
+      }
+      for(const l of loc){ if(nube[l.id]) continue;
+        if(con.has(l.id)) cambio = true;
+        else { out.push(l); if(!Celdas.vacio(l)) subir.push(l); } }
+      this._nubeHojas = Object.fromEntries(Object.entries(nube).map(([id, c]) => [id, c.cambiado || 0]));
+      if(cambio){
+        this._aplicando = true; try{ localStorage.setItem('ph3-hojas', JSON.stringify(out)); }catch(e){} this._aplicando = false;
+        if(Celdas.activa() && !Celdas.ed){ if(!out.some(x => x.id === Celdas.id)){ Celdas.id = null; Celdas.abrir(); } else Celdas.cargar(); }
+        if(typeof Portada !== 'undefined') Portada.pintar && Portada.pintar();
+      }
+      for(const l of subir){ try{ await NubeTrozos.poner('hojas', l.id, l); this._nubeHojas[l.id] = l.cambiado || 0; }catch(e){ console.warn(e); } }
+      this.ponerConocidos('hojas', new Set([...Object.keys(nube), ...subir.map(x => x.id)]));
+    });
+  },
+  cambioHojas(){
+    if(this._aplicando || !this.enNube('hojas')) return;
+    clearTimeout(this._tHoj); this._tHoj = setTimeout(async () => {
+      const l = Celdas.lista(), n = this._nubeHojas || {}, con = this.conocidos('hojas');
+      for(const d of l){ if(Celdas.vacio(d) && !n[d.id]) continue; if(n[d.id] !== (d.cambiado || 0)){ try{ await NubeTrozos.poner('hojas', d.id, d); n[d.id] = d.cambiado || 0; con.add(d.id); }catch(e){ console.warn(e); } } }
+      for(const id of Object.keys(n)) if(!l.some(d => d.id === id)){ await NubeTrozos.quitar('hojas', id).catch(() => {}); delete n[id]; con.delete(id); }
+      this._nubeHojas = n; this.ponerConocidos('hojas', con);
     }, 2000);
   },
 
@@ -143,7 +176,7 @@ const Guardar = {
   /* ---------- Cambiar de sitio (desde «Guardar» o Configuración) ---------- */
   async cambiar(sec, a, borrarNube){
     if(this.donde(sec) === a) return;
-    const col = { grabar:'grabaciones', escribir:'escritos', bloc:'bloc' }[sec];
+    const col = { grabar:'grabaciones', escribir:'escritos', bloc:'bloc', hojas:'hojas' }[sec];
     if(this._subs[sec]){ try{ this._subs[sec](); }catch(e){} this._subs[sec] = null; }
     this.ponerConocidos(sec, []); if(sec === 'bloc') lsSet('ph3-sync-bloc', null);
     if(a === 'aparato'){ if(borrarNube && this.uid()) await NubeTrozos.vaciar(col); lsSet('ph3-donde-' + sec, 'aparato'); }

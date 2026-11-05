@@ -45,6 +45,14 @@ const ICO = {
     <path d="M37 45a10.5 10.5 0 0 0 21 0M47.5 55.5v5M42 61h11" fill="none" stroke="var(--accent)" stroke-width="3.2" stroke-linecap="round"/>
   </svg>`,
 
+  // Hoja de cálculo: cuadrícula con la fila de arriba de color y una Σ
+  hoja: `<svg viewBox="0 0 64 64" aria-hidden="true">
+    <rect x="7" y="9" width="50" height="46" rx="6" fill="#fff" stroke="var(--dark)" stroke-width="4.5"/>
+    <path d="M9.5 21h45" stroke="var(--dark)" stroke-width="4"/><path d="M9 11.5h46v9.5H9z" fill="var(--accent)" opacity=".9"/>
+    <g stroke="var(--dark)" stroke-width="2.6" opacity=".55"><path d="M10 33h44M10 44h44M23 21v32M38 21v32"/></g>
+    <path d="M44 27h-7l4 5.5-4 5.5h7" fill="none" stroke="var(--accent)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" transform="translate(4 3)"/>
+  </svg>`,
+
   // Copia de seguridad: caja con flecha roja
   guardar: `<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M18 48h30a11 11 0 0 0 1-22 15 15 0 0 0-29-3 12 12 0 0 0-2 25z" fill="#fff" stroke="var(--dark)" stroke-width="4.5" stroke-linejoin="round"/><path d="M32 27v16m-7-7 7 7 7-7" fill="none" stroke="var(--accent)" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
   copia: `<svg viewBox="0 0 64 64" aria-hidden="true">

@@ -149,7 +149,7 @@ const Ajustes = {
 
 
   /* ---------- GUARDAR: nube o este aparato, para cada apartado ---------- */
-  DONDE: [['agenda','📒','Agenda'],['tickets','🧾','Tickets'],['gastos','💶','Gastos (de Tickets)'],['sitios','🏡','Sitios'],['listas','📝','Listas'],['grabar','🎙️','Grabar'],['escribir','✍️','Escribir'],['bloc','🔒','Notas secretas']],
+  DONDE: [['agenda','📒','Agenda'],['tickets','🧾','Tickets'],['gastos','💶','Gastos (de Tickets)'],['sitios','🏡','Sitios'],['listas','📝','Listas'],['grabar','🎙️','Grabar'],['escribir','✍️','Escribir'],['hojas','📊','Hojas de cálculo'],['bloc','🔒','Notas secretas']],
   dondeDe(k){ return k === 'listas' ? Listas.donde() : Guardar.NUEVOS[k] ? Guardar.donde(k) : Mio.donde(k); },
   p_donde(){
     const fila = ([k, ic, t]) => { const d = this.dondeDe(k);
@@ -161,7 +161,7 @@ const Ajustes = {
       + this.tarjeta('💻 Tus aparatos', '<div id="gdAparatos"></div>',
         'Los móviles, tabletas y ordenadores donde has entrado con tu cuenta. Debajo de cada apartado de arriba ves cómo lo tiene cada uno. Desde aquí puedes pedirle a otro aparato que <b>cierre la sesión</b> o que <b>cambie</b> dónde guarda cada cosa: lo hará en cuanto esté abierto y con internet.');
   },
-  nomDonde(sec){ return { agenda:'la Agenda', tickets:'los Tickets', gastos:'«' + Gastos.nombre() + '»', sitios:'los Sitios', listas:'las Listas', grabar:'Grabar', escribir:'Escribir', bloc:'las Notas secretas' }[sec] || sec; },
+  nomDonde(sec){ return { agenda:'la Agenda', tickets:'los Tickets', gastos:'«' + Gastos.nombre() + '»', sitios:'los Sitios', listas:'las Listas', grabar:'Grabar', escribir:'Escribir', hojas:'las Hojas de cálculo', bloc:'las Notas secretas' }[sec] || sec; },
   async aplicarDonde(sec, a, borrar){ if(Guardar.NUEVOS[sec]) await Guardar.cambiar(sec, a, borrar); else await Mio.cambiarDonde(sec, a, borrar); if(typeof Aparatos !== 'undefined') Aparatos.publicar(); },
   pintarAparatos(){
     const box = $('#gdAparatos'); if(!box) return;
@@ -202,7 +202,7 @@ const Ajustes = {
         try{ await Aparatos.ref().doc(a.id).delete(); }catch(er){ popAviso('No se ha podido', er.message || ''); } }
     };
     $$('[data-donde] button', cont).forEach(b => b.onclick = async () => {
-      const sec = b.parentNode.dataset.donde, a = b.dataset.v, nom = { agenda:'la Agenda', tickets:'los Tickets', gastos:'«' + Gastos.nombre() + '»', sitios:'los Sitios', listas:'las Listas', grabar:'Grabar', escribir:'Escribir', bloc:'las Notas secretas' }[sec], n = ['agenda','gastos','grabar','escribir'].includes(sec) ? '' : 'n';
+      const sec = b.parentNode.dataset.donde, a = b.dataset.v, nom = { agenda:'la Agenda', tickets:'los Tickets', gastos:'«' + Gastos.nombre() + '»', sitios:'los Sitios', listas:'las Listas', grabar:'Grabar', escribir:'Escribir', hojas:'las Hojas de cálculo', bloc:'las Notas secretas' }[sec], n = ['agenda','gastos','grabar','escribir'].includes(sec) ? '' : 'n';
       const ahora = this.dondeDe(sec); if(ahora === a) return;
       let borrar = false;
       if(a === 'aparato'){
