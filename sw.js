@@ -1,12 +1,12 @@
 // PorHacer3 · service worker: la app funciona sin conexión
-const CACHE = 'porhacer3-v179';
+const CACHE = 'porhacer3-v180';
 const ARCHIVOS = [
-  './', './index.html', './manifest.json', './estilos.css?v=179', './estilos3.css?v=179',
-  './iconos.js?v=179', './iconos-home.js?v=179', './mio.js?v=179', './agenda.js?v=179', './tickets.js?v=179', './gastos.js?v=179', './guardar.js?v=179', './aparatos.js?v=179', './pdfvisor.js?v=179', './sitios.js?v=179', './grabar.js?v=179', './estudio.js?v=179', './escribir.js?v=179', './celdas.js?v=179', './documentos.js?v=179', './edicion.js?v=179', './portada.js?v=179', './temas.js?v=179', './db.js?v=179', './firebase-config.js?v=179', './email-config.js?v=179', './nube.js?v=179',
-  './correo.js?v=179', './audio.js?v=179', './fiesta.js?v=179', './avisos.js?v=179', './bloc.js?v=179', './listas.js?v=179', './listas.png', './lame.min.js', './html2canvas.min.js', './jspdf.min.js', './pdf.min.js', './pdf.worker.min.js',
-  './fotos.js?v=179', './videos.js?v=179', './voz.js?v=179', './calendario.js?v=179', './ajustes.js?v=179',
-  './copias.js?v=179', './app.js?v=179',
-  './logo.png', './calculadora.html?v=179', './logo_elibi.jpg', './icon-192.png', './icon-512.png', './apple-touch-icon.png'
+  './', './index.html', './manifest.json', './estilos.css?v=180', './estilos3.css?v=180',
+  './iconos.js?v=180', './iconos-home.js?v=180', './mio.js?v=180', './agenda.js?v=180', './tickets.js?v=180', './gastos.js?v=180', './guardar.js?v=180', './aparatos.js?v=180', './pdfvisor.js?v=180', './sitios.js?v=180', './grabar.js?v=180', './estudio.js?v=180', './escribir.js?v=180', './celdas.js?v=180', './documentos.js?v=180', './edicion.js?v=180', './portada.js?v=180', './temas.js?v=180', './db.js?v=180', './firebase-config.js?v=180', './email-config.js?v=180', './nube.js?v=180',
+  './correo.js?v=180', './audio.js?v=180', './fiesta.js?v=180', './avisos.js?v=180', './bloc.js?v=180', './listas.js?v=180', './listas.png', './lame.min.js', './html2canvas.min.js', './jspdf.min.js', './pdf.min.js', './pdf.worker.min.js',
+  './fotos.js?v=180', './videos.js?v=180', './voz.js?v=180', './calendario.js?v=180', './ajustes.js?v=180',
+  './copias.js?v=180', './app.js?v=180',
+  './logo.png', './calculadora.html?v=180', './logo_elibi.jpg', './icon-192.png', './icon-512.png', './apple-touch-icon.png'
 ];
 // Librería de Firebase: también se guarda para poder abrir la app sin internet
 const SDK = ['app','auth','firestore'].map(n => `https://www.gstatic.com/firebasejs/10.14.1/firebase-${n}-compat.js`);

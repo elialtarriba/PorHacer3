@@ -1,6 +1,6 @@
 /* PorHacer · app principal: tablero de columnas, tareas y editor */
 
-const VERSION = 'V18.1';
+const VERSION = 'V18.2';
 const $ = (s, r=document) => r.querySelector(s);
 const $$ = (s, r=document) => Array.from(r.querySelectorAll(s));
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -1231,22 +1231,25 @@ function iniciarOrdenColumnas(){
     // La columna que se mueve nunca tapa la detección de las otras.
     const otras = $$('.columna', tab).filter(c => c !== d.col);
     const destino = otras.find(c => { const q=c.getBoundingClientRect(); return d.x < q.left+q.width/2; });
-    if(destino){ if(d.col.nextElementSibling !== destino) tab.insertBefore(d.col,destino); }
-    else if(d.col !== tab.lastElementChild) tab.appendChild(d.col);
+    // No mover nodos bajo el dedo: Safari puede cancelar el gesto al recolocarlos.
+    d.antes=destino || null;
+    $$('.col-destino',tab).forEach(c=>c.classList.remove('col-destino'));
+    const marca=destino || otras[otras.length-1];if(marca)marca.classList.add('col-destino');
+    d.fantasma.textContent='⠿ '+$('h3',d.cab).textContent+' · '+(destino?'antes de '+$('h3',destino).textContent:'al final');
     d.fantasma.style.left = Math.max(4,Math.min(innerWidth-d.fantasma.offsetWidth-4,d.x-d.dx))+'px';
     d.fantasma.style.top = Math.max(4,d.y-d.dy)+'px';
     frame = requestAnimationFrame(mover);
   };
-  tab.addEventListener('pointerdown', e => {
+  const empezar = e => {
     const cab=e.target.closest('.col-cab');
     if(!cab || e.target.closest('.col-add') || (e.pointerType==='mouse' && e.button!==0) || e.isPrimary===false || d || guardando) return;
     e.preventDefault();
     const col=cab.closest('.columna'),r=cab.getBoundingClientRect();
     d={col,cab,id:e.pointerId,x:e.clientX,y:e.clientY,x0:e.clientX,y0:e.clientY,dx:e.clientX-r.left,dy:e.clientY-r.top,mov:false};
     // Capturar en el tablero estable: la cabecera cambiará de posición en el DOM.
-    try{tab.setPointerCapture(e.pointerId);}catch(_){}
-  });
-  addEventListener('pointermove', e => {
+    if(e.pointerType!=='touch')try{tab.setPointerCapture(e.pointerId);}catch(_){}
+  };
+  const desplazar = e => {
     if(!d || e.pointerId!==d.id) return;
     d.x=e.clientX;d.y=e.clientY;
     if(!d.mov && Math.hypot(d.x-d.x0,d.y-d.y0)>6){
@@ -1255,15 +1258,17 @@ function iniciarOrdenColumnas(){
       g.style.width=Math.min(d.col.offsetWidth,280)+'px';document.body.appendChild(g);d.fantasma=g;mover();
     }
     if(d.mov && e.cancelable)e.preventDefault();
-  },{passive:false});
+  };
   const fin = async e => {
     if(!d || (e.pointerId!=null && e.pointerId!==d.id)) return;
     const anterior=columnas().slice(),actual=d;d=null;cancelAnimationFrame(frame);
     try{tab.releasePointerCapture(actual.id);}catch(_){}
     actual.fantasma?.remove();actual.col.classList.remove('col-moviendo');tab.classList.remove('ordenando-columnas');
+    $$('.col-destino',tab).forEach(c=>c.classList.remove('col-destino'));
     if(!actual.mov){if(e.type==='pointerup')toast('Arrastra la cabecera a izquierda o derecha. Mantén el dedo en el borde para seguir avanzando.');return;}
     sinClick=Date.now()+400;
     if(e.type==='pointerup'){
+      if(actual.antes)tab.insertBefore(actual.col,actual.antes);else tab.appendChild(actual.col);
       const visibles=$$('.columna',tab).map(c=>colDe(c.dataset.c));let i=0;
       App.ajustes.columnas=anterior.map(c=>c.visible?visibles[i++]:c);guardando=true;
       try{await guardarAjustes();toast('↔️ Orden de columnas guardado');}
@@ -1272,7 +1277,16 @@ function iniciarOrdenColumnas(){
     }
     pintarTodo();
   };
-  addEventListener('pointerup',fin);addEventListener('pointercancel',fin);
+  // Touch Events para el dedo (Safari/iOS); Pointer Events para ratón y lápiz.
+  tab.addEventListener('pointerdown',e=>{if(e.pointerType!=='touch')empezar(e);});
+  addEventListener('pointermove',e=>{if(e.pointerType!=='touch')desplazar(e);},{passive:false});
+  addEventListener('pointerup',e=>{if(e.pointerType!=='touch')fin(e);});
+  addEventListener('pointercancel',e=>{if(e.pointerType!=='touch')fin(e);});
+  const tactil=(e,t)=>({target:e.target,pointerType:'touch',pointerId:'t'+t.identifier,button:0,isPrimary:true,clientX:t.clientX,clientY:t.clientY,cancelable:e.cancelable,preventDefault:()=>e.preventDefault()});
+  tab.addEventListener('touchstart',e=>{if(e.touches.length!==1)return;empezar(tactil(e,e.touches[0]));},{passive:false});
+  addEventListener('touchmove',e=>{if(!d || typeof d.id!=='string')return;const t=Array.from(e.touches).find(t=>'t'+t.identifier===d.id);if(t)desplazar(tactil(e,t));},{passive:false});
+  const finTouch=e=>{if(!d || typeof d.id!=='string')return;const t=Array.from(e.changedTouches).find(t=>'t'+t.identifier===d.id);if(t){if(e.cancelable)e.preventDefault();fin({pointerId:d.id,type:e.type==='touchend'?'pointerup':'pointercancel'});}};
+  addEventListener('touchend',finTouch,{passive:false});addEventListener('touchcancel',finTouch,{passive:false});
   tab.addEventListener('lostpointercapture',e=>{if(d)fin({type:'pointercancel',pointerId:e.pointerId});});
   addEventListener('blur',()=>fin({type:'pointercancel'}));
   tab.addEventListener('touchmove',e=>{if(d && e.cancelable)e.preventDefault();},{passive:false});

@@ -1677,3 +1677,7 @@ button.gx-nueva-abajo:active{background:color-mix(in srgb,var(--accent) 8%,trans
 #tablero.ordenando-columnas{scroll-snap-type:none!important;scroll-behavior:auto!important;overflow-anchor:none}
 #tablero.ordenando-columnas .columna{animation:none;scroll-snap-align:none}
 .col-fantasma{position:fixed;z-index:500;pointer-events:none;padding:16px;border-radius:14px;background:var(--card,#fff);color:var(--dark,#222);box-shadow:0 8px 25px #0005;border:2px solid var(--accent,#c33);font-weight:900;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* Destino de la columna sin recolocar el elemento que sostiene el dedo. */
+#tablero .col-destino{outline:3px solid var(--accent,#c33);outline-offset:-3px}
+.col-fantasma{font-size:14px}
