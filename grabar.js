@@ -27,6 +27,7 @@ const Grabar = {
   pintar(){
     if(!this.activa()) return;
     const g = !!this.rec;
+    $('#grbRecuperar').hidden=!this._pendiente;
     $('#grbBoton').classList.toggle('grabando', g);
     $('#grbBoton').innerHTML = g ? `<span class="grb-cuadro"></span><b>Parar</b><em id="grbTiempo">${durTxt((Date.now() - this.t0) / 1000) || '0:00'}</em><span class="grb-ondas"><i></i><i></i><i></i><i></i><i></i></span>`
       : this._pasando ? '<b>Preparando la nota…</b>' : '<span class="grb-punto"></span><b>Grabar</b>';
@@ -45,18 +46,31 @@ const Grabar = {
             <div class="grb-barra" data-barra="${n.id}"><i style="width:${this.sonando && this.sonando.id === n.id ? (this.sonando.a.currentTime / (n.dur || 1) * 100).toFixed(1) : 0}%"></i></div>
             <span class="grb-dur">${durTxt(n.dur) || '0:01'}</span>
           </div>
+          <div class="est-barra"><button type="button" class="mini-btn" data-editar="${n.id}">✂ Recortar</button><button type="button" class="mini-btn" data-guardar="${n.id}">⬇ Guardar MP3…</button></div>
         </div>
       </div>`).join('');
   },
 
   /* ---------- Grabar ---------- */
-  async pulsar(){
-    if(this._pasando) return;
+  async pulsar(sistema=false){
+    if(this._pasando || (typeof Estudio !== 'undefined' && Estudio.el)) return;
     if(this.rec){ try{ this.rec.stop(); }catch(e){} return; }
     if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || typeof MediaRecorder === 'undefined'){
       popAviso('Grabar', 'Este navegador no permite grabar. En el iPhone, usa Safari actualizado.'); return; }
-    try{ this.stream = await navigator.mediaDevices.getUserMedia({ audio:true }); }
-    catch(e){ popAviso('Micrófono', 'Hay que dar permiso al micrófono para grabar notas de voz.'); return; }
+    if(this._pidiendo) return;
+    this._pidiendo = true;
+    try{
+      if(sistema){
+        if(!navigator.mediaDevices.getDisplayMedia) throw Error('SIN_CAPTURA');
+        this._pantalla = await navigator.mediaDevices.getDisplayMedia({video:true,audio:true,systemAudio:'include'});
+        const pistas=this._pantalla.getAudioTracks();
+        if(!pistas.length){this._pantalla.getTracks().forEach(t=>t.stop());this._pantalla=null;throw Error('SIN_AUDIO');}
+        this.stream=new MediaStream(pistas);
+        this._pantalla.getVideoTracks().forEach(t=>t.onended=()=>{if(this.rec?.state==='recording')this.rec.stop();});
+      }else this.stream = await navigator.mediaDevices.getUserMedia({ audio:{echoCancellation:$('#grbLimpio').checked,noiseSuppression:$('#grbLimpio').checked,autoGainControl:$('#grbLimpio').checked} });
+    }
+    catch(e){ if(e.name !== 'AbortError') popAviso(sistema?'Sonido de otra app':'Micrófono', sistema?'Este navegador o la fuente elegida no ofrece audio compartido. En móvil, usa la grabación de pantalla del sistema si permite ese sonido y después importa el archivo en el estudio. En ordenador, prueba a compartir una pestaña con la opción de audio activada.':'Hay que dar permiso al micrófono para grabar notas de voz.'); return; }
+    finally{this._pidiendo=false;}
     const tipos = ['audio/mp4', 'audio/webm;codecs=opus', 'audio/webm', 'audio/ogg'];
     const mime = tipos.find(t => { try{ return MediaRecorder.isTypeSupported(t); }catch(e){ return false; } }) || '';
     const trozos = [];
@@ -66,14 +80,14 @@ const Grabar = {
       clearInterval(this._reloj);
       const rec = this.rec, dur = (Date.now() - this.t0) / 1000; this.rec = null;
       try{ this.stream.getTracks().forEach(t => t.stop()); }catch(e){}
+      if(this._pantalla){this._pantalla.getTracks().forEach(t=>t.stop());this._pantalla=null;}
       this._pasando = true; this.pintar();
       const crudo = new Blob(trozos, { type:rec.mimeType || mime || 'audio/mp4' });
-      let r = null; try{ r = await Audios.aMp3(crudo); }catch(e){ console.warn('mp3', e); }
+      let r = null; try{ const buf=await Estudio.leer(crudo); r={blob:await Estudio.mp3(buf),dur:buf.duration}; }catch(e){ console.warn('mp3', e); }
       const n = r ? { blob:r.blob, dur:r.dur || dur, tipo:'audio/mpeg', ext:'mp3' } : { blob:crudo, dur, tipo:crudo.type, ext:crudo.type.includes('webm') ? 'webm' : 'm4a' };
-      this._pasando = false;
-      if(!n.blob.size){ this.pintar(); toast('No se ha grabado nada'); return; }
-      await this.poner({ id:nuevoId('g'), fecha:this.t0, nombre:'', dur:n.dur, size:n.blob.size, tipo:n.tipo, ext:n.ext, blob:n.blob });
-      this.pintar(); toast('🎙️ Nota de voz guardada (' + durTxt(n.dur) + ')');
+      if(!n.blob.size){ this._pasando=false; this.pintar(); toast('No se ha grabado nada'); return; }
+      try{ await this.poner({ id:nuevoId('g'), fecha:this.t0, nombre:'', dur:n.dur, size:n.blob.size, tipo:n.tipo, ext:n.ext, blob:n.blob }); }catch(e){ this._pendiente=n; toast('No se pudo guardar. Pulsa Recuperar grabación para descargarla.'); }finally{this._pasando=false;}
+      this.pintar(); if(!this._pendiente) toast('🎙️ Nota de voz guardada (' + durTxt(n.dur) + ')');
       setTimeout(() => { const c = $('#grbLista'), u = c && c.lastElementChild; if(u) u.scrollIntoView({ block:'center', behavior:'smooth' }); }, 80);
     };
     this.rec.start(500); this.t0 = Date.now(); this.pintar();
@@ -104,9 +118,18 @@ const Grabar = {
     await this.quitar(id); this.pintar(); toast('🗑 Nota de voz eliminada');
   },
   async guardarEnAparato(id){
-    const n = this.lista.find(x => x.id === id); if(!n) return;
+    let n = this.lista.find(x => x.id === id); if(!n) return;
+    if(n.ext !== 'mp3' || n.blob.type !== 'audio/mpeg'){
+      try{toast('Convirtiendo a MP3…');const buf=await Estudio.leer(n.blob),blob=await Estudio.mp3(buf);n={...n,blob,tipo:'audio/mpeg',ext:'mp3',size:blob.size,dur:buf.duration};await this.poner(n);}
+      catch(e){popAviso('No se pudo convertir',e.message);return;}
+      // Un segundo toque conserva el gesto necesario para compartir en el móvil.
+      await popup({tit:'MP3 preparado',html:'<p>Pulsa Guardar para elegir dónde guardarlo.</p>',botones:[{txt:'Cancelar',val:false},{txt:'Guardar…',val:()=>{this.guardarEnAparato(id);return true;},cls:'btn-pri'}]});return;
+    }
     const d = new Date(n.fecha), base = (n.nombre || 'nota-de-voz').replace(/[^\w\- áéíóúñçÁÉÍÓÚÑÇ]/g, '').trim().slice(0, 50) || 'nota-de-voz';
     const nombre = base + ' ' + iso(d) + ' ' + String(d.getHours()).padStart(2, '0') + 'h' + String(d.getMinutes()).padStart(2, '0') + '.' + (n.ext || 'mp3');
+    if(window.showSaveFilePicker){
+      try{const h=await showSaveFilePicker({suggestedName:nombre,types:[{description:'Audio MP3',accept:{'audio/mpeg':['.mp3']}}]});const w=await h.createWritable();await w.write(n.blob);await w.close();toast('MP3 guardado');return;}catch(e){if(e.name==='AbortError')return;if(e.name!=='SecurityError'){popAviso('No se pudo guardar',e.message);return;}}
+    }
     const file = new File([n.blob], nombre, { type:n.tipo || 'audio/mpeg' });
     if(matchMedia('(pointer:coarse)').matches && navigator.canShare && navigator.canShare({ files:[file] })){
       try{ await navigator.share({ files:[file], title:nombre }); return; }catch(e){ if(e.name === 'AbortError') return; }
@@ -120,7 +143,7 @@ const Grabar = {
     // Si el dedo va más de lado que de arriba abajo, es deslizar; si no, es desplazar la lista.
     const c = $('#grbLista'); let D = null;
     const LIM = 70;
-    const empezar = (x, y, t) => { const nota = t.closest && t.closest('.grb-nota'); if(!nota) return; D = { x, y, nota, cara:nota.querySelector('.grb-cara'), dx:0, no:false, si:false, lx:x, lt:performance.now(), v:0 }; };
+    const empezar = (x, y, t) => { if(t.closest('[data-editar],[data-guardar]'))return; const nota = t.closest && t.closest('.grb-nota'); if(!nota) return; D = { x, y, nota, cara:nota.querySelector('.grb-cara'), dx:0, no:false, si:false, lx:x, lt:performance.now(), v:0 }; };
     const mover = (x, y) => {
       if(!D || D.no) return false;
       const dx = x - D.x, dy = y - D.y;
@@ -162,9 +185,15 @@ const Grabar = {
 
   iniciar(){
     $('#grbBoton').onclick = () => this.pulsar();
+    $('#grbSistema').onclick = () => this.pulsar(true);
+    $('#grbEstudio').onclick = () => Estudio.abrir();
+    $('#grbConvertir').onclick = () => Estudio.abrir(null,true);
+    $('#grbRecuperar').onclick = () => {const n=this._pendiente;if(n)descargar(n.blob,'Grabacion_recuperada.'+n.ext);};
     const c = $('#grbLista');
     c.addEventListener('click', e => {
       if(Date.now() - (this._desliz || 0) < 400) return;
+      const ed=e.target.closest('[data-editar]');if(ed){Estudio.abrir(ed.dataset.editar);return;}
+      const gu=e.target.closest('[data-guardar]');if(gu){this.guardarEnAparato(gu.dataset.guardar);return;}
       const p = e.target.closest('[data-play]'); if(p){ this.tocar(p.dataset.play); return; }
       const b = e.target.closest('[data-barra]'); if(b) this.saltar(b.dataset.barra, e.clientX, b);
     });

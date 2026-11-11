@@ -1,6 +1,6 @@
 /* PorHacer · app principal: tablero de columnas, tareas y editor */
 
-const VERSION = 'V16.4';
+const VERSION = 'V18';
 const $ = (s, r=document) => r.querySelector(s);
 const $$ = (s, r=document) => Array.from(r.querySelectorAll(s));
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -319,7 +319,7 @@ function pintarTablero(){
   tab.innerHTML = vis.map(c => {
     const ts = tareasDeCol(c.id);
     return `<section class="columna" data-c="${c.id}" style="--cc:${c.color}">
-      <div class="col-cab"><span class="bola"></span><h3>${esc(c.nombre)}</h3><span class="n">${ts.length}</span>
+      <div class="col-cab"><button type="button" class="col-mover" title="Arrastra para mover la columna" aria-label="Mover columna">⠿</button><span class="bola"></span><h3>${esc(c.nombre)}</h3><span class="n">${ts.length}</span>
         <button class="col-add" data-add="${c.id}" aria-label="Añadir tarea en ${esc(c.nombre)}">＋</button></div>
       <div class="col-lista">${ts.map(htmlTarjeta).join('') || `<div class="col-vacia">${App.q||App.filtro!=='todas' ? 'Nada con este filtro' : 'Sin tareas.<br>Arrastra aquí o pulsa ＋'}</div>`}</div>
     </section>`;
@@ -382,7 +382,7 @@ function iniciarNotasRicas(){
     try{ $('[data-n=b]', barra).classList.toggle('on', document.queryCommandState('bold')); }catch(_){}
   });
   // pegar: solo texto
-  el.addEventListener('paste', e => { e.preventDefault(); document.execCommand('insertText', false, (e.clipboardData || window.clipboardData).getData('text/plain')); });
+  el.addEventListener('paste', e => { e.preventDefault(); const d = e.clipboardData || window.clipboardData; const fotos = Array.from(d.files || []).filter(f => f.type.startsWith('image/')); if(fotos.length) subirFotos(fotos); else document.execCommand('insertText', false, d.getData('text/plain')); });
 }
 /* ---------- Historial: todo lo que le pasa a una tarea ---------- */
 function quienSoy(){ return (typeof Nube !== 'undefined' && Nube.user) ? Nube.nombreYo() : ''; }
@@ -676,6 +676,7 @@ async function abrirEditor(id, colId){
   pintarTableroTarea();
   $('#edBorrarFila').hidden = App.ed.nueva; $('#edDup').style.display = App.ed.nueva ? 'none' : '';
   await contarEditor();
+  await pintarFotosNota();
   tabEditor('tarea');
   abrir('editor');
   if(App.ed.nueva) setTimeout(() => $('#edTitulo').focus(), 300);
@@ -770,13 +771,18 @@ async function verMedia(tipo, id){
 function cerrarVisor(){ const v = $('#visorCont video'); if(v) v.pause(); $('#visorCont').innerHTML = ''; $('#visor').classList.remove('abierto'); _visor = null; }
 
 async function subirFotos(files){
-  if(!files.length) return;
+  if(!files.length || !App.ed || App.ed.subiendoFotos) return;
+  const ed = App.ed; ed.subiendoFotos = true;
+  $('#edGuardar').disabled = true;
+  try{
   App.ed.mediaNueva = true;
   $('#fotosInfo').textContent = 'Aligerando fotos…';
   const r = await guardarFotos(Array.from(files), App.ed.t.id, App.ajustes.calidadFoto, (i,n) => $('#fotosInfo').textContent = `Aligerando foto ${i} de ${n}…`);
-  await pintarFotos();
+  if(App.ed !== ed) return;
+  await pintarFotos(); await pintarFotosNota(); tabEditor('tarea');
   if(r.n){ apuntar('📷 ' + r.n + (r.n > 1 ? ' fotos añadidas' : ' foto añadida')); pintarHistorial(); }
   if(r.n) toast(`📷 ${r.n} foto${r.n>1?'s':''}: de ${tamTxt(r.antes)} a ${tamTxt(r.despues)}`);
+  } finally { ed.subiendoFotos = false; $('#edGuardar').disabled = false; }
 }
 async function subirVideo(file){
   if(!file) return;
@@ -816,6 +822,7 @@ function leerEditor(){
 }
 
 async function guardarEditor(){
+  if(!App.ed || App.ed.subiendoFotos) return;
   const t = leerEditor();
   if(!t.titulo){ $('#edTitulo').focus(); toast('✏️ Escribe qué hay que hacer'); return; }
   const previa = App.tareas.find(x => x.id === t.id);
@@ -867,6 +874,7 @@ async function accionesTrasGuardar(t, acc0){
   }catch(e){ console.warn(e); }
 }
 async function cancelarEditor(){
+  if(App.ed?.subiendoFotos){ toast('Espera a que terminen de guardarse las fotos'); return; }
   Voz.parar();
   if(App.ed && !App.ed.nueva && (App.ed.pend || []).length){
     const o = App.tareas.find(x => x.id === App.ed.t.id);
@@ -1120,7 +1128,7 @@ function eventos(){
     if(!_visor) return; const { tipo, id } = _visor;
     if(!await popConfirmar(tipo==='fotos' ? '¿Borrar la foto?' : '¿Borrar el vídeo?', 'No se podrá recuperar.', 'Borrar')) return;
     await DB.borrar(tipo, id); apuntar(tipo === 'fotos' ? '🗑 Foto borrada' : '🗑 Vídeo borrado'); pintarHistorial(); cerrarVisor();
-    tipo === 'fotos' ? pintarFotos() : pintarVideos();
+    tipo === 'fotos' ? (pintarFotos(), pintarFotosNota()) : pintarVideos();
     contarMedia().then(pintarTodo);
   };
   addEventListener('keydown', e => {
@@ -1157,7 +1165,7 @@ async function iniciar(){
     App.ajustes = App.ajustes || ajustesInicio(); aplicarTema(App.ajustes.colores);
     setTimeout(() => popAviso('Atención', 'No se pudo abrir el almacén de datos del navegador. Si estás en modo privado, abre la app en una ventana normal.'), 900);
   }
-  eventos(); iniciarArrastre(); fechaCabecera();
+  eventos(); iniciarArrastre(); iniciarOrdenColumnas(); fechaCabecera();
   Cal.iniciar();
   Avisos.iniciar();
   Bloc.iniciar();
@@ -1195,3 +1203,48 @@ document.addEventListener('DOMContentLoaded', iniciar);
   // por si acaso: al tocar la pantalla sin teclado abierto
   addEventListener('touchstart', () => { if(!editando()) recolocar(); }, { passive:true, capture:true });
 })();
+
+/* Fotos de la misma tarea, junto a la descripción (sin reconstruir el editor). */
+async function pintarFotosNota(){
+  const ed = App.ed; if(!ed) return;
+  const fotos = await DB.deTarea('fotos', ed.t.id);
+  if(App.ed !== ed) return;
+  const caja = $('#edFotosNota');
+  caja.innerHTML = fotos.sort((a,b) => a.fecha-b.fecha).map(f => `<div class="nota-foto"><button type="button" data-verfoto="${esc(f.id)}" aria-label="Ver foto en grande">${f.mini || f.blob ? `<img src="${urlDe(f.mini || f.blob)}" alt="Foto de la tarea">` : '⏳'}</button><button type="button" data-quitarfoto="${esc(f.id)}" aria-label="Eliminar foto">✕</button></div>`).join('');
+  caja.onclick = async e => {
+    const ver = e.target.closest('[data-verfoto]'); if(ver){ verMedia('fotos', ver.dataset.verfoto); return; }
+    const b = e.target.closest('[data-quitarfoto]'); if(!b) return;
+    if(!await popConfirmar('¿Eliminar esta foto?', 'Se quitará de esta tarea.', 'Eliminar') || App.ed !== ed) return;
+    await DB.borrar('fotos', b.dataset.quitarfoto); apuntar('🗑 Foto borrada');
+    await pintarFotosNota(); await contarEditor(); pintarHistorial();
+  };
+}
+/* Tirador dedicado: ratón y dedo, con desplazamiento al llegar a los bordes. */
+function iniciarOrdenColumnas(){
+  const tab = $('#tablero'); let d = null, frame;
+  const mover = () => {
+    if(!d) return;
+    const r = tab.getBoundingClientRect();
+    if(d.x < r.left+45) tab.scrollLeft -= 12;
+    if(d.x > r.right-45) tab.scrollLeft += 12;
+    const otro = document.elementFromPoint(d.x, d.y)?.closest('.columna');
+    if(otro && otro !== d.col){ const rr = otro.getBoundingClientRect(); tab.insertBefore(d.col, d.x > rr.left+rr.width/2 ? otro.nextSibling : otro); }
+    frame = requestAnimationFrame(mover);
+  };
+  tab.addEventListener('pointerdown', e => {
+    const h = e.target.closest('.col-mover'); if(!h || e.button !== 0) return;
+    e.preventDefault(); h.setPointerCapture(e.pointerId);
+    d = {col:h.closest('.columna'), x:e.clientX, y:e.clientY}; d.col.classList.add('col-moviendo'); mover();
+  });
+  tab.addEventListener('pointermove', e => { if(d){ d.x=e.clientX; d.y=e.clientY; } });
+  const fin = async e => {
+    if(!d) return; cancelAnimationFrame(frame); d.col.classList.remove('col-moviendo'); d=null;
+    if(e.type !== 'pointercancel'){
+      const visibles = $$('.columna', tab).map(c => colDe(c.dataset.c)); let i=0;
+      const anterior = columnas().slice(); App.ajustes.columnas = columnas().map(c => c.visible ? visibles[i++] : c);
+      try{ await guardarAjustes(); }catch(err){ App.ajustes.columnas = anterior; toast('No se ha podido guardar el orden'); }
+    }
+    pintarTodo();
+  };
+  tab.addEventListener('pointerup', fin); tab.addEventListener('pointercancel', fin);
+}

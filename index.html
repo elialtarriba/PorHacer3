@@ -10,10 +10,10 @@
 <meta name="theme-color" content="#eeeff1">
 <title>PorHacer3</title>
 <link rel="icon" href="logo.png" type="image/png">
-<link rel="apple-touch-icon" href="apple-touch-icon.png?v=176">
+<link rel="apple-touch-icon" href="apple-touch-icon.png?v=178">
 <link rel="manifest" href="manifest.json">
-<link rel="stylesheet" href="estilos.css?v=176">
-<link rel="stylesheet" href="estilos3.css?v=176">
+<link rel="stylesheet" href="estilos.css?v=178">
+<link rel="stylesheet" href="estilos3.css?v=178">
 </head>
 <body>
 
@@ -47,7 +47,7 @@
         <button class="ibtn ibtn-portada" data-portada title="Portada" aria-label="Ir a la portada"></button>
       </div>
       <div class="insignias">
-            <span class="ver" id="verTxt">V16.4</span>
+            <span class="ver" id="verTxt">V18</span>
             <button class="nube-estado off" id="nubeEstado" hidden title="Nube" aria-label="Nube"></button>
           </div>
     </div>
@@ -122,7 +122,7 @@
     <header class="po-cab">
       <img src="logo.png" alt="" class="po-logo">
       <div class="po-tit"><h1>Por<span>Hacer</span><sup>3</sup></h1><small id="poSaludo"></small></div>
-      <div class="po-der"><span class="ver" id="verTxt2">V16.4</span><div class="po-der-f"><button class="po-nube" id="poNube" data-nube aria-label="Conexión"></button><button class="ibtn ibtn-tema po-tema-b" data-temasec="portada" title="Colores de la portada" aria-label="Colores de la portada"></button></div></div>
+      <div class="po-der"><span class="ver" id="verTxt2">V18</span><div class="po-der-f"><button class="po-nube" id="poNube" data-nube aria-label="Conexión"></button><button class="ibtn ibtn-tema po-tema-b" data-temasec="portada" title="Colores de la portada" aria-label="Colores de la portada"></button></div></div>
     </header>
     <div class="po-hoy" id="poHoy"></div>
     <div class="po-rejilla" id="poRejilla"></div>
@@ -180,6 +180,7 @@
   </header>
   <div class="ce-fx"><b class="ce-ref" id="ceRef">A1</b><textarea id="ceIn" rows="1" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="done" placeholder="Toca una celda y escribe…"></textarea><button id="ceSalto" class="ce-salto" aria-label="Otra línea en la celda" title="Otra línea (Alt+Intro)">↵</button><button id="ceNo" class="ce-no" aria-label="Cancelar">✕</button><button id="ceOk" class="ce-ok" aria-label="Aceptar">✓</button></div>
   <div class="es-barra ce-barra" id="ceBarra">
+    <button id="ceSeleccion" aria-pressed="true">☝ Seleccionar</button><button id="ceGuias">▧ Guías A4</button>
     <button id="ceFx" class="ce-fxb">Σ Fórmulas ▾</button>
     <button id="ceTipo">✨ Auto ▾</button>
     <button id="ceCond">🚦 Condicional</button>
@@ -205,13 +206,13 @@
     <button id="ceBorrar" aria-label="Borrar">🧹 Borrar</button>
     <button id="ceFila">＋ Filas</button>
     <button id="ceCol">＋ Columna</button>
-    <button id="ceAtras" aria-label="Deshacer">↶</button>
+    <button id="ceAtras" aria-label="Deshacer">↶ Deshacer</button>
   </div>
-  <div class="ce-marco" id="ceMarco"><div class="ce-rg-esq"></div><div class="ce-rg-h" id="ceRgH"></div><div class="ce-rg-v" id="ceRgV"></div><div class="ce-zona" id="ceZona"><div class="ce-papel" id="cePapel"><div class="es-capa es-atras" id="ceAtras"></div><table class="ce-tabla" id="ceTabla"></table><div class="es-capa es-delante" id="ceDelante"></div></div></div></div>
+  <div class="ce-marco" id="ceMarco"><div class="ce-rg-esq"></div><div class="ce-rg-h" id="ceRgH"></div><div class="ce-rg-v" id="ceRgV"></div><div class="ce-zona" id="ceZona"><div class="ce-papel" id="cePapel"><div class="es-capa es-atras" id="ceFondo"></div><table class="ce-tabla" id="ceTabla"></table><div class="es-capa es-delante" id="ceDelante"></div></div></div></div>
   <div class="ce-pest" id="cePest"></div>
   <div class="ce-aviso" id="ceAviso"></div>
   <div class="es-pie">
-    <button class="es-salir" id="ceSalir">‹ Salir</button>
+    <button class="es-salir" id="ceSalir">✕ Cerrar</button><button class="es-docx" id="ceGuardar">💾 Guardar ▾</button>
     <span class="es-info"><b id="ceEstado">✓ Guardado</b><small id="ceCuenta"></small></span>
     <button class="es-docx" id="ceSacar">📤 <span class="es-largo">Abrir · guardar</span> ▾</button>
   </div>
@@ -240,11 +241,12 @@
     <button data-c="insertOrderedList" aria-label="Lista con números">1≡</button>
     <button data-c="justifyLeft" aria-label="Alinear a la izquierda">⇤</button>
     <button data-c="justifyCenter" aria-label="Centrar">↔</button>
-    <button id="esTabB" aria-label="Tabulador">⇥ Tab</button>
+    <button id="esTabB" aria-label="Tabulador">⇥ Tabulador</button>
     <button id="esHojaOr" aria-label="Hoja vertical u horizontal">📄 Hoja</button>
-    <button data-c="undo" aria-label="Deshacer">↶</button>
+    <button data-c="undo" aria-label="Deshacer">↶ Deshacer</button>
     <button data-c="redo" aria-label="Rehacer">↷</button>
     <button data-c="limpiar" aria-label="Quitar el formato">🧹 Sin formato</button>
+    <button id="esCopiarObjeto">⧉ Copiar objeto</button><button id="esPegarObjeto">📋 Pegar objeto</button>
     <button id="esTitBonito" aria-label="Título bonito">✨ Título</button>
     <button id="esPdfVisor" aria-label="Abrir un PDF para leer y marcar">📕 PDF</button>
     <button id="esCabPie" aria-label="Cabecera y pie de página">📑 Cabecera y pie</button>
@@ -253,7 +255,7 @@
   </div>
   <div class="es-hoja" id="esHoja"><div class="es-regla-h" id="esReglaH" hidden></div><div class="es-papel" id="esPapel"><div class="es-hojas" id="esHojas" aria-hidden="true"></div><div class="es-regla-v" id="esReglaV" hidden></div><div class="es-capa es-atras" id="esAtras"></div><div class="es-texto" id="esTexto" contenteditable="true" spellcheck="true" data-ph="Escribe aquí… o pulsa 🎤 Dictar y habla."></div><div class="es-capa es-delante" id="esDelante"></div></div></div>
   <div class="es-pie">
-    <button class="es-salir" id="esSalir">‹ Salir</button>
+    <button class="es-salir" id="esSalir">✕ Cerrar</button><button class="es-docx" id="esGuardar">💾 Guardar ▾</button>
     <span class="es-info"><b id="esEstado">✓ Guardado</b><small id="esCuenta"></small></span>
     <button class="es-docx" id="esDocx">💾 Guardar <span class="es-largo">· imprimir </span>▾</button>
     <button class="es-mic" id="esMic" aria-label="Dictar"></button>
@@ -268,6 +270,9 @@
   </header>
   <div class="grb-cuerpo">
     <button class="grb-boton" id="grbBoton"></button>
+    <div class="grb-herramientas"><label><input type="checkbox" id="grbLimpio" checked> Reducir ruido y eco del micrófono</label>
+    <div class="est-barra"><button class="btn-sec" id="grbSistema">🔊 Sonido de otra app</button><button class="btn-sec" id="grbEstudio">🎚 Estudio</button><button class="btn-sec" id="grbConvertir">⇄ Convertir a MP3</button><button class="btn-sec" id="grbRecuperar" hidden>Recuperar grabación</button></div>
+    <p class="aj-ayuda">El sonido interno depende del navegador y del aparato. La reducción de ruido depende del micrófono y puede cambiar la voz.</p></div>
     <div class="grb-lista" id="grbLista"></div>
   </div>
 </section>
@@ -299,6 +304,7 @@
     <div class="hoja-scroll">
       <!-- Pestaña tarea -->
       <div class="tab-pan on" data-p="tarea">
+        <div class="ed-fotos-nota" id="edFotosNota"></div><button type="button" class="mini-btn" onclick="document.getElementById('inFotos').click()">🖼️ Insertar imagen en la nota</button>
         <div class="campo-nota">
           <div class="notas-barra" id="edNotasBarra"></div>
           <div id="edNotas" class="notas-rico" contenteditable="true" data-ph="Notas… (pulsa el micro y habla)"></div>
@@ -501,37 +507,40 @@
 
 <div class="toast" id="toast"></div>
 
-<script src="iconos.js?v=176"></script>
-<script src="iconos-home.js?v=176"></script>
-<script src="temas.js?v=176"></script>
-<script src="db.js?v=176"></script>
-<script src="firebase-config.js?v=176"></script>
-<script src="email-config.js?v=176"></script>
-<script src="correo.js?v=176"></script>
-<script src="audio.js?v=176"></script>
-<script src="listas.js?v=176"></script>
-<script src="bloc.js?v=176"></script>
-<script src="avisos.js?v=176"></script>
-<script src="fiesta.js?v=176"></script>
-<script src="nube.js?v=176"></script>
-<script src="fotos.js?v=176"></script>
-<script src="videos.js?v=176"></script>
-<script src="voz.js?v=176"></script>
-<script src="calendario.js?v=176"></script>
-<script src="ajustes.js?v=176"></script>
-<script src="copias.js?v=176"></script>
-<script src="mio.js?v=176"></script>
-<script src="agenda.js?v=176"></script>
-<script src="tickets.js?v=176"></script>
-<script src="gastos.js?v=176"></script>
-<script src="guardar.js?v=176"></script>
-<script src="aparatos.js?v=176"></script>
-<script src="pdfvisor.js?v=176"></script>
-<script src="sitios.js?v=176"></script>
-<script src="grabar.js?v=176"></script>
-<script src="escribir.js?v=176"></script>
-<script src="celdas.js?v=176"></script>
-<script src="portada.js?v=176"></script>
-<script src="app.js?v=176"></script>
+<script src="iconos.js?v=178"></script>
+<script src="iconos-home.js?v=178"></script>
+<script src="temas.js?v=178"></script>
+<script src="db.js?v=178"></script>
+<script src="firebase-config.js?v=178"></script>
+<script src="email-config.js?v=178"></script>
+<script src="correo.js?v=178"></script>
+<script src="audio.js?v=178"></script>
+<script src="listas.js?v=178"></script>
+<script src="bloc.js?v=178"></script>
+<script src="avisos.js?v=178"></script>
+<script src="fiesta.js?v=178"></script>
+<script src="nube.js?v=178"></script>
+<script src="fotos.js?v=178"></script>
+<script src="videos.js?v=178"></script>
+<script src="voz.js?v=178"></script>
+<script src="calendario.js?v=178"></script>
+<script src="ajustes.js?v=178"></script>
+<script src="copias.js?v=178"></script>
+<script src="mio.js?v=178"></script>
+<script src="agenda.js?v=178"></script>
+<script src="tickets.js?v=178"></script>
+<script src="gastos.js?v=178"></script>
+<script src="guardar.js?v=178"></script>
+<script src="aparatos.js?v=178"></script>
+<script src="pdfvisor.js?v=178"></script>
+<script src="sitios.js?v=178"></script>
+<script src="grabar.js?v=178"></script>
+<script src="estudio.js?v=178"></script>
+<script src="escribir.js?v=178"></script>
+<script src="celdas.js?v=178"></script>
+<script src="portada.js?v=178"></script>
+<script src="documentos.js?v=178"></script>
+<script src="edicion.js?v=178"></script>
+<script src="app.js?v=178"></script>
 </body>
 </html>

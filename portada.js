@@ -326,7 +326,7 @@ const Calc = {
     this._carga = new Promise(ok => {
       const f = $('#calcFrame');
       f.addEventListener('load', () => setTimeout(() => ok(this.win()), 60), { once:true });
-      f.src = 'calculadora.html?v=176';
+      f.src = 'calculadora.html?v=178';
     });
     return this._carga;
   },

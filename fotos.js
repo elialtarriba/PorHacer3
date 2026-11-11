@@ -51,10 +51,10 @@ async function guardarFotos(files, tareaId, nivel, alProgreso){
   let antes = 0, despues = 0, n = 0;
   for(const f of files){
     if(!f.type.startsWith('image/')) continue;
-    alProgreso && alProgreso(++n, files.length);
+    alProgreso && alProgreso(n+1, files.length);
     try{
       const foto = await aligerarFoto(f, tareaId, nivel);
-      await DB.poner('fotos', foto);
+      await DB.poner('fotos', foto); n++;
       antes += foto.original; despues += foto.size;
     }catch(e){ console.warn(e); toast('No se pudo guardar una foto 😕'); }
   }

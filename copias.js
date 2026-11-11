@@ -27,7 +27,7 @@ const Copias = {
         <label class="check" style="margin-top:0"><input type="checkbox" id="cpFotos" checked><span class="caja"></span><span>Incluir fotos <small>${tamTxt(tf)}</small></span></label>
         <label class="check"><input type="checkbox" id="cpVideos" ${tv < 80*1024*1024 ? 'checked' : ''}><span class="caja"></span><span>Incluir vídeos <small>${tamTxt(tv)}</small></span></label>
         <button class="btn-pri btn-ancho" id="cpExportar" style="margin-top:12px">⬇️ Exportar copia</button>
-        <p class="aj-ayuda" style="margin-top:8px">Se descarga un archivo <b>porhacer-copia-fecha.json</b>. Guárdalo en iCloud Drive o donde quieras.${Nube.activa ? ' Con la nube activa, solo incluye las fotos y vídeos guardados en este dispositivo.' : ''}</p></div>
+        <p class="aj-ayuda" style="margin-top:8px">Se descarga un archivo <b>PorHacer_Tareas_fecha.json</b>. Guárdalo en iCloud Drive o donde quieras.${Nube.activa ? ' Con la nube activa, solo incluye las fotos y vídeos guardados en este dispositivo.' : ''}</p></div>
       <div class="aj-sec"><h4>Importar copia</h4>
         <label class="btn-sec btn-ancho" style="display:grid;place-items:center;cursor:pointer">⬆️ Elegir archivo de copia<input type="file" id="cpImportar" accept=".json,application/json" hidden></label>
         <p class="aj-ayuda" style="margin-top:8px">Podrás elegir entre <b>sustituir</b> todo lo que hay o <b>añadirlo</b> a lo que ya tienes.</p></div>
@@ -41,7 +41,7 @@ const Copias = {
     try{
       const copia = await this.datos(conFotos, conVideos);
       const blob = new Blob([JSON.stringify(copia)], { type:'application/json' });
-      descargar(blob, 'porhacer-copia-' + hoyIso() + '.json');
+      descargar(blob, 'PorHacer_Tareas_' + hoyIso() + '.json');
       toast('💾 Copia exportada (' + tamTxt(blob.size) + ')');
     }catch(e){ console.error(e); popAviso('No se pudo exportar', 'Prueba sin los vídeos, que son lo que más ocupa.'); }
     b.disabled = false; b.textContent = '⬇️ Exportar copia';
@@ -122,7 +122,7 @@ const Completa = {
       c.ls = {};
       for(let i = 0; i < localStorage.length; i++){ const k = localStorage.key(i); if(/^ph3/.test(k) && !this.NO.test(k)) c.ls[k] = localStorage.getItem(k); }
       const blob = new Blob([JSON.stringify(c)], { type:'application/json' });
-      descargar(blob, 'PorHacer3-TODO-' + hoyIso() + '.json');
+      descargar(blob, 'PorHacer_Todo_' + hoyIso() + '.json');
       toast('📦 Copia completa guardada (' + tamTxt(blob.size) + ')', null, null, 5000);
     }catch(e){ console.error(e); popAviso('No se pudo hacer la copia', 'Prueba sin los vídeos, que son lo que más ocupa. (' + (e.message || e) + ')'); }
     if(boton){ boton.disabled = false; boton.textContent = txt0; }
@@ -140,7 +140,7 @@ const Completa = {
   },
   async importar(f){
     let c; try{ c = JSON.parse(await f.text()); }catch(e){ popAviso('Importar', 'Este archivo no es una copia válida.'); return; }
-    if(!c || c.tipo !== 'copia-completa'){ popAviso('Importar', 'Este archivo no es una <b>copia completa</b> de PorHacer3 (PorHacer3-TODO-….json). Las otras copias se importan en su apartado, más abajo.'); return; }
+    if(!c || c.tipo !== 'copia-completa'){ popAviso('Importar', 'Este archivo no es una <b>copia completa</b> de PorHacer3 (PorHacer_Todo_….json). Las otras copias se importan en su apartado, más abajo.'); return; }
     const lista = this.resumen(c).map(([t, n]) => `<li>${t}${n === 'sí' ? '' : ' · <b>' + n + '</b>'}</li>`).join('');
     const modo = await popup({ tit:'📦 Restaurar copia completa', html:`<p>Copia del <b>${new Date(c.fecha).toLocaleString('es-ES', { dateStyle:'long', timeStyle:'short' })}</b>:</p><ul class="cc-lista">${lista || '<li>(vacía)</li>'}</ul>
         <button class="opcion opc2" data-v="cambiar">♻️ Dejarlo todo como en la copia<small>Lo que tienes ahora se cambia por lo de la copia</small></button>
@@ -202,13 +202,13 @@ const CopiaGastos = {
       const paq = await Bloc.cifrar({ gastos:notas, fotos, nombre:Gastos.nombre(), fecha:new Date().toISOString(), version:VERSION }, clave, sal);
       paq.app = 'PorHacer3-gastos';
       const blob = new Blob([JSON.stringify(paq)], { type:'application/json' });
-      descargar(blob, 'gastos-cifrado-' + hoyIso() + '.json');
+      descargar(blob, 'PorHacer_Gastos_' + hoyIso() + '.json');
       toast('💾 Copia de ' + Gastos.nombre() + ' guardada (cifrada, ' + tamTxt(blob.size) + ')', null, null, 4000);
     }catch(e){ console.warn(e); popAviso('Copia de Gastos', 'No se ha podido hacer la copia.'); }
   },
   async importar(f){
     let paq; try{ paq = JSON.parse(await f.text()); }catch(e){ popAviso('Importar', 'Este archivo no es una copia válida.'); return; }
-    if(!paq || paq.app !== 'PorHacer3-gastos'){ popAviso('Importar', 'Este archivo no es una copia cifrada de Gastos (gastos-cifrado-….json).'); return; }
+    if(!paq || paq.app !== 'PorHacer3-gastos'){ popAviso('Importar', 'Este archivo no es una copia cifrada de Gastos (PorHacer_Gastos_….json).'); return; }
     let r = null;
     const v = await Bloc.pedir('🔒 Abrir la copia', 'Escribe la contraseña <b>con la que se hizo</b> esta copia.', [['cgP', 'Contraseña de la copia']], async ([p]) => {
       if(!p) return 'Escribe la contraseña';

@@ -6,7 +6,7 @@
 const Escribir = {
   TAM: { peq:'15px', normal:'18px', grande:'24px', titulo:'32px' },
   lista(){ try{ return JSON.parse(lsGet('ph3-escritos') || '[]') || []; }catch(e){ return []; } },
-  ponerLista(l){ try{ localStorage.setItem('ph3-escritos', JSON.stringify(l)); }catch(e){ toast('⚠️ No cabe más en este aparato: guarda alguno en .docx y bórralo'); } if(typeof Guardar !== 'undefined') Guardar.cambioEscribir(); },
+  ponerLista(l){ try{ localStorage.setItem('ph3-escritos', JSON.stringify(l)); }catch(e){ toast('⚠️ No cabe más en este aparato: guarda alguno en .docx y bórralo'); throw e; } if(typeof Guardar !== 'undefined') Guardar.cambioEscribir(); },
   nombre(){ return ((App.ajustes && App.ajustes.nombreEscribir) || '').trim() || 'Escribir'; },
   actual(){ return this.lista().find(d => d.id === this.id) || null; },
 
@@ -62,7 +62,7 @@ const Escribir = {
     const { W, H, G } = this.medidas(), paso = H + G, { M, MB } = this.margenes();
     T.style.paddingTop = M + 'px'; T.style.paddingBottom = MB + 'px';
     this.ajustarTabs(T, W / this.anchoCm());
-    const n = this.saltos(T, H, paso, M, MB);
+    const n = Math.max(this.saltos(T, H, paso, M, MB), ...this.figs.map(f => Math.ceil((this.caja(f).y + this.caja(f).h + MB) / paso)));
     this._paginas = n; P.style.minHeight = (n * paso - G) + 'px';
     const hs = $('#esHojas'), clave = H + '|' + n + '|' + JSON.stringify(this.hf || null) + this.orient;
     if(hs.dataset.k !== clave){ hs.dataset.k = clave; hs.innerHTML = Array.from({ length:n }, (_, i) => `<div class="es-pag" style="top:${i * paso}px;height:${H}px">${this.hojaHF(i)}</div>`).join(''); }
@@ -368,7 +368,7 @@ const Escribir = {
     const p = popMio(`<h3 class="mp-h">💾 Guardar o imprimir</h3>
       <button class="mp-op" data-g="imp"><span class="mp-ic">🖨️</span><span><b>Imprimir</b><small>En hojas A4 de verdad, con letra de 12 (como Word), cabecera y pie</small></span></button>
       <button class="mp-op" data-g="pdf"><span class="mp-ic">📕</span><span><b>Guardar en PDF</b><small>Igual que al imprimir. Primero lo ves; después lo guardas o lo compartes</small></span></button>
-      <button class="mp-op" data-g="docx"><span class="mp-ic">📄</span><span><b>Guardar en .docx</b><small>Para Word o Pages. Después se quita de la app (con «Deshacer»)</small></span></button>
+      <button class="mp-op" data-g="docx"><span class="mp-ic">📄</span><span><b>Guardar en .docx</b><small>Para Word o Pages. El documento permanece abierto después de guardar</small></span></button>
       <div class="mp-fila"><button class="mp-b" data-x>Cancelar</button></div>`);
     p.onclick = e => { const b = e.target.closest('button'); if(!b) return; cerrarPopMio();
       if(b.dataset.g === 'docx') this.docx(); else if(b.dataset.g === 'pdf') this.pdf(false); else if(b.dataset.g === 'imp') this.pdf(true); };
@@ -501,6 +501,7 @@ const Escribir = {
     const rr = document.createRange(); rr.setStart(t, 1); rr.collapse(true); s.removeAllRanges(); s.addRange(rr);
   },
   cmd(c, v){
+    if(c==='undo' || c==='redo'){ Documentos.atras(this,c==='redo'); return; }
     const e = $('#esTexto'); e.focus();
     const s = getSelection(); if(!s.rangeCount || !e.contains(s.getRangeAt(0).startContainer)){ const r = document.createRange(); r.selectNodeContents(e); r.collapse(false); s.removeAllRanges(); s.addRange(r); }
     const quieto = s.isCollapsed;
@@ -682,7 +683,7 @@ const Escribir = {
     e.focus(); if(r && e.contains(r.startContainer)){ const s = getSelection(); s.removeAllRanges(); s.addRange(r); }
   },
   figDown(ev){
-    if(ev.button > 0) return;
+    if(ev.button > 0 || ev.isPrimary === false || this._pellizco) return;
     const t = ev.target, P = $(this.FIGID.papel);
     if(t.closest('.es-mbar')) return;
     const p0 = this.punto(ev), hh = t.closest('.es-h'), rot = t.closest('.es-rot');
@@ -699,6 +700,7 @@ const Escribir = {
     const ini = { ...f }, h = hh ? hh.dataset.h : ''; let movido = false;
     const el = () => $(`.es-fg[data-id="${f.id}"]`, P);
     const mover = e => {
+      if(e.pointerId !== ev.pointerId || this._pellizco) return;
       const p = this.punto(e), dx = p.x - p0.x, dy = p.y - p0.y;
       if(!movido && Math.hypot(dx, dy) < 5) return;
       movido = true; if(e.cancelable) e.preventDefault();
@@ -722,11 +724,14 @@ const Escribir = {
     };
     const noScroll = e => { if(e.cancelable) e.preventDefault(); };
     const fin = e => {
+      if(e.pointerId != null && e.pointerId !== ev.pointerId) return;
+      this._figFin=null;
       removeEventListener('pointermove', mover); removeEventListener('pointerup', fin); removeEventListener('pointercancel', fin); document.removeEventListener('touchmove', noScroll);
       const gv = $('.es-gv', P); if(gv) gv.style.opacity = 0;
       if(movido) this.cambioFigs();
-      else if(ya && sobreSel && e.type === 'pointerup'){ this.seleccionar(null); this.cursorEn(e.clientX, e.clientY); }   // tocarla otra vez: el cursor va ahí
+      else if(ya && sobreSel && f.tipo !== 'tit' && e.type === 'pointerup'){ this.seleccionar(null); this.cursorEn(e.clientX, e.clientY); }   // tocarla otra vez: el cursor va ahí
     };
+    this._figFin=()=>fin({type:'pointercancel'});
     addEventListener('pointermove', mover, { passive:false }); addEventListener('pointerup', fin); addEventListener('pointercancel', fin);
     document.addEventListener('touchmove', noScroll, { passive:false });
   },
@@ -1105,7 +1110,7 @@ const DocxSimple = {
     const f = a.f, m = /^data:image\/png;base64,(.+)$/.exec(Escribir.dibujarForma(f, 2)); if(!m) return '';
     this.fotos.push({ b64:m[1], ext:'png' }); const n = this.fotos.length, id = 'rIdImg' + n, K = this.K;
     const cx = Math.round(f.w * K), cy = Math.round(f.h * K), rot = (((Math.round(f.giro || 0)) % 360) + 360) % 360 * 60000;
-    const info = this.x('PorHacer3:' + JSON.stringify({ tipo:f.tipo, ribete:f.ribete, grosor:f.grosor, relleno:f.relleno, giro:f.giro || 0, capa:f.capa, w:f.w, h:f.h })).replace(/"/g, '&quot;');
+    const info = this.x('PorHacer3:' + JSON.stringify({ tipo:f.tipo, ribete:f.ribete, grosor:f.grosor, relleno:f.relleno, giro:f.giro || 0, capa:f.capa, w:f.w, h:f.h, t:f.t })).replace(/"/g, '&quot;');
     return `<w:r><w:drawing><wp:anchor distT="0" distB="0" distL="0" distR="0" simplePos="0" relativeHeight="${251658240 + n}" behindDoc="${f.capa === 'detras' ? 1 : 0}" locked="0" layoutInCell="1" allowOverlap="1">`
       + `<wp:simplePos x="0" y="0"/><wp:positionH relativeFrom="column"><wp:posOffset>${Math.round(a.dx * K)}</wp:posOffset></wp:positionH><wp:positionV relativeFrom="paragraph"><wp:posOffset>${Math.round(a.dy * K)}</wp:posOffset></wp:positionV>`
       + `<wp:extent cx="${cx}" cy="${cy}"/><wp:effectExtent l="0" t="0" r="0" b="0"/><wp:wrapNone/><wp:docPr id="${n}" name="Figura ${n}" descr="${info}"/><wp:cNvGraphicFramePr/>`

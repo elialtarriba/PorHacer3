@@ -1635,3 +1635,38 @@ button.gx-nueva-abajo:active{background:color-mix(in srgb,var(--accent) 8%,trans
 .ce-chuleta summary::-webkit-details-marker{display:none}
 .ce-chuleta p{margin:6px 0;line-height:1.45}.ce-chuleta code{background:var(--card);padding:1px 5px;border-radius:5px;color:var(--dark);font-size:12.5px}
 .ce-si2 select{flex:2!important}.ce-si2 input{flex:1!important;min-width:60px}.ce-si span{min-width:auto}
+
+/* V17: imágenes de tareas y orden de columnas */
+.ed-fotos-nota{display:flex;flex-wrap:wrap;gap:10px;margin:8px 0}.nota-foto{position:relative}.nota-foto button{border:0;border-radius:10px;padding:0;background:var(--paper,#fff);cursor:pointer}.nota-foto img{width:110px;height:90px;object-fit:cover;border-radius:10px;display:block}.nota-foto [data-quitarfoto]{position:absolute;right:-5px;top:-5px;width:28px;height:28px;background:#aa2424;color:white}.col-mover{touch-action:none;cursor:grab;border:0;background:transparent;font-size:24px;color:inherit;padding:4px 8px}.col-moviendo{opacity:.65;outline:3px dashed var(--acc,#c33)}
+
+.grb-herramientas{max-width:720px;margin:12px auto;padding:0 16px}.est-barra{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:10px 0}.estudio{position:fixed;inset:0;z-index:320;background:var(--bg,#eee);color:var(--ink,#222);display:flex;flex-direction:column;padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)}.estudio header,.estudio footer{padding:12px 16px;display:flex;gap:10px;align-items:center;justify-content:space-between;background:var(--card,#fff);flex-shrink:0;flex-wrap:wrap}.estudio h2{font-size:20px;margin:0}.est-contenido{overflow:auto;flex:1;min-height:0;padding:16px;width:100%;max-width:960px;margin:auto}.estudio article{background:var(--card,#fff);padding:14px;border:1px solid var(--line,#ccc);border-radius:14px;margin:16px 0}.estudio h3{font-size:16px;overflow-wrap:anywhere}.estudio canvas{width:100%;height:100px;touch-action:none;border-radius:8px;cursor:crosshair}.estudio audio{display:block;width:100%;margin:10px 0}.estudio input[type=number]{width:130px;display:block}.estudio input:not([type=checkbox]):not([type=file]),.estudio select{font:inherit;max-width:100%;padding:9px;border:1px solid var(--line,#ccc);border-radius:8px;background:var(--card,#fff);color:inherit}.estudio button:disabled{opacity:.5}.estudio #estEstado{min-height:2em;font-weight:700}#popup{z-index:450}
+/* Grabar y estudio: botones con relieve y rótulos centrados dentro del borde. */
+#vGrabar .grb-herramientas{padding:0;margin:12px auto 20px;width:100%}
+#vGrabar .grb-herramientas>.est-barra{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;align-items:stretch}
+#vGrabar .est-barra button,.estudio .btn-sec,.estudio .btn-pri,.estudio .mini-btn,.estudio label.btn-sec{
+  display:flex;align-items:center;justify-content:center;text-align:center;white-space:normal;overflow-wrap:anywhere;line-height:1.25;
+  min-width:0;max-width:100%;height:auto;min-height:52px;padding:12px 10px;border-radius:15px;font-weight:850;
+  border:1px solid color-mix(in srgb,var(--line) 80%,var(--dark));
+  background:linear-gradient(180deg,color-mix(in srgb,var(--card) 80%,white),var(--colbg));color:var(--dark);
+  box-shadow:inset 0 2px 0 rgba(255,255,255,.8),0 5px 0 color-mix(in srgb,var(--line) 70%,var(--dark)),0 7px 10px rgba(0,0,0,.12);
+  transition:transform .12s,box-shadow .12s;
+}
+#vGrabar .est-barra button:active,.estudio .btn-sec:active,.estudio .btn-pri:active,.estudio .mini-btn:active,.estudio label.btn-sec:active{transform:translateY(4px)!important;box-shadow:inset 0 1px 3px #0002,0 1px 0 var(--line)}
+#vGrabar .grb-cara>.est-barra{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-bottom:6px}
+#vGrabar .grb-herramientas>.est-barra button{min-height:74px}
+#vGrabar .grb-herramientas>.est-barra [hidden]{display:none}
+.estudio .est-barra{align-items:stretch;gap:12px}.estudio .est-barra>button{flex:1 1 120px}.estudio .est-barra>label{flex:1 1 130px;min-width:0}
+.estudio .btn-pri{background:linear-gradient(180deg,var(--accent2),var(--accent));color:var(--accentInk);border-color:var(--accent);box-shadow:inset 0 2px 0 #ffffff50,0 5px 0 color-mix(in srgb,var(--accent) 60%,#000),0 7px 10px #0002}
+.estudio header .btn-sec{flex:0 0 auto;min-height:44px}.estudio footer>button{flex:1 1 150px}.estudio .est-barra select{flex:1 1 180px;min-width:0}
+.grb-boton b{text-align:center;line-height:1.15;overflow-wrap:anywhere;min-width:0}.grb-boton{padding:12px 26px}
+@media(max-width:360px){#vGrabar .grb-herramientas>.est-barra{grid-template-columns:repeat(2,minmax(0,1fr))}.grb-boton{gap:10px}.grb-boton b{font-size:24px}.grb-ondas{display:none}}
+#grbLimpio,#estLimpiar{appearance:auto;-webkit-appearance:checkbox;width:20px;height:20px;vertical-align:middle;margin-right:6px;accent-color:var(--accent)}
+/* V18 · documentos, selección táctil, objetos y barras */
+.doc-vacio{display:none;flex:1;align-items:center;justify-content:center;flex-direction:column;gap:16px;padding:30px;text-align:center;color:var(--ink2)}.doc-vacio button{flex:none;min-width:210px;padding:12px;height:auto;min-height:48px}.sin-documento .doc-vacio{display:flex}
+#vCeldas.sin-documento .ce-fx,#vCeldas.sin-documento #ceBarra,#vCeldas.sin-documento #ceMarco,#vCeldas.sin-documento #cePest,#vCeldas.sin-documento .es-pie,#vEscribir.sin-documento #esBarra,#vEscribir.sin-documento #esHoja,#vEscribir.sin-documento .es-pie{display:none}
+#vCeldas:not(.desplazar-celdas) #ceTabla{touch-action:none}#vCeldas.desplazar-celdas #ceTabla{touch-action:pan-x pan-y}
+#ceBarra>button,#esBarra>button{touch-action:none;user-select:none;-webkit-user-select:none}#ceBarra>button.moviendo,#esBarra>button.moviendo{outline:2px dashed var(--accent);opacity:.65;cursor:grabbing}
+#vCeldas .es-pie,#vEscribir .es-pie{flex-wrap:wrap;gap:8px}#vCeldas .es-pie>button,#vEscribir .es-pie>button{white-space:normal;text-align:center;justify-content:center;line-height:1.2;min-height:44px;height:auto;padding:9px 12px}
+#vCeldas .es-info,#vEscribir .es-info{flex-basis:100%;order:5;text-align:center}#vCeldas .es-pie>button,#vEscribir .es-pie>button{flex:1}
+#esPapel .es-mbar{white-space:normal;flex-wrap:wrap;max-width:calc(100% - 8px);gap:5px}#esPapel .es-mbar button{flex:1 1 auto;min-height:36px;height:auto;white-space:normal;text-align:center;padding:7px 9px;line-height:1.15}
+.es-ftit{overflow:visible}.es-ftit>.es-tit{pointer-events:none;user-select:none}.es-barra button:disabled{opacity:.45}

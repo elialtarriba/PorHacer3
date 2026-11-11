@@ -258,7 +258,7 @@ const Bloc = {
   exportar(){
     this.guardar().then(() => {
       const d = new Date(), f = iso(d);
-      this.leerPaq().then(v => descargar(new Blob([v], { type:'application/json' }), 'bloc-porhacer-' + f + '.json'));
+      this.leerPaq().then(v => descargar(new Blob([v], { type:'application/json' }), 'PorHacer_NotasSecretas_' + f + '.json'));
       toast('💾 Copia del bloc guardada (va cifrada con tu contraseña)');
     });
   },
@@ -392,7 +392,7 @@ const Bloc = {
       : `<button class="btn-pri btn-ancho" id="bjCrear" style="margin-top:12px">🔑 Poner contraseña y crear el bloc</button>`}
       <div class="cc-caja bj-copia"><div class="cc-cab"><span class="cc-ic">💾</span><span><b>Copia de seguridad</b><small>De las notas secretas (va cifrada)</small></span></div>
         <div class="gen-btns"><button class="btn-pri" id="bjExp">⬇️ Exportar</button><button class="btn-sec" id="bjImp">⬆️ Importar</button></div>
-        <p class="aj-ayuda" style="margin-top:8px">${hay ? '<b>Exportar</b> guarda un archivo <b>bloc-porhacer-fecha.json</b>.' : 'Aún no hay notas secretas en este aparato: puedes crear el bloc o recuperar una copia con <b>Importar</b>.'} Para recuperarla, pulsa <b>Importar</b> y escribe <b>la contraseña con la que se hizo</b> la copia. También van en la «📦 Copia completa» de Copias de seguridad.</p></div>
+        <p class="aj-ayuda" style="margin-top:8px">${hay ? '<b>Exportar</b> guarda un archivo <b>PorHacer_NotasSecretas_fecha.json</b>.' : 'Aún no hay notas secretas en este aparato: puedes crear el bloc o recuperar una copia con <b>Importar</b>.'} Para recuperarla, pulsa <b>Importar</b> y escribe <b>la contraseña con la que se hizo</b> la copia. También van en la «📦 Copia completa» de Copias de seguridad.</p></div>
       ${hay ? `<button class="btn-borrar-tarea" id="bjBorrar" style="margin-top:18px">🗑 Borrar el bloc de este aparato</button>` : ''}
     </div>`;
     const r = () => this.pintarAjustes(el);
@@ -421,7 +421,7 @@ const Bloc = {
       if(this.clave){ this.leerHoja && this.leerHoja(); await this.guardar(); }     // si está abierto, primero se guarda lo último
       const v = await this.leerPaq();
       if(!v){ popAviso('Exportar', 'Todavía no hay notas secretas en este aparato, así que no hay nada que copiar.'); return; }
-      descargar(new Blob([v], { type:'application/json' }), 'bloc-porhacer-' + iso(new Date()) + '.json'); toast('💾 Copia guardada (va cifrada con tu contraseña)'); };
+      descargar(new Blob([v], { type:'application/json' }), 'PorHacer_NotasSecretas_' + iso(new Date()) + '.json'); toast('💾 Copia guardada (va cifrada con tu contraseña)'); };
     $('#bjImp', el).onclick = async () => { await this.importar(); r(); };
     if($('#bjBorrar', el)) $('#bjBorrar', el).onclick = async () => {
       if(!await popConfirmar('¿Borrar el bloc?', 'Se borrarán todas las hojas de este aparato. Si no tienes una copia exportada, no se podrán recuperar.', 'Borrar')) return;

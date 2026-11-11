@@ -17,7 +17,7 @@ const Celdas = {
 
   /* ---------- Datos ---------- */
   lista(){ try{ return JSON.parse(lsGet('ph3-hojas') || '[]') || []; }catch(e){ return []; } },
-  ponerLista(l){ try{ localStorage.setItem('ph3-hojas', JSON.stringify(l)); }catch(e){ toast('⚠️ No cabe más en este aparato'); } if(typeof Guardar !== 'undefined' && Guardar.cambioHojas) Guardar.cambioHojas(); },
+  ponerLista(l){ try{ localStorage.setItem('ph3-hojas', JSON.stringify(l)); }catch(e){ toast('⚠️ No cabe más en este aparato'); throw e; } if(typeof Guardar !== 'undefined' && Guardar.cambioHojas) Guardar.cambioHojas(); },
   actual(){ return this.lista().find(d => d.id === this.id) || null; },
   pestVacia(h){ return !h || (!Object.keys(h.c || {}).length && !(h.figs || []).length); },
   vacio(d){ if(!d) return true; if((d.titulo || '').trim()) return false; return d.hojas ? d.hojas.length <= 1 && d.hojas.every(h => this.pestVacia(h)) : this.pestVacia(d); },
@@ -373,7 +373,7 @@ const Celdas = {
     p.onclick = e => { const b = e.target.closest('button'); if(!b) return;
       if('abrir' in b.dataset){ cerrarPopMio(); this.elegirArchivo(); return; }
       if(b.dataset.id){ cerrarPopMio(); this.cancelar(); const ant = this.L; this.id = b.dataset.id; if(ant && this.vacio(ant) && ant.id !== this.id) this.ponerLista(this.lista().filter(x => x.id !== ant.id)); this.cargar(); }
-      else if('nueva' in b.dataset){ cerrarPopMio(); this.cancelar(); if(this.vacio(this.L)){ toast('📊 Ya tienes una hoja en blanco'); return; } this.nueva(); this.cargar(); $('#ceTitulo').focus(); }
+      else if('nueva' in b.dataset){ cerrarPopMio(); this.cancelar(); if(this.L && this.vacio(this.L)){ toast('📊 Ya tienes una hoja en blanco'); return; } this.nueva(); this.cargar(); $('#ceTitulo').focus(); }
       else cerrarPopMio(); };
   },
 
@@ -458,7 +458,8 @@ const Celdas = {
     const tdEn = (x, y) => { const el = document.elementFromPoint(x, y); return el && el.closest ? el.closest('#ceTabla td') : null; };
     const auto = (x, y) => { const r = z.getBoundingClientRect(); if(x > r.right - 16) z.scrollLeft += 12; else if(x < r.left + 50) z.scrollLeft -= 12; if(y > r.bottom - 16) z.scrollTop += 12; else if(y < r.top + 40) z.scrollTop -= 12; };
     z.addEventListener('pointerdown', e => {
-      if(e.pointerType === 'mouse' && e.button) return;
+      if(!this.D || (e.pointerType === 'mouse' && e.button) || e.isPrimary === false) return;
+      if(this.desplazar && e.pointerType !== 'mouse') return;
       const th = e.target.closest('#ceTabla th');
       if(th && !this.ed && (e.target.closest('.ce-tir-c, .ce-tir-f'))){ this.tirar(e, th); return; }
       if(th && !this.ed && th.classList.contains('ce-esq')){ this.esquina(); return; }
@@ -479,23 +480,23 @@ const Celdas = {
       if(this.ed) this.aceptar();
       if(CeFig.sel) CeFig.seleccionar(null);
       const yaSel = this.sel.c === c && this.sel.r === r && this.fin.c === c && this.fin.r === r;
-      P = { c, r, x:e.clientX, y:e.clientY, id:e.pointerId, yaSel, on:e.pointerType === 'mouse', mov:false, raton:e.pointerType === 'mouse' };
+      P = { c, r, x:e.clientX, y:e.clientY, id:e.pointerId, yaSel, on:true, mov:false, raton:e.pointerType === 'mouse' };
       if(e.shiftKey){ this.fin = { c, r }; this.marcar(); P = null; return; }
       this.sel = { c, r }; this.fin = { c, r }; this.marcar();
-      if(!P.raton) P.t = setTimeout(() => { if(P && !P.mov){ P.on = true; try{ navigator.vibrate && navigator.vibrate(12); }catch(_){} $('#vCeldas').classList.add('marcando'); } }, 380);   // con el dedo: mantener pulsado y arrastrar para marcar varias
+      if(!P.raton){ e.preventDefault(); $('#vCeldas').classList.add('marcando'); try{z.setPointerCapture(e.pointerId);}catch(_){} }   // con el dedo: mantener pulsado y arrastrar para marcar varias
     });
     addEventListener('pointermove', e => {
       if(!P || e.pointerId !== P.id) return;
       if(P.ref){ e.preventDefault(); auto(e.clientX, e.clientY); const td = tdEn(e.clientX, e.clientY); if(!td) return; const k = this.ref(+td.dataset.c, +td.dataset.r);
         if(this._refR[1] !== k){ this._refR = [P.a, k]; P.ins = this.ponerRef(P.a === k ? k : P.a + ':' + k, P.ins); this.marcar(); } return; }
       if(!P.on){ if(Math.hypot(e.clientX - P.x, e.clientY - P.y) > 8){ P.mov = true; clearTimeout(P.t); P = null; } return; }   // con el dedo, sin mantener: se desplaza la hoja
-      if(P.raton && Math.hypot(e.clientX - P.x, e.clientY - P.y) > 4) P.mov = true;
+      if(Math.hypot(e.clientX - P.x, e.clientY - P.y) > 4) P.mov = true;
       auto(e.clientX, e.clientY);
       const td = tdEn(e.clientX, e.clientY); if(td){ const c = +td.dataset.c, r = +td.dataset.r; if(c !== this.fin.c || r !== this.fin.r){ this.fin = { c, r }; this.marcar(); P.mov = true; } }
     }, { passive:false });
     const fin = e => { if(!P || (e && e.pointerId !== P.id)) return; const p = P; P = null; clearTimeout(p.t); $('#vCeldas').classList.remove('marcando');
       if(p.ref){ $('#ceIn').focus(); return; }
-      if(p.yaSel && !p.mov) this.editar();   // tocar otra vez la celda: escribir en ella
+      if(e.type !== 'pointercancel' && p.yaSel && !p.mov) this.editar();   // tocar otra vez la celda: escribir en ella
     };
     addEventListener('pointerup', fin); addEventListener('pointercancel', fin);
     z.addEventListener('touchmove', e => { if(P && (P.ref || P.on) && e.cancelable) e.preventDefault(); }, { passive:false });
@@ -556,7 +557,7 @@ const Celdas = {
         ceHojas:() => { if(this.ed) this.aceptar(); this.menuHojas(); }, ceRegla:() => { if(this.ed) this.aceptar(); this.menuRegla(); },
         ceImg:() => { if(this.ed) this.aceptar(); this.menuImagen(); }, ceForma:() => { if(this.ed) this.aceptar(); this.forma(); }, ceTit:() => { if(this.ed) this.aceptar(); this.titulo(); }, ceBorrar:() => { if(this.ed){ $('#ceIn').value = ''; this.vivo(); } else this.borrarSel(); },
         ceFila:() => { if(this.ed) this.aceptar(); this.masFila(); }, ceCol:() => { if(this.ed) this.aceptar(); this.masCol(); },
-        ceAtras:() => { if(this.ed) this.cancelar(); this.atras(); } }[b.id] || (() => {}))(); };
+        ceAtras:() => { this.atras(); } }[b.id] || (() => {}))(); };
     deslizarLado(B);
     $('#ceMis').onclick = () => { if(this.ed) this.aceptar(); this.misHojas(); };
     $('#ceTitulo').addEventListener('input', () => { if(!this.L) return; this.L.titulo = $('#ceTitulo').value; clearTimeout(this._tt); this._tt = setTimeout(() => this.guardar(), 500); });
@@ -568,7 +569,7 @@ const Celdas = {
 /* ---------- V16.2 · Colores, ribetes, tamaños, ver todo, copiar y pegar, imágenes, figuras y títulos ---------- */
 // Las figuras de la hoja son las mismas que las de Escribir (formas, líneas, flechas), y además imágenes y títulos.
 const CeFig = Object.assign(Object.create(Escribir), {
-  FIGID: { papel:'#cePapel', atras:'#ceAtras', delante:'#ceDelante', boton:'#ceForma' },
+  FIGID: { papel:'#cePapel', atras:'#ceFondo', delante:'#ceDelante', boton:'#ceForma' },
   figs: [], sel: null,
   cambioFigs(){ if(!Celdas.D) return; Celdas.D.figs = JSON.parse(JSON.stringify(this.figs)); Celdas.guardar(); },
   cursorEn(){}, guardarCursor(){}, restaurarCursor(){},
@@ -787,7 +788,7 @@ Object.assign(Celdas, {
       if(f){ f.t = t; f.h = f.h || px; }
       else { const td = this.td(this.sel.c, this.sel.r); f = { id:nuevoId('fg'), tipo:'tit', t, giro:0, capa:'delante', x:td ? td.offsetLeft + 4 : 60, y:td ? td.offsetTop + 2 : 60, w, h:px }; CeFig.figs.push(f); }
       CeFig.pintarFigs();
-      const el = $(`#ceDelante .es-fg[data-id="${f.id}"], #ceAtras .es-fg[data-id="${f.id}"]`), d = el && el.firstChild;   // el ancho justo para las letras
+      const el = $(`#ceDelante .es-fg[data-id="${f.id}"], #ceFondo .es-fg[data-id="${f.id}"]`), d = el && el.firstChild;   // el ancho justo para las letras
       if(d){ d.style.width = 'max-content'; f.w = Math.ceil(d.scrollWidth) + 16; d.style.width = ''; CeFig.estiloFig(el, f); }
       CeFig.seleccionar(f.id); CeFig.cambioFigs();
     });
@@ -1075,8 +1076,8 @@ Object.assign(Celdas, {
     return { code:'#,##0' + dec };
   },
   // todas las pestañas, cada una en su hoja de Excel (con su nombre y su color)
-  async xlsx(){
-    const L = this.L, guard = this.D; if(L.hojas.every(h => this.pestVacia(h))){ toast('La hoja está vacía'); return; }
+  async xlsx(soloBlob=false){
+    const L = this.L, guard = this.D; if(!soloBlob && L.hojas.every(h => this.pestVacia(h))){ toast('La hoja está vacía'); return; }
     if(this.ed) this.aceptar();
     // formatos, letras (negrita, cursiva, tachado), rellenos y ribetes: cada combinación, un estilo
     const fmts = [], fonts = ['000'], fills = [], bords = ['{}'], xfs = [{ id:0, f:0, fi:0, bo:0, w:0 }], xfIdx = { '0|0|0|0|0':0 };
@@ -1128,7 +1129,9 @@ Object.assign(Celdas, {
       'xl/styles.xml':`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet ${N}>${fmts.length ? `<numFmts count="${fmts.length}">${fmts.map((c, i) => `<numFmt numFmtId="${164 + i}" formatCode="${this.X(c)}"/>`).join('')}</numFmts>` : ''}<fonts count="${fonts.length}">${fonts.map(f => `<font>${f[0] === '1' ? '<b/>' : ''}${f[1] === '1' ? '<i/>' : ''}${f[2] === '1' ? '<strike/>' : ''}<sz val="11"/><name val="Calibri"/></font>`).join('')}</fonts><fills count="${fills.length + 2}"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill>${fills.map(c => `<fill><patternFill patternType="solid"><fgColor rgb="FF${c.slice(1).toUpperCase()}"/><bgColor indexed="64"/></patternFill></fill>`).join('')}</fills><borders count="${bords.length}">${bords.map(j => { const b = JSON.parse(j), l = (t, k) => b[k] ? `<${t} style="${b[k][0] >= 4 ? 'thick' : b[k][0] >= 2 ? 'medium' : 'thin'}"><color rgb="FF${String(b[k][1]).slice(1).toUpperCase()}"/></${t}>` : `<${t}/>`; return `<border>${l('left', 'l')}${l('right', 'r')}${l('top', 't')}${l('bottom', 'b')}<diagonal/></border>`; }).join('')}</borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="${xfs.length}">${xfs.map(x => `<xf numFmtId="${x.id}" fontId="${x.f}" fillId="${x.fi}" borderId="${x.bo}" xfId="0"${x.id ? ' applyNumberFormat="1"' : ''}${x.f ? ' applyFont="1"' : ''}${x.fi ? ' applyFill="1"' : ''}${x.bo ? ' applyBorder="1"' : ''}${x.w ? ' applyAlignment="1"><alignment wrapText="1" vertical="top"/></xf>' : '/>'}`).join('')}</cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>${dxfs.length ? `<dxfs count="${dxfs.length}">${dxfs.map(c => `<dxf><fill><patternFill patternType="solid"><fgColor rgb="FF${c.slice(1).toUpperCase()}"/><bgColor rgb="FF${c.slice(1).toUpperCase()}"/></patternFill></fill></dxf>`).join('')}</dxfs>` : ''}</styleSheet>`
     };
     hojas.forEach((h, i) => { F['xl/worksheets/sheet' + (i + 1) + '.xml'] = h.xml; });
-    await this.entregar(new Blob([DocxSimple.zip(F)], { type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), this.nombreArch() + '.xlsx');
+    const blob = new Blob([DocxSimple.zip(F)], { type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    if(soloBlob) return blob;
+    await this.entregar(blob, this.nombreArch() + '.xlsx');
   },
 
   /* ---------- Abrir ---------- */
