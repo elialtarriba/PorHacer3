@@ -1,6 +1,6 @@
 /* PorHacer · app principal: tablero de columnas, tareas y editor */
 
-const VERSION = 'V18';
+const VERSION = 'V18.1';
 const $ = (s, r=document) => r.querySelector(s);
 const $$ = (s, r=document) => Array.from(r.querySelectorAll(s));
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -1219,32 +1219,63 @@ async function pintarFotosNota(){
     await pintarFotosNota(); await contarEditor(); pintarHistorial();
   };
 }
-/* Tirador dedicado: ratón y dedo, con desplazamiento al llegar a los bordes. */
+/* Arrastre de columnas desde la cabecera: dedo, lápiz y ratón. */
 function iniciarOrdenColumnas(){
-  const tab = $('#tablero'); let d = null, frame;
+  const tab = $('#tablero'); let d = null, frame, guardando = false, sinClick = 0;
   const mover = () => {
-    if(!d) return;
+    if(!d || !d.mov) return;
     const r = tab.getBoundingClientRect();
-    if(d.x < r.left+45) tab.scrollLeft -= 12;
-    if(d.x > r.right-45) tab.scrollLeft += 12;
-    const otro = document.elementFromPoint(d.x, d.y)?.closest('.columna');
-    if(otro && otro !== d.col){ const rr = otro.getBoundingClientRect(); tab.insertBefore(d.col, d.x > rr.left+rr.width/2 ? otro.nextSibling : otro); }
+    const borde = Math.min(65, r.width / 5);
+    if(d.x < r.left+borde) tab.scrollLeft -= 10;
+    else if(d.x > r.right-borde) tab.scrollLeft += 10;
+    // La columna que se mueve nunca tapa la detección de las otras.
+    const otras = $$('.columna', tab).filter(c => c !== d.col);
+    const destino = otras.find(c => { const q=c.getBoundingClientRect(); return d.x < q.left+q.width/2; });
+    if(destino){ if(d.col.nextElementSibling !== destino) tab.insertBefore(d.col,destino); }
+    else if(d.col !== tab.lastElementChild) tab.appendChild(d.col);
+    d.fantasma.style.left = Math.max(4,Math.min(innerWidth-d.fantasma.offsetWidth-4,d.x-d.dx))+'px';
+    d.fantasma.style.top = Math.max(4,d.y-d.dy)+'px';
     frame = requestAnimationFrame(mover);
   };
   tab.addEventListener('pointerdown', e => {
-    const h = e.target.closest('.col-mover'); if(!h || e.button !== 0) return;
-    e.preventDefault(); h.setPointerCapture(e.pointerId);
-    d = {col:h.closest('.columna'), x:e.clientX, y:e.clientY}; d.col.classList.add('col-moviendo'); mover();
+    const cab=e.target.closest('.col-cab');
+    if(!cab || e.target.closest('.col-add') || (e.pointerType==='mouse' && e.button!==0) || e.isPrimary===false || d || guardando) return;
+    e.preventDefault();
+    const col=cab.closest('.columna'),r=cab.getBoundingClientRect();
+    d={col,cab,id:e.pointerId,x:e.clientX,y:e.clientY,x0:e.clientX,y0:e.clientY,dx:e.clientX-r.left,dy:e.clientY-r.top,mov:false};
+    // Capturar en el tablero estable: la cabecera cambiará de posición en el DOM.
+    try{tab.setPointerCapture(e.pointerId);}catch(_){}
   });
-  tab.addEventListener('pointermove', e => { if(d){ d.x=e.clientX; d.y=e.clientY; } });
+  addEventListener('pointermove', e => {
+    if(!d || e.pointerId!==d.id) return;
+    d.x=e.clientX;d.y=e.clientY;
+    if(!d.mov && Math.hypot(d.x-d.x0,d.y-d.y0)>6){
+      d.mov=true;tab.classList.add('ordenando-columnas');d.col.classList.add('col-moviendo');
+      const g=document.createElement('div');g.className='col-fantasma';g.textContent='⠿ '+$('h3',d.cab).textContent;
+      g.style.width=Math.min(d.col.offsetWidth,280)+'px';document.body.appendChild(g);d.fantasma=g;mover();
+    }
+    if(d.mov && e.cancelable)e.preventDefault();
+  },{passive:false});
   const fin = async e => {
-    if(!d) return; cancelAnimationFrame(frame); d.col.classList.remove('col-moviendo'); d=null;
-    if(e.type !== 'pointercancel'){
-      const visibles = $$('.columna', tab).map(c => colDe(c.dataset.c)); let i=0;
-      const anterior = columnas().slice(); App.ajustes.columnas = columnas().map(c => c.visible ? visibles[i++] : c);
-      try{ await guardarAjustes(); }catch(err){ App.ajustes.columnas = anterior; toast('No se ha podido guardar el orden'); }
+    if(!d || (e.pointerId!=null && e.pointerId!==d.id)) return;
+    const anterior=columnas().slice(),actual=d;d=null;cancelAnimationFrame(frame);
+    try{tab.releasePointerCapture(actual.id);}catch(_){}
+    actual.fantasma?.remove();actual.col.classList.remove('col-moviendo');tab.classList.remove('ordenando-columnas');
+    if(!actual.mov){if(e.type==='pointerup')toast('Arrastra la cabecera a izquierda o derecha. Mantén el dedo en el borde para seguir avanzando.');return;}
+    sinClick=Date.now()+400;
+    if(e.type==='pointerup'){
+      const visibles=$$('.columna',tab).map(c=>colDe(c.dataset.c));let i=0;
+      App.ajustes.columnas=anterior.map(c=>c.visible?visibles[i++]:c);guardando=true;
+      try{await guardarAjustes();toast('↔️ Orden de columnas guardado');}
+      catch(err){App.ajustes.columnas=anterior;toast('No se ha podido guardar el orden');}
+      finally{guardando=false;}
     }
     pintarTodo();
   };
-  tab.addEventListener('pointerup', fin); tab.addEventListener('pointercancel', fin);
+  addEventListener('pointerup',fin);addEventListener('pointercancel',fin);
+  tab.addEventListener('lostpointercapture',e=>{if(d)fin({type:'pointercancel',pointerId:e.pointerId});});
+  addEventListener('blur',()=>fin({type:'pointercancel'}));
+  tab.addEventListener('touchmove',e=>{if(d && e.cancelable)e.preventDefault();},{passive:false});
+  tab.addEventListener('contextmenu',e=>{if(e.target.closest('.col-cab'))e.preventDefault();});
+  tab.addEventListener('click',e=>{if(Date.now()<sinClick || e.target.closest('.col-mover')){e.preventDefault();e.stopPropagation();}},true);
 }

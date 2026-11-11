@@ -1670,3 +1670,10 @@ button.gx-nueva-abajo:active{background:color-mix(in srgb,var(--accent) 8%,trans
 #vCeldas .es-info,#vEscribir .es-info{flex-basis:100%;order:5;text-align:center}#vCeldas .es-pie>button,#vEscribir .es-pie>button{flex:1}
 #esPapel .es-mbar{white-space:normal;flex-wrap:wrap;max-width:calc(100% - 8px);gap:5px}#esPapel .es-mbar button{flex:1 1 auto;min-height:36px;height:auto;white-space:normal;text-align:center;padding:7px 9px;line-height:1.15}
 .es-ftit{overflow:visible}.es-ftit>.es-tit{pointer-events:none;user-select:none}.es-barra button:disabled{opacity:.45}
+
+/* V18.1: agarre táctil amplio; sin ajuste automático durante el arrastre. */
+#tablero .col-cab{touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;cursor:grab}
+#tablero .col-mover{min-width:44px;min-height:44px;border:1px solid var(--line);border-radius:10px;background:var(--card);flex-shrink:0}
+#tablero.ordenando-columnas{scroll-snap-type:none!important;scroll-behavior:auto!important;overflow-anchor:none}
+#tablero.ordenando-columnas .columna{animation:none;scroll-snap-align:none}
+.col-fantasma{position:fixed;z-index:500;pointer-events:none;padding:16px;border-radius:14px;background:var(--card,#fff);color:var(--dark,#222);box-shadow:0 8px 25px #0005;border:2px solid var(--accent,#c33);font-weight:900;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
