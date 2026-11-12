@@ -501,6 +501,18 @@ const Celdas = {
     addEventListener('pointerup', fin); addEventListener('pointercancel', fin);
     z.addEventListener('touchmove', e => { if(P && (P.ref || P.on) && e.cancelable) e.preventDefault(); }, { passive:false });
     z.addEventListener('touchstart', e => { if(this.ed && $('#ceIn').value.trim()[0] === '=' && e.target.closest('#ceTabla td') && e.cancelable) e.preventDefault(); }, { passive:false });   // que no se vaya el teclado
+    let cabToque=null,ultimo=null;
+    z.addEventListener('pointerdown',e=>{const th=e.target.closest('th[data-col],th[data-fila]');cabToque=th&&!e.target.closest('.ce-tir-c,.ce-tir-f')?{th,id:e.pointerId,x:e.clientX,y:e.clientY}:null;});
+    z.addEventListener('pointerup',e=>{
+      const t=cabToque;cabToque=null;if(!t||t.id!==e.pointerId||Math.hypot(e.clientX-t.x,e.clientY-t.y)>8)return;
+      const col=t.th.dataset.col!=null,n=+(col?t.th.dataset.col:t.th.dataset.fila),key=(col?'c':'r')+n,ahora=Date.now();
+      if(ultimo&&ultimo.key===key&&ahora-ultimo.t<350){
+        ultimo=null;if(this.ed)this.aceptar();this.copia();
+        this.ajustar(col?{c1:n,c2:n,r1:0,r2:this.D.filas-1}:{c1:0,c2:this.D.cols-1,r1:n,r2:n},col?'columna':'fila');
+        this.guardar();this.pintar();toast(col?'Ancho ajustado al contenido':'Alto ajustado al contenido');
+      }else ultimo={key,t:ahora};
+    });
+    z.addEventListener('pointercancel',()=>{cabToque=null;ultimo=null;});
     z.addEventListener('dblclick', e => { const td = e.target.closest('#ceTabla td'); if(td && !this.ed) this.editar(); });
     z.addEventListener('contextmenu', e => { if(P) e.preventDefault(); });
   },
@@ -639,43 +651,44 @@ Object.assign(Celdas, {
     const fils = b.r1 === b.r2 ? 'la fila ' + (b.r1 + 1) : 'las filas ' + (b.r1 + 1) + ' a ' + (b.r2 + 1);
     const p = popMio(`<div class="ts-cab"><h3 class="mp-h">↔ Tamaño</h3><button class="mp-b mp-pri ts-listo" data-x>✓ Listo</button></div>
       <div class="ab-tit">Ancho de ${cols} · <b id="ceTw">${w}</b></div>
-      <div class="es-grosor"><span>⟷</span><input type="range" min="36" max="420" value="${w}" id="ceTwR"><span>⟷⟷</span></div>
+      <div class="es-grosor"><span>⟷</span><input type="range" min="36" max="1200" value="${w}" id="ceTwR"><span>⟷⟷</span></div>
+      <label class="lbl">Ancho exacto (px)<input id="ceTwN" type="number" min="36" max="1200" value="${w}"></label>
       <div class="ab-tit">Alto de ${fils} · <b id="ceTh">${h}</b></div>
-      <div class="es-grosor"><span>↕</span><input type="range" min="24" max="240" value="${h}" id="ceThR"><span>↕↕</span></div>
+      <div class="es-grosor"><span>↕</span><input type="range" min="24" max="2000" value="${h}" id="ceThR"><span>↕↕</span></div>
+      <label class="lbl">Alto exacto (px)<input id="ceThN" type="number" min="24" max="2000" value="${h}"></label>
       <div class="mp-fila"><button class="mp-b" data-ajustar>⤢ A lo que hay dentro</button><button class="mp-b" data-normal>↺ Normal</button></div>
-      <p class="aj-ayuda">También puedes arrastrar la rayita del borde de una letra (columna) o de un número (fila).</p>`, 'ce-pop');
+      <p class="aj-ayuda">El ancho afecta a toda la columna; el alto, a toda la fila. Arrastra el borde derecho de una letra o el borde inferior de un número. Doble toque en la letra o el número: autoajustar.</p>`, 'ce-pop');
     let copiado = false; const cp = () => { if(!copiado){ this.copia(); copiado = true; } };
-    $('#ceTwR', p).oninput = e => { cp(); const v = +e.target.value; $('#ceTw', p).textContent = v; for(let c = b.c1; c <= b.c2; c++) this.ponAncho(c, v); };
-    $('#ceThR', p).oninput = e => { cp(); const v = +e.target.value; $('#ceTh', p).textContent = v; for(let r = b.r1; r <= b.r2; r++) this.ponAlto(r, v); };
-    const fin = () => { this.guardar(); this.pintar(); };
-    $('#ceTwR', p).onchange = fin; $('#ceThR', p).onchange = fin;
+    const cambiar=(col,v)=>{if(!Number.isFinite(v))return;cp();v=Math.round(Math.max(col?36:24,Math.min(col?1200:2000,v)));const k=col?'ceTw':'ceTh';$('#'+k,p).textContent=v;$('#'+k+'R',p).value=v;$('#'+k+'N',p).value=v;if(col){for(let c=b.c1;c<=b.c2;c++)this.ponAncho(c,v);}else{for(let r=b.r1;r<=b.r2;r++)this.ponAlto(r,v);}};
+    const fin=()=>{this.guardar();this.pintar();};
+    ['ceTw','ceTh'].forEach((k,i)=>{const col=i===0;$('#'+k+'R',p).oninput=e=>cambiar(col,+e.target.value);$('#'+k+'R',p).onchange=fin;$('#'+k+'N',p).onchange=e=>{if(e.target.value!==''){cambiar(col,+e.target.value);fin();}};});
     p.onclick = e => { const x = e.target.closest('button'); if(!x) return;
       if('ajustar' in x.dataset){ cp(); this.ajustar(b); fin(); cerrarPopMio(); }
       else if('normal' in x.dataset){ cp(); for(let c = b.c1; c <= b.c2; c++) this.ponAncho(c, this.ANCHO); for(let r = b.r1; r <= b.r2; r++) this.ponAlto(r, this.ALTO); fin(); cerrarPopMio(); }
-      else cerrarPopMio(); };
+      else {const w=$('#ceTwN',p).value,h=$('#ceThN',p).value;if(w!=='')cambiar(true,+w);if(h!=='')cambiar(false,+h);fin();cerrarPopMio();} };
   },
-  ponAncho(c, v){ const A = this.D.anchos = this.D.anchos || {}; if(v === this.ANCHO) delete A[c]; else A[c] = Math.round(v); if(!Object.keys(A).length) delete this.D.anchos;
+  ponAncho(c, v){ delete this.D.verTodo;$('#vCeldas').classList.remove('ver-todo'); const A = this.D.anchos = this.D.anchos || {}; if(v === this.ANCHO) delete A[c]; else A[c] = Math.round(v); if(!Object.keys(A).length) delete this.D.anchos;
     const col = $$('#ceTabla col')[c + 1]; if(col) col.style.width = this.ancho(c) + 'px';
     const t = $('#ceTabla'); t.style.width = (40 + Array.from({ length:this.D.cols }, (_, i) => this.ancho(i)).reduce((a, b) => a + b, 0)) + 'px'; },
-  ponAlto(r, v){ const A = this.D.altos = this.D.altos || {}; if(v === this.ALTO) delete A[r]; else A[r] = Math.round(v); if(!Object.keys(A).length) delete this.D.altos;
+  ponAlto(r, v){ delete this.D.verTodo;$('#vCeldas').classList.remove('ver-todo'); const A = this.D.altos = this.D.altos || {}; if(v === this.ALTO) delete A[r]; else A[r] = Math.round(v); if(!Object.keys(A).length) delete this.D.altos;
     const tr = $$('#ceTabla tbody tr')[r]; if(tr){ tr.style.height = this.alto(r) + 'px'; tr.style.setProperty('--h', (this.alto(r) - 4) + 'px'); } },
   // mide lo que hay dentro de las celdas para que quepa
-  medir(txt, cls){
+  medir(txt, cls, ancho){
     const m = this._m = this._m || Object.assign(document.createElement('div'), { className:'ce-medir' });
     if(!m.isConnected) $('#cePapel').appendChild(m);
-    m.className = 'ce-medir ' + (cls || ''); m.textContent = txt; return { w:m.offsetWidth, h:m.offsetHeight };
+    m.className = 'ce-medir ' + (cls || '');m.style.width=ancho?Math.max(1,ancho-16)+'px':'auto';m.style.whiteSpace=ancho?'pre-wrap':'pre';m.style.overflowWrap=ancho?'anywhere':'normal'; m.textContent = txt; return { w:m.offsetWidth, h:m.offsetHeight };
   },
-  ajustar(b){
-    for(let c = b.c1; c <= b.c2; c++){ let w = 0; for(let r = 0; r < this.D.filas; r++){ const k = this.ref(c, r); if(!this.celda(k)) continue; const x = this.tdHtml(k), s = this.texto(k).s; if(s) w = Math.max(w, this.medir(s, x.cls).w + 18); } if(w) this.ponAncho(c, Math.max(this.ANCHO, Math.min(420, w))); }
-    for(let r = b.r1; r <= b.r2; r++){ let h = 0; for(let c = 0; c < this.D.cols; c++){ const k = this.ref(c, r); if(!this.celda(k)) continue; const x = this.tdHtml(k), s = this.texto(k).s; if(s) h = Math.max(h, this.medir(s, x.cls).h + 12); } if(h) this.ponAlto(r, Math.max(this.ALTO, Math.min(240, h))); }
+  ajustar(b, eje){
+    if(eje!=='fila')for(let c = b.c1; c <= b.c2; c++){ let w = 0; for(let r = 0; r < this.D.filas; r++){ const k = this.ref(c, r); if(!this.celda(k)) continue; const x = this.tdHtml(k), s = this.texto(k).s; if(s) w = Math.max(w, this.medir(s, x.cls).w + 18); } if(w) this.ponAncho(c, Math.max(this.ANCHO, Math.min(1200, w))); }
+    if(eje!=='columna')for(let r = b.r1; r <= b.r2; r++){ let h = 0; for(let c = 0; c < this.D.cols; c++){ const k = this.ref(c, r); if(!this.celda(k)) continue; const x = this.tdHtml(k), s = this.texto(k).s; if(s) h = Math.max(h, this.medir(s, x.cls, this.ancho(c)).h + 12); } if(h) this.ponAlto(r, Math.max(this.ALTO, Math.min(2000, h))); }
   },
   // arrastrar la rayita del borde de una columna o de una fila
   tirar(e, th){
     e.preventDefault(); e.stopPropagation();
     const col = th.dataset.col != null, n = +(col ? th.dataset.col : th.dataset.fila), v0 = col ? this.ancho(n) : this.alto(n), p0 = col ? e.clientX : e.clientY;
-    this.copia(); $('#vCeldas').classList.add('tirando');
-    const mv = ev => { if(ev.cancelable) ev.preventDefault(); const v = Math.max(col ? 36 : 24, Math.min(col ? 420 : 240, v0 + (col ? ev.clientX : ev.clientY) - p0)); if(col) this.ponAncho(n, v); else this.ponAlto(n, v); this._etq = (col ? 'Ancho ' : 'Alto ') + Math.round(v); $('#ceRef').textContent = this._etq; };
-    const fin = () => { removeEventListener('pointermove', mv); removeEventListener('pointerup', fin); removeEventListener('pointercancel', fin); $('#vCeldas').classList.remove('tirando'); this._etq = null; this.guardar(); this.pintar(); };
+    this.copia(); $('#vCeldas').classList.add('tirando');try{th.setPointerCapture(e.pointerId);}catch(_){}
+    const mv = ev => { if(ev.pointerId!==e.pointerId)return;if(ev.cancelable) ev.preventDefault(); const v = Math.max(col ? 36 : 24, Math.min(col ? 1200 : 2000, v0 + (col ? ev.clientX : ev.clientY) - p0)); if(col) this.ponAncho(n, v); else this.ponAlto(n, v); this._etq = (col ? 'Ancho ' : 'Alto ') + Math.round(v); $('#ceRef').textContent = this._etq; };
+    const fin = ev => { if(ev.pointerId!==e.pointerId)return;if(ev.type==='pointercancel'){if(col)this.ponAncho(n,v0);else this.ponAlto(n,v0);} removeEventListener('pointermove', mv); removeEventListener('pointerup', fin); removeEventListener('pointercancel', fin); $('#vCeldas').classList.remove('tirando'); this._etq = null; this.guardar(); this.pintar(); };
     addEventListener('pointermove', mv, { passive:false }); addEventListener('pointerup', fin); addEventListener('pointercancel', fin);
   },
   // «⤢ Ver todo»: las celdas se hacen grandes para que se vea todo; otra vez, como estaban

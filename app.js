@@ -1,6 +1,6 @@
 /* PorHacer · app principal: tablero de columnas, tareas y editor */
 
-const VERSION = 'V18.3';
+const VERSION = 'V18.5';
 const $ = (s, r=document) => r.querySelector(s);
 const $$ = (s, r=document) => Array.from(r.querySelectorAll(s));
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -1315,12 +1315,13 @@ function iniciarOrdenEtiquetas(){
   };
   const levantar=()=>{
     if(!d || d.pan)return;
-    d.arr=true;bloqueo=Date.now()+700;box.classList.add('ordenando-etiquetas');d.b.classList.add('chip-agarrado');
+    d.arr=true;bloqueo=Date.now()+700;if(!d.touch)try{box.setPointerCapture(d.id);}catch(_){}box.classList.add('ordenando-etiquetas');d.b.classList.add('chip-agarrado');
     const g=document.createElement('div');g.className='col-fantasma';g.textContent='↔ '+colDe(d.b.dataset.c).nombre;
     g.style.width=Math.min(d.b.offsetWidth,260)+'px';document.body.appendChild(g);d.g=g;dibujar();
   };
   const empezar=(target,x,y,id,touch)=>{
     const b=target.closest('.chip');if(!b || d || guardando)return;
+    bloqueo=0;
     d={b,x,y,x0:x,y0:y,lx:x,id,touch,dx:x-b.getBoundingClientRect().left,arr:false,pan:false};
     if(touch)temporizador=setTimeout(levantar,280);
   };
@@ -1336,7 +1337,7 @@ function iniciarOrdenEtiquetas(){
   };
   const terminar=async(id,cancelar=false)=>{
     if(!d || d.id!==id)return;
-    const a=d;d=null;limpiar();a.g?.remove();
+    const a=d;d=null;limpiar();a.g?.remove();if(!a.touch&&a.arr)try{box.releasePointerCapture(a.id);}catch(_){}
     if(a.pan || a.arr)bloqueo=Date.now()+700;
     if(!a.arr || cancelar)return;
     const anterior=columnas().slice(),orden=anterior.filter(c=>c.id!==a.b.dataset.c),col=anterior.find(c=>c.id===a.b.dataset.c);
@@ -1352,7 +1353,7 @@ function iniciarOrdenEtiquetas(){
   addEventListener('touchmove',e=>{if(!d?.touch)return;const t=Array.from(e.touches).find(t=>'t'+t.identifier===d.id);if(t)mover(t.clientX,t.clientY,d.id,e);},{passive:false});
   const finTouch=e=>{if(!d?.touch)return;const t=Array.from(e.changedTouches).find(t=>'t'+t.identifier===d.id);if(t){if((d.arr||d.pan)&&e.cancelable)e.preventDefault();terminar(d.id,e.type==='touchcancel');}};
   addEventListener('touchend',finTouch,{passive:false});addEventListener('touchcancel',finTouch,{passive:false});
-  box.addEventListener('pointerdown',e=>{if(e.pointerType==='touch'||e.button!==0)return;empezar(e.target,e.clientX,e.clientY,e.pointerId,false);if(d){e.preventDefault();try{box.setPointerCapture(e.pointerId);}catch(_){}}});
+  box.addEventListener('pointerdown',e=>{if(e.pointerType==='touch'||e.button!==0)return;empezar(e.target,e.clientX,e.clientY,e.pointerId,false);});
   addEventListener('pointermove',e=>{if(e.pointerType!=='touch')mover(e.clientX,e.clientY,e.pointerId,e);},{passive:false});
   addEventListener('pointerup',e=>{if(e.pointerType!=='touch')terminar(e.pointerId);});
   addEventListener('pointercancel',e=>{if(e.pointerType!=='touch')terminar(e.pointerId,true);});

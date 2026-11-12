@@ -4,18 +4,44 @@ const Edicion = {
     const botones=()=>Array.from(B.children).filter(b=>b.tagName==='BUTTON'),id=b=>b.id||'c:'+b.dataset.c;
     let orden=[];try{orden=JSON.parse(lsGet(clave)||'[]');}catch(e){}
     const mapa=new Map(botones().map(b=>[id(b),b]));orden.forEach(k=>{if(mapa.has(k))B.appendChild(mapa.get(k));});
-    let d=null,frame=null;
+    let d=null,frame=null,timer=null;
     const mover=()=>{
-      if(!d?.mov)return;const r=B.getBoundingClientRect();if(d.x<r.left+25)B.scrollLeft-=9;else if(d.x>r.right-25)B.scrollLeft+=9;
-      const t=botones().find(b=>{const q=b.getBoundingClientRect();return b!==d.b&&d.x>=q.left&&d.x<=q.right;});
-      if(t){const q=t.getBoundingClientRect();B.insertBefore(d.b,d.x<q.left+q.width/2?t:t.nextSibling);}frame=requestAnimationFrame(mover);
+      if(!d?.ordenar)return;const r=B.getBoundingClientRect();
+      if(d.x<r.left+30)B.scrollLeft-=8;else if(d.x>r.right-30)B.scrollLeft+=8;
+      d.antes=botones().filter(b=>b!==d.b).find(b=>{const q=b.getBoundingClientRect();return d.x<q.left+q.width/2;})||null;
+      botones().forEach(b=>b.classList.toggle('destino-herramienta',b===d.antes));
+      frame=requestAnimationFrame(mover);
     };
-    B.addEventListener('pointerdown',e=>{const b=e.target.closest('button');if(!b||b.parentElement!==B||e.button>0)return;d={b,x:e.clientX,x0:e.clientX,y0:e.clientY,id:e.pointerId,mov:false};B.classList.add('arrastrando');});
-    addEventListener('pointermove',e=>{if(!d||d.id!==e.pointerId)return;d.x=e.clientX;if(!d.mov&&Math.hypot(e.clientX-d.x0,e.clientY-d.y0)>7){d.mov=true;d.b.classList.add('moviendo');B.classList.add('arrastrando');mover();}if(d.mov)e.preventDefault();},{passive:false});
-    const fin=()=>{if(!d)return;cancelAnimationFrame(frame);if(d.mov){lsSet(clave,JSON.stringify(botones().map(id)));d.b.classList.remove('moviendo');B.classList.remove('arrastrando');B._evitarClick=Date.now()+400;}B.classList.remove('arrastrando');d=null;};
-    addEventListener('pointerup',fin);addEventListener('pointercancel',fin);
+    const inicio=(target,x,y,pid)=>{
+      if(d)return;const b=target.closest('button');if(!b||b.parentElement!==B)return;
+      d={b,x,x0:x,y0:y,lx:x,id:pid,pan:false,ordenar:false};
+      // El desplazamiento lo controla este gesto; no compite con deslizarLado.
+      B.classList.add('arrastrando');
+      timer=setTimeout(()=>{if(!d||d.pan)return;d.ordenar=true;d.b.classList.add('moviendo');toast('Ahora arrastra el botón para cambiarlo de sitio');mover();},450);
+    };
+    const movimiento=(x,y,pid,e)=>{
+      if(!d||d.id!==pid)return;d.x=x;
+      if(!d.ordenar && Math.hypot(x-d.x0,y-d.y0)>6){d.pan=true;clearTimeout(timer);}
+      if(d.pan)B.scrollLeft-=x-d.lx;d.lx=x;
+      if((d.pan||d.ordenar)&&e.cancelable)e.preventDefault();
+    };
+    const fin=(pid,cancelar=false)=>{
+      if(!d||d.id!==pid)return;clearTimeout(timer);cancelAnimationFrame(frame);const a=d;d=null;
+      if(a.ordenar&&!cancelar){if(a.antes)B.insertBefore(a.b,a.antes);else B.appendChild(a.b);lsSet(clave,JSON.stringify(botones().map(id)));}
+      if(a.pan||a.ordenar)B._evitarClick=Date.now()+700;
+      a.b.classList.remove('moviendo');botones().forEach(b=>b.classList.remove('destino-herramienta'));B.classList.remove('arrastrando');
+    };
+    B.addEventListener('pointerdown',e=>{if(e.pointerType==='touch'||e.button>0)return;inicio(e.target,e.clientX,e.clientY,e.pointerId);});
+    addEventListener('pointermove',e=>{if(e.pointerType!=='touch')movimiento(e.clientX,e.clientY,e.pointerId,e);},{passive:false});
+    addEventListener('pointerup',e=>{if(e.pointerType!=='touch')fin(e.pointerId);});
+    addEventListener('pointercancel',e=>{if(e.pointerType!=='touch')fin(e.pointerId,true);});
+    B.addEventListener('touchstart',e=>{if(e.touches.length!==1){if(d)fin(d.id,true);return;}const t=e.touches[0];inicio(e.target,t.clientX,t.clientY,'t'+t.identifier);},{passive:true});
+    addEventListener('touchmove',e=>{if(!d)return;const t=Array.from(e.touches).find(t=>'t'+t.identifier===d.id);if(t)movimiento(t.clientX,t.clientY,d.id,e);},{passive:false});
+    const finTouch=e=>{if(!d)return;const t=Array.from(e.changedTouches).find(t=>'t'+t.identifier===d.id);if(t){if((d.pan||d.ordenar)&&e.cancelable)e.preventDefault();fin(d.id,e.type==='touchcancel');}};
+    addEventListener('touchend',finTouch,{passive:false});addEventListener('touchcancel',finTouch,{passive:false});
+    addEventListener('blur',()=>{if(d)fin(d.id,true);});
+    B.addEventListener('contextmenu',e=>e.preventDefault());
     B.addEventListener('click',e=>{if(Date.now()<(B._evitarClick||0)){e.preventDefault();e.stopImmediatePropagation();}},true);
-    B.addEventListener('touchmove',e=>{if(d?.mov&&e.cancelable)e.preventDefault();},{passive:false});
   },
   pinza(c){
     const P=$(c.FIGID.papel);let gesto=null;
