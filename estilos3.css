@@ -1681,3 +1681,10 @@ button.gx-nueva-abajo:active{background:color-mix(in srgb,var(--accent) 8%,trans
 /* Destino de la columna sin recolocar el elemento que sostiene el dedo. */
 #tablero .col-destino{outline:3px solid var(--accent,#c33);outline-offset:-3px}
 .col-fantasma{font-size:14px}
+
+/* V18.3: únicamente etiquetas superiores de Tareas. */
+#chipsCols,#chipsCols .chip{touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+#chipsCols .chip{cursor:grab}
+#chipsCols.ordenando-etiquetas{overflow-anchor:none;scroll-behavior:auto}
+#chipsCols .chip-agarrado{opacity:.45;outline:2px dashed var(--accent,#c33);outline-offset:-2px}
+#chipsCols .chip-destino{box-shadow:inset 4px 0 var(--accent,#c33)}

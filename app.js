@@ -1,6 +1,6 @@
 /* PorHacer · app principal: tablero de columnas, tareas y editor */
 
-const VERSION = 'V18.2';
+const VERSION = 'V18.3';
 const $ = (s, r=document) => r.querySelector(s);
 const $$ = (s, r=document) => Array.from(r.querySelectorAll(s));
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -66,7 +66,7 @@ function toast(txt, accion, fn, ms=3200){
   let D = null;
   document.addEventListener('pointerdown', e => {
     if(e.pointerType !== 'mouse' || e.button !== 0) return;
-    const el = e.target.closest(SEL); if(!el || el.scrollWidth <= el.clientWidth + 2) return;
+    const el = e.target.closest(SEL); if(el?.id === 'chipsCols') return; if(!el || el.scrollWidth <= el.clientWidth + 2) return;
     D = { el, x:e.clientX, sl:el.scrollLeft, movido:false };
   });
   document.addEventListener('pointermove', e => {
@@ -1165,7 +1165,7 @@ async function iniciar(){
     App.ajustes = App.ajustes || ajustesInicio(); aplicarTema(App.ajustes.colores);
     setTimeout(() => popAviso('Atención', 'No se pudo abrir el almacén de datos del navegador. Si estás en modo privado, abre la app en una ventana normal.'), 900);
   }
-  eventos(); iniciarArrastre(); iniciarOrdenColumnas(); fechaCabecera();
+  eventos(); iniciarArrastre(); iniciarOrdenColumnas(); iniciarOrdenEtiquetas(); fechaCabecera();
   Cal.iniciar();
   Avisos.iniciar();
   Bloc.iniciar();
@@ -1292,4 +1292,71 @@ function iniciarOrdenColumnas(){
   tab.addEventListener('touchmove',e=>{if(d && e.cancelable)e.preventDefault();},{passive:false});
   tab.addEventListener('contextmenu',e=>{if(e.target.closest('.col-cab'))e.preventDefault();});
   tab.addEventListener('click',e=>{if(Date.now()<sinClick || e.target.closest('.col-mover')){e.preventDefault();e.stopPropagation();}},true);
+}
+
+/* V18.3: las etiquetas superiores gobiernan el orden de las columnas.
+   Dedo: mantener como en Gastos; deslizamiento rápido desplaza la fila.
+   Ratón/lápiz: arrastre directo. No cambiar el nodo tocado hasta soltar. */
+function iniciarOrdenEtiquetas(){
+  const box=$('#chipsCols');let d=null,temporizador=null,frame=null,bloqueo=0,guardando=false;
+  const botones=()=>$$('.chip',box);
+  const limpiar=()=>{clearTimeout(temporizador);cancelAnimationFrame(frame);box.classList.remove('ordenando-etiquetas');botones().forEach(b=>b.classList.remove('chip-agarrado','chip-destino'));};
+  const dibujar=()=>{
+    if(!d?.arr)return;
+    const r=box.getBoundingClientRect();
+    if(d.x<r.left+35)box.scrollLeft-=7;else if(d.x>r.right-35)box.scrollLeft+=7;
+    const otros=botones().filter(b=>b!==d.b);
+    d.antes=otros.find(b=>{const q=b.getBoundingClientRect();return d.x<q.left+q.width/2;})||null;
+    botones().forEach(b=>b.classList.remove('chip-destino'));
+    (d.antes||otros[otros.length-1])?.classList.add('chip-destino');
+    d.g.style.left=Math.max(4,Math.min(innerWidth-d.g.offsetWidth-4,d.x-d.dx))+'px';
+    d.g.style.top=Math.max(4,d.y-24)+'px';
+    frame=requestAnimationFrame(dibujar);
+  };
+  const levantar=()=>{
+    if(!d || d.pan)return;
+    d.arr=true;bloqueo=Date.now()+700;box.classList.add('ordenando-etiquetas');d.b.classList.add('chip-agarrado');
+    const g=document.createElement('div');g.className='col-fantasma';g.textContent='↔ '+colDe(d.b.dataset.c).nombre;
+    g.style.width=Math.min(d.b.offsetWidth,260)+'px';document.body.appendChild(g);d.g=g;dibujar();
+  };
+  const empezar=(target,x,y,id,touch)=>{
+    const b=target.closest('.chip');if(!b || d || guardando)return;
+    d={b,x,y,x0:x,y0:y,lx:x,id,touch,dx:x-b.getBoundingClientRect().left,arr:false,pan:false};
+    if(touch)temporizador=setTimeout(levantar,280);
+  };
+  const mover=(x,y,id,e)=>{
+    if(!d || d.id!==id)return;
+    d.x=x;d.y=y;const mov=Math.hypot(x-d.x0,y-d.y0)>7;
+    if(!d.arr && mov){
+      clearTimeout(temporizador);
+      if(d.touch){d.pan=true;bloqueo=Date.now()+700;}else levantar();
+    }
+    if(d.pan)box.scrollLeft-=x-d.lx;
+    d.lx=x;if(e.cancelable)e.preventDefault();
+  };
+  const terminar=async(id,cancelar=false)=>{
+    if(!d || d.id!==id)return;
+    const a=d;d=null;limpiar();a.g?.remove();
+    if(a.pan || a.arr)bloqueo=Date.now()+700;
+    if(!a.arr || cancelar)return;
+    const anterior=columnas().slice(),orden=anterior.filter(c=>c.id!==a.b.dataset.c),col=anterior.find(c=>c.id===a.b.dataset.c);
+    const i=a.antes?orden.findIndex(c=>c.id===a.antes.dataset.c):orden.length;
+    if(!col || i<0)return;
+    orden.splice(i,0,col);if(orden.every((c,i)=>c.id===anterior[i].id))return;
+    App.ajustes.columnas=orden;guardando=true;
+    try{await guardarAjustes();toast('↔️ Etiquetas y columnas ordenadas');}
+    catch(e){App.ajustes.columnas=anterior;toast('No se pudo guardar el orden');}
+    finally{guardando=false;pintarTodo();}
+  };
+  box.addEventListener('touchstart',e=>{if(e.touches.length!==1){if(d)terminar(d.id,true);return;}const t=e.touches[0];empezar(e.target,t.clientX,t.clientY,'t'+t.identifier,true);},{passive:true});
+  addEventListener('touchmove',e=>{if(!d?.touch)return;const t=Array.from(e.touches).find(t=>'t'+t.identifier===d.id);if(t)mover(t.clientX,t.clientY,d.id,e);},{passive:false});
+  const finTouch=e=>{if(!d?.touch)return;const t=Array.from(e.changedTouches).find(t=>'t'+t.identifier===d.id);if(t){if((d.arr||d.pan)&&e.cancelable)e.preventDefault();terminar(d.id,e.type==='touchcancel');}};
+  addEventListener('touchend',finTouch,{passive:false});addEventListener('touchcancel',finTouch,{passive:false});
+  box.addEventListener('pointerdown',e=>{if(e.pointerType==='touch'||e.button!==0)return;empezar(e.target,e.clientX,e.clientY,e.pointerId,false);if(d){e.preventDefault();try{box.setPointerCapture(e.pointerId);}catch(_){}}});
+  addEventListener('pointermove',e=>{if(e.pointerType!=='touch')mover(e.clientX,e.clientY,e.pointerId,e);},{passive:false});
+  addEventListener('pointerup',e=>{if(e.pointerType!=='touch')terminar(e.pointerId);});
+  addEventListener('pointercancel',e=>{if(e.pointerType!=='touch')terminar(e.pointerId,true);});
+  addEventListener('blur',()=>{if(d)terminar(d.id,true);});
+  box.addEventListener('click',e=>{if(Date.now()<bloqueo || guardando){e.preventDefault();e.stopImmediatePropagation();}},true);
+  box.addEventListener('contextmenu',e=>e.preventDefault());
 }
