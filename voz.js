@@ -8,15 +8,29 @@ const Voz = {
   soportado(){ return !!(window.SpeechRecognition || window.webkitSpeechRecognition); },
 
   REGLAS: {
-    es: [[/\s*punto y aparte\s*/gi, '.\n'], [/\s*nueva l[ií]nea\s*/gi, '\n'], [/\s*\bcoma\b/gi, ','], [/\s*\bpunto\b/gi, '.'], [/\s*interrogaci[oó]n\b/gi, '?']],
-    ca: [[/\s*punt i a part\s*/gi, '.\n'], [/\s*l[ií]nia nova\s*/gi, '\n'], [/\s*coma\b/gi, ','], [/\s*\bpunt\b/gi, '.'], [/\s*interrogant\b/gi, '?']],
-    en: [[/\s*new paragraph\s*/gi, '.\n'], [/\s*new line\s*/gi, '\n'], [/\s*\bcomma\b/gi, ','], [/\s*\b(full stop|period)\b/gi, '.'], [/\s*question mark\b/gi, '?']],
+    es: [[/\s*punto y aparte\s*/gi, '.\n'], [/\s*nueva l[ií]nea\s*/gi, '\n'],
+         [/\s*\babr(e|ir) (interrogaci[oó]n|pregunta)\s*/gi, ' ¿'], [/\s*\babr(e|ir) exclamaci[oó]n\s*/gi, ' ¡'],
+         [/\s*\bcierr(a|e|ar) (interrogaci[oó]n|pregunta)\b/gi, '?'], [/\s*\bcierr(a|e|ar) exclamaci[oó]n\b/gi, '!'],
+         [/\s*\bsigno de (interrogaci[oó]n|pregunta)\b/gi, '?'], [/\s*\bsigno de exclamaci[oó]n\b/gi, '!'],
+         [/\s*\binterrogaci[oó]n\b/gi, '?'], [/\s*\bexclamaci[oó]n\b/gi, '!'],
+         [/\s*\bdos puntos\b/gi, ':'], [/\s*\bpunto y coma\b/gi, ';'],
+         [/\s*\bcoma\b/gi, ','], [/\s*\bpunto\b/gi, '.']],
+    ca: [[/\s*punt i a part\s*/gi, '.\n'], [/\s*l[ií]nia nova\s*/gi, '\n'],
+         [/\s*\bsigne d'interrogaci[oó]\b/gi, '?'], [/\s*\binterrogant\b/gi, '?'], [/\s*\binterrogaci[oó]\b/gi, '?'],
+         [/\s*\bsigne d'exclamaci[oó]\b/gi, '!'], [/\s*\bexclamaci[oó]\b/gi, '!'],
+         [/\s*\bdos punts\b/gi, ':'], [/\s*\bpunt i coma\b/gi, ';'],
+         [/\s*\bcoma\b/gi, ','], [/\s*\bpunt\b/gi, '.']],
+    en: [[/\s*new paragraph\s*/gi, '.\n'], [/\s*new line\s*/gi, '\n'], [/\s*\bcomma\b/gi, ','], [/\s*\b(full stop|period)\b/gi, '.'],
+         [/\s*\bquestion mark\b/gi, '?'], [/\s*\bexclamation (mark|point)\b/gi, '!'], [/\s*\bsemicolon\b/gi, ';'], [/\s*\bcolon\b/gi, ':']],
     fr: [[/\s*(nouveau paragraphe|point à la ligne)\s*/gi, '.\n'], [/\s*(à la ligne|nouvelle ligne)\s*/gi, '\n'], [/\s*\bvirgule\b/gi, ','], [/\s*point d'interrogation\b/gi, '?'], [/\s*\bpoint\b/gi, '.']]
   },
   NOMBRES: { es:'castellano', ca:'català', en:'English', fr:'français' },
   _limpiar(t, idioma){
     for(const [a,b] of (this.REGLAS[idioma.slice(0,2)] || this.REGLAS.es)) t = t.replace(a, b);
-    return t.replace(/([.?!]\s+|\n)([a-záéíóúàèòïüçâêîôûëœ])/g, (m,p,l) => p + l.toUpperCase());
+    t = t.replace(/([¿¡])\s+/g, '$1').replace(/\s+([?!:;])/g, '$1');
+    t = t.replace(/([?!])(?=[^\s.,?!:;)\n])/g, '$1 ');   // espacio después de ? y !
+    t = t.replace(/^\s+/, '').replace(/([?!])\s*\.(?!\.)/g, '$1');   // «exclamación punto» → solo «!»
+    return t.replace(/([.?!]\s+|\n)([¿¡]?)([a-záéíóúàèòïüçâêîôûëœñ])/g, (m,p,s2,l) => p + s2 + l.toUpperCase());
   },
 
   // Para el micro. La pantalla se actualiza YA, sin esperar al navegador
@@ -117,7 +131,7 @@ const Voz = {
       }
       // al parar, solo se guarda lo que ya es definitivo
       let texto = this._limpiar(ses.final + (ses.parado ? '' : interino), idioma).replace(/ +([,.?])/g,'$1');
-      if(!ses.base.trim() && texto) texto = texto.charAt(0).toUpperCase() + texto.slice(1);
+      if(!ses.base.trim() && texto) texto = texto.replace(/^([¿¡]?)(.)/, (m, a, b) => a + b.toUpperCase());
       if(texto) ses.oido = true;
       if(ses.span) ses.span.textContent = texto; else if(ses.nodo) ses.nodo.nodeValue = texto; else if(!campo.isContentEditable) campo.value = ses.base + texto;
       campo.dispatchEvent(new Event('input', { bubbles:true }));
