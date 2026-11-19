@@ -91,3 +91,36 @@ function tamTxt(b){
   if(b < 1024*1024*1024) return (b/1024/1024).toFixed(1).replace('.',',') + ' MB';
   return (b/1024/1024/1024).toFixed(2).replace('.',',') + ' GB';
 }
+
+/* V19 · Seguridad: limpiar los datos que llegan de fuera (tableros compartidos de la nube
+   y archivos de copia) antes de usarlos. Los identificadores, colores, fechas y números
+   se pintan dentro del HTML: si alguien los manipula, aquí se quedan sin «trampas».
+   El texto normal (títulos, notas, nombres) no se toca: ya se muestra de forma segura. */
+const _CLAVE_ID = /^(id|tid|k|nk|uid|dueno)$|Id$/;
+const _CLAVE_IDS = /^(ids|asig|comp|compartida|miembros|aceptados)$|Ids$/;
+const _CLAVE_COLOR = /color|fondo|^bg$|borde|border|^tc$|^tb$/i;
+const _CLAVE_FECHA = /^(inicio|fin|desde|hasta|dia|fecha|creada|cambiada|hecha_en|aviso)$/;
+const _CLAVE_NUM = /^(prio|orden|size|dur|nf|nv|na|n|antes|despues|original|segundos|ancho|alto)$/;
+const _COLOR_OK = /^(#[0-9a-f]{3,8}|(rgb|hsl)a?\([\d\s.,%a-z]+\)|[a-z]{3,30}|var\(--[\w-]+\))$/i;
+function _limpiaId(v){ return String(v).replace(/[^\w\-.:@+]/g, '').slice(0, 200); }
+function limpiarDato(o, clave, prof){
+  prof = prof || 0;
+  if(o == null || prof > 40) return o;
+  if(Array.isArray(o)){
+    if(clave && _CLAVE_IDS.test(clave)) return o.map(v => typeof v === 'string' ? _limpiaId(v) : v);
+    return o.map(v => limpiarDato(v, null, prof + 1));
+  }
+  if(typeof o === 'object'){
+    if(o instanceof Blob || o instanceof ArrayBuffer || ArrayBuffer.isView(o) || o instanceof Date) return o;
+    for(const k of Object.keys(o)){
+      const v = o[k];
+      if(typeof v === 'string'){
+        if(_CLAVE_ID.test(k)) o[k] = _limpiaId(v);
+        else if(_CLAVE_COLOR.test(k)) o[k] = _COLOR_OK.test(v.trim()) ? v.trim() : '';
+        else if(_CLAVE_FECHA.test(k)) o[k] = v.replace(/[^\w\-:.+ ]/g, '');
+        else if(_CLAVE_NUM.test(k)) o[k] = v.replace(/[^\d.\-]/g, '');
+      } else if(v && typeof v === 'object') o[k] = limpiarDato(v, k, prof + 1);
+    }
+  }
+  return o;
+}

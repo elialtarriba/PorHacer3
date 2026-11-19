@@ -326,7 +326,7 @@ const Calc = {
     this._carga = new Promise(ok => {
       const f = $('#calcFrame');
       f.addEventListener('load', () => setTimeout(() => ok(this.win()), 60), { once:true });
-      f.src = 'calculadora.html?v=183';
+      f.src = 'calculadora.html?v=185';
     });
     return this._carga;
   },
@@ -594,7 +594,7 @@ const Webs = {
   de(k){ try{ return JSON.parse(lsGet('ph3-' + k) || '{}') || {}; }catch(e){ return {}; } },
   poner(k, w){ lsSet('ph3-' + k, JSON.stringify(w)); },
   nombre(k){ return (this.de(k).nombre || '').trim() || (k === 'web1' ? 'Personal' : 'Personal 2'); },
-  url(k){ let u = (this.de(k).url || '').trim(); if(u && !/^[a-z]+:\/\//i.test(u)) u = 'https://' + u; return u; },
+  url(k){ let u=String(this.de(k).url||'').trim(); if(!u)return ''; if(!/^[a-z][a-z0-9+.-]*:/i.test(u))u='https://'+u; try{const x=new URL(u);return ['http:','https:'].includes(x.protocol)?x.href:'';}catch(e){return '';} },
   // Si no pones http:// o https://, mira si la web funciona con https (segura); si no, usa http
   async arreglar(u){
     u = String(u || '').trim(); if(!u || /^[a-z]+:\/\//i.test(u)) return u;
@@ -634,9 +634,11 @@ const Webs = {
 const Manual = {
   async lib(){
     if(window.pdfjsLib) return window.pdfjsLib;
-    await new Promise((ok, mal) => { const s = document.createElement('script'); s.src = 'pdf.min.js'; s.onload = ok; s.onerror = mal; document.head.appendChild(s); });
-    pdfjsLib.GlobalWorkerOptions.workerSrc = 'pdf.worker.min.js';
-    return pdfjsLib;
+    // V19: PDF.js 6.5 (archivos pdf6.min.js y pdf6.worker.min.js, versión «legacy», funciona también en iPhone/Safari antiguos). Sin el fallo CVE-2024-4367.
+    const L = await import('./pdf6.min.js?v=185');
+    L.GlobalWorkerOptions.workerSrc = './pdf6.worker.min.js?v=185';
+    window.pdfjsLib = L;
+    return L;
   },
   async abrir(){
     if($('#manualV')) return;
@@ -657,7 +659,7 @@ const Manual = {
     $('#manCuerpo').addEventListener('dblclick', () => this.cerrar());
     try{
       const L = await this.lib();
-      this.pdf = await L.getDocument({ url:'manual.pdf?v=' + encodeURIComponent(VERSION) + '-' + new Date().toISOString().slice(0, 10) }).promise;
+      this.pdf = await L.getDocument({ isEvalSupported:false, url:'manual.pdf?v=' + encodeURIComponent(VERSION) + '-' + new Date().toISOString().slice(0, 10) }).promise;
       const c = $('#manCuerpo'); if(!c) return; c.innerHTML = '';
       const W = Math.min(c.clientWidth - 16, 900), n = this.pdf.numPages;
       const p1 = await this.pdf.getPage(1), vp = p1.getViewport({ scale:1 }), alto = Math.round(W * vp.height / vp.width);

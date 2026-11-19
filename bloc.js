@@ -20,8 +20,8 @@ const Bloc = {
     return this._dbp;
   },
   async _op(modo, fn){ const db = await this._db(); return new Promise((ok, mal) => { const tx = db.transaction('k', modo), q = fn(tx.objectStore('k')); tx.oncomplete = () => ok(q && q.result); tx.onerror = () => mal(tx.error); }); },
-  async leerPaq(){
-    let v = await this._op('readonly', st => st.get('paq')).catch(() => null);
+  async leerPaq(estricto=false){
+    let v = await this._op('readonly', st => st.get('paq')).catch(e => {if(estricto) throw e; return null;});
     if(!v){ const ls = lsGet(this.K); if(ls){ await this.ponerPaq(ls); lsSet(this.K, null); v = ls; } }   // pasar lo de antes (localStorage)
     this._hay = !!v; return v;
   },
@@ -125,7 +125,7 @@ const Bloc = {
   },
   pintarHoja(){
     const h = this.actual(), el = $('#blocHoja');
-    el.innerHTML = h.html || '';
+    el.innerHTML = htmlSeguro(h.html);
     $('#blocPapel').style.setProperty('--c', h.color); $('#blocPapel').style.setProperty('--t', h.tab);
     el.scrollTop = 0;
   },
@@ -322,7 +322,7 @@ const Bloc = {
     const h = hs.find(x => x.id === v.id);
     if(v.pdf) return this.pdf(h, v.color, v.tit);
     let z = $('#blocPrint'); if(!z){ z = document.createElement('div'); z.id = 'blocPrint'; document.body.appendChild(z); }
-    z.innerHTML = (v.tit ? `<h1 class="bp-tit" style="border-color:${h.tab}">${esc(h.nombre)}</h1>` : '') + `<div class="bloc-hoja">${h.html || ''}</div>`;
+    z.innerHTML = (v.tit ? `<h1 class="bp-tit" style="border-color:${h.tab}">${esc(h.nombre)}</h1>` : '') + `<div class="bloc-hoja">${htmlSeguro(h.html)}</div>`;
     z.style.setProperty('--papel', v.color ? h.color : '#ffffff');
     document.body.classList.add('imprimiendo-bloc');
     const fin = () => { document.body.classList.remove('imprimiendo-bloc'); z.innerHTML = ''; removeEventListener('afterprint', fin); };
@@ -342,7 +342,7 @@ const Bloc = {
     const W = 794, M = 56;                                          // A4 a 96 ppp, márgenes ~15 mm
     const z = document.createElement('div'); z.className = 'bloc-pdf';
     z.style.cssText = `position:fixed;left:-10000px;top:0;width:${W}px;background:${papel};padding:${M}px;box-sizing:border-box`;
-    z.innerHTML = (tit ? `<h1 class="bp-tit" style="border-color:${h.tab}">${esc(h.nombre)}</h1>` : '') + `<div class="bloc-hoja">${h.html || ''}</div>`;
+    z.innerHTML = (tit ? `<h1 class="bp-tit" style="border-color:${h.tab}">${esc(h.nombre)}</h1>` : '') + `<div class="bloc-hoja">${htmlSeguro(h.html)}</div>`;
     document.body.appendChild(z);
     try{
       await Promise.all([...z.querySelectorAll('img')].map(i => i.complete ? 0 : new Promise(r => { i.onload = i.onerror = r; })));
@@ -396,7 +396,7 @@ const Bloc = {
       ${hay ? `<button class="btn-borrar-tarea" id="bjBorrar" style="margin-top:18px">🗑 Borrar el bloc de este aparato</button>` : ''}
     </div>`;
     const r = () => this.pintarAjustes(el);
-    const ok = (a, b) => !a ? 'Escribe la contraseña' : a.length < 4 ? 'Pon al menos 4 caracteres' : a !== b ? 'Las dos contraseñas no son iguales' : '';
+    const ok = (a, b) => !a ? 'Escribe la contraseña' : a.length < 8 ? 'Pon al menos 8 caracteres' : a !== b ? 'Las dos contraseñas no son iguales' : '';
     if($('#bjCrear', el)) $('#bjCrear', el).onclick = async () => {
       const v = await this.pedir('🔑 Contraseña del bloc', 'Elige una contraseña y escríbela dos veces. Solo verás puntos.', [['bjN1', 'Contraseña nueva'], ['bjN2', 'Repítela']], async ([a, b]) => ok(a, b));
       if(!v) return;

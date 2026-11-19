@@ -1,6 +1,10 @@
 /* PorHacer · copias de seguridad (exportar / importar) y espacio usado */
 
 function blobADatos(b){ return new Promise((ok, mal) => { if(!b) return ok(null); const r = new FileReader(); r.onload = () => ok(r.result); r.onerror = () => mal(r.error); r.readAsDataURL(b); }); }
+// Cada operación tiene límite; una descarga lenta no bloquea indefinidamente la copia.
+function esperaCopia(promesa, etapa, ms=30000){
+  let tm; return Promise.race([promesa,new Promise((_,mal)=>{tm=setTimeout(()=>mal(new Error('No responde: '+etapa+'. Comprueba la conexión y vuelve a intentarlo.')),ms);})]).finally(()=>clearTimeout(tm));
+}
 function datosABlob(d){
   if(!d) return null;
   const [cab, b64] = d.split(','); const tipo = (cab.match(/data:([^;]+)/)||[])[1] || 'application/octet-stream';
@@ -52,7 +56,7 @@ const Copias = {
     const copia = { app:'PorHacer', version:VERSION, fecha:new Date().toISOString(),
       ajustes:App.ajustes, tareas:App.tareas.map(limpiaTarea), personas:App.personas, fotos:[], videos:[], audios:[] };
     if(conFotos) for(const f of await DB.todos('fotos')) copia.fotos.push({ ...f, blob:await blobADatos(f.blob), mini:await blobADatos(f.mini) });
-    for(const x of await DB.todos('audios').catch(() => [])) if(x.blob) copia.audios.push({ ...x, blob:await blobADatos(x.blob) });
+    for(const x of await DB.todos('audios')) if(x.blob) copia.audios.push({ ...x, blob:await blobADatos(x.blob) });
     if(conVideos) for(const v of await DB.todos('videos')) copia.videos.push({ ...v, blob:await blobADatos(v.blob), poster:await blobADatos(v.poster) });
     return copia;
   },
@@ -70,7 +74,7 @@ const Copias = {
 
   async importar(file){
     let c;
-    try{ c = JSON.parse(await file.text()); }catch(e){ popAviso('Archivo no válido', 'Ese archivo no es una copia de PorHacer.'); return; }
+    try{ c = limpiarDato(JSON.parse(await file.text())); }catch(e){ popAviso('Archivo no válido', 'Ese archivo no es una copia de PorHacer.'); return; }
     if(!c || c.app !== 'PorHacer' || !Array.isArray(c.tareas)){ popAviso('Archivo no válido', 'Ese archivo no es una copia de PorHacer.'); return; }
     const modo = await popup({ tit:'Importar copia',
       html:`<p>La copia del <b>${new Date(c.fecha).toLocaleDateString('es-ES',{dateStyle:'long'})}</b> tiene ${c.tareas.length} tareas, ${(c.personas||[]).length} personas, ${(c.fotos||[]).length} fotos y ${(c.videos||[]).length} vídeos.</p>
@@ -106,26 +110,68 @@ const Copias = {
 const Completa = {
   // en el aparato, cosas que no son datos sino «por dónde iba» (no se copian)
   NO: /^ph3-(mio-subido-|listas-subidas-|cache-tid|tablero$|tab-nombre|avisos-sonados|donde-|es-pista)/,
-  async grabaciones(){ try{ return (await Grabar.tx('readonly', st => st.getAll())) || []; }catch(e){ return []; } },
+  async grabaciones(){ return (await Grabar.tx('readonly', st => st.getAll())) || []; },
+  // Prepara la copia completa (sin descargarla) y devuelve el archivo listo
+  async construir(conVideos, avance){
+      avance=avance||(()=>{});
+      Escribir.guardarYa();
+      if(typeof Celdas!=='undefined' && Celdas.D) Celdas.guardar();
+      const c={app:'PorHacer3',tipo:'copia-completa',version:VERSION,fecha:new Date().toISOString()};
+      avance('Tareas de este aparato…');
+      c.tareas=await esperaCopia(Copias.datos(true,conVideos),'tareas del aparato',120000);
+      if(Nube.user){
+        if(Nube.listos<2) throw new Error('La cuenta todavía está conectando. Espera a que termine y vuelve a hacer la copia.');
+        c.tableros=await Nube.copiaTableros(conVideos,avance); c.cuenta=Nube.email();
+      }
+      avance('Agenda, tickets, gastos, sitios y listas…');
+      c.mio=await esperaCopia(Mio.exportar({agenda:true,tickets:true,gastos:true,sitios:true,listas:true}),'datos personales');
+      avance('Grabaciones…'); c.grabaciones=[];
+      for(const g of await esperaCopia(this.grabaciones(),'grabaciones')) c.grabaciones.push({...g,blob:await esperaCopia(blobADatos(g.blob),'audio')});
+      avance('Notas secretas…'); c.bloc=await esperaCopia(Bloc.leerPaq(true),'notas secretas');
+      c.ls={};
+      for(let i=0;i<localStorage.length;i++){
+        const k=localStorage.key(i); if(!/^ph3/.test(k) || this.NO.test(k)) continue;
+        let v=localStorage.getItem(k);
+        if(/^ph3-web[12]$/.test(k)){const w=JSON.parse(v||'{}');delete w.clave;v=JSON.stringify(w);}
+        c.ls[k]=v;
+      }
+      avance('Preparando archivo…'); await new Promise(r=>setTimeout(r,0));
+      const partes=['{'];
+      for(const [k,v] of Object.entries(c)){if(v===undefined)continue;if(partes.length>1)partes.push(',');partes.push(JSON.stringify(k)+':',JSON.stringify(v));await new Promise(r=>setTimeout(r,0));}
+      partes.push('}');
+      return new Blob(partes,{type:'application/json'});
+  },
+  // Cifra una copia completa con una contraseña (AES-GCM, como las Notas secretas)
+  async cifrarBlob(blob){
+    const ok=(a,b)=>!a?'Escribe una contraseña':a.length<8?'Pon al menos 8 caracteres':a!==b?'Las dos contraseñas no son iguales':'';
+    const v=await Bloc.pedir('🔒 Copia con contraseña','La copia irá <b>cifrada</b>: sin esta contraseña nadie la puede abrir (tampoco tú: no la olvides).',[['ccP1','Contraseña (8 o más)'],['ccP2','Repítela']],async([a,b])=>ok(a,b));
+    if(!v) return null;
+    toast('🔒 Cifrando la copia…',null,null,30000);
+    const sal=crypto.getRandomValues(new Uint8Array(16)), iv=crypto.getRandomValues(new Uint8Array(12)), clave=await Bloc.derivar(v[0],sal);
+    const ct=await crypto.subtle.encrypt({name:'AES-GCM',iv},clave,await blob.arrayBuffer());
+    return new Blob([JSON.stringify({app:'PorHacer3',tipo:'copia-completa-cifrada',v:1,fecha:new Date().toISOString(),sal:Bloc.b64(sal),iv:Bloc.b64(iv),ct:Bloc.b64(ct)})],{type:'application/json'});
+  },
+  async descifrarTexto(paq){
+    let txt=null;
+    const v=await Bloc.pedir('🔒 Copia cifrada','Esta copia está cifrada. Escribe la contraseña <b>con la que se hizo</b>.',[['ccP','Contraseña de la copia']],async([p])=>{
+      if(!p) return 'Escribe la contraseña';
+      try{ const clave=await Bloc.derivar(p,Bloc.deb64(paq.sal)); const pt=await crypto.subtle.decrypt({name:'AES-GCM',iv:Bloc.deb64(paq.iv)},clave,Bloc.deb64(paq.ct)); txt=new TextDecoder().decode(pt); return ''; }catch(e){ return 'Contraseña incorrecta'; } });
+    return v ? txt : null;
+  },
   async exportar(conVideos, boton){
-    const txt0 = boton && boton.textContent; if(boton){ boton.disabled = true; boton.textContent = '⏳ Preparando…'; }
+    if(this.ocupada) return; this.ocupada=true;
+    const txt0=boton && boton.textContent;
+    const avance=t=>{if(boton) boton.textContent='⏳ '+t;};
+    if(boton) boton.disabled=true;
     try{
-      if(typeof Escribir !== 'undefined') Escribir.guardarYa();
-      const c = { app:'PorHacer3', tipo:'copia-completa', version:VERSION, fecha:new Date().toISOString() };
-      c.tareas = await Copias.datos(true, conVideos);
-      // todos los tableros de la nube (los tuyos y los compartidos), con sus fotos y audios
-      if(Nube.user && Nube.listos >= 2){ const av = t => toast('⏳ Copiando ' + t + '…', null, null, 20000); c.tableros = await Nube.copiaTableros(conVideos, av); c.cuenta = Nube.email(); }
-      c.mio = await Mio.exportar({ agenda:true, tickets:true, gastos:true, sitios:true, listas:true });
-      c.grabaciones = [];
-      for(const g of await this.grabaciones()) c.grabaciones.push({ ...g, blob:await blobADatos(g.blob) });
-      try{ c.bloc = await Bloc.leerPaq(); }catch(e){}
-      c.ls = {};
-      for(let i = 0; i < localStorage.length; i++){ const k = localStorage.key(i); if(/^ph3/.test(k) && !this.NO.test(k)) c.ls[k] = localStorage.getItem(k); }
-      const blob = new Blob([JSON.stringify(c)], { type:'application/json' });
-      descargar(blob, 'PorHacer_Todo_' + hoyIso() + '.json');
-      toast('📦 Copia completa guardada (' + tamTxt(blob.size) + ')', null, null, 5000);
-    }catch(e){ console.error(e); popAviso('No se pudo hacer la copia', 'Prueba sin los vídeos, que son lo que más ocupa. (' + (e.message || e) + ')'); }
-    if(boton){ boton.disabled = false; boton.textContent = txt0; }
+      let blob=await this.construir(conVideos,avance), nombre='PorHacer_Todo_'+hoyIso()+'.json';
+      const r=await popup({tit:'📦 Copia preparada',html:'<p>'+esc(tamTxt(blob.size))+' · Pulsa Guardar copia para descargarla o guardarla en Archivos.</p><p class="aj-ayuda">Las contraseñas de las webs personales no se incluyen. Las notas secretas conservan su cifrado. Con «🔒 Con contraseña» toda la copia va cifrada.</p>',botones:[{txt:'Cerrar',val:false},{txt:'🔒 Con contraseña',val:'cifrar'},{txt:'💾 Guardar copia',cls:'btn-pri',val:()=>{descargar(blob,nombre);return true;}}]});
+      if(r==='cifrar'){
+        const cif=await this.cifrarBlob(blob); blob=null;
+        if(cif) await popup({tit:'🔒 Copia cifrada preparada',html:'<p>'+esc(tamTxt(cif.size))+' · Pulsa Guardar copia. Para recuperarla te pedirá la contraseña.</p>',botones:[{txt:'Cerrar',val:false},{txt:'💾 Guardar copia',cls:'btn-pri',val:()=>{descargar(cif,'PorHacer_Todo_cifrada_'+hoyIso()+'.json');return true;}}]});
+      }
+    }catch(e){console.error(e);await popAviso('No se pudo completar la copia',e.message||String(e));}
+    finally{this.ocupada=false;if(boton){boton.disabled=false;boton.textContent=txt0;}}
   },
   resumen(c){
     const t = c.tareas || {}, m = c.mio || {}, ls = c.ls || {};
@@ -140,14 +186,31 @@ const Completa = {
   },
   async importar(f){
     let c; try{ c = JSON.parse(await f.text()); }catch(e){ popAviso('Importar', 'Este archivo no es una copia válida.'); return; }
-    if(!c || c.tipo !== 'copia-completa'){ popAviso('Importar', 'Este archivo no es una <b>copia completa</b> de PorHacer3 (PorHacer_Todo_….json). Las otras copias se importan en su apartado, más abajo.'); return; }
+    if(c && c.tipo === 'copia-completa-cifrada'){
+      const txt = await this.descifrarTexto(c); if(!txt) return;
+      try{ c = JSON.parse(txt); }catch(e){ popAviso('Importar', 'La copia cifrada está dañada.'); return; }
+    }
+    c = limpiarDato(c);
+    if(!c || c.tipo !== 'copia-completa'){ popAviso('Importar', 'Este archivo no es una copia completa de PorHacer3 (PorHacer_Todo_….json). Las otras copias se importan en su apartado, más abajo.'); return; }
     const lista = this.resumen(c).map(([t, n]) => `<li>${t}${n === 'sí' ? '' : ' · <b>' + n + '</b>'}</li>`).join('');
     const modo = await popup({ tit:'📦 Restaurar copia completa', html:`<p>Copia del <b>${new Date(c.fecha).toLocaleString('es-ES', { dateStyle:'long', timeStyle:'short' })}</b>:</p><ul class="cc-lista">${lista || '<li>(vacía)</li>'}</ul>
         <button class="opcion opc2" data-v="cambiar">♻️ Dejarlo todo como en la copia<small>Lo que tienes ahora se cambia por lo de la copia</small></button>
         <button class="opcion opc2" data-v="juntar">➕ Juntarla con lo que ya tengo<small>No se borra nada; se añade lo que falta</small></button>`,
       botones:[{ txt:'Cancelar', val:null }], alAbrir:(cx, fin) => $$('[data-v]', cx).forEach(b => b.onclick = () => fin(b.dataset.v)) });
     if(!modo) return;
-    if(modo === 'cambiar' && !await popConfirmar('¿Dejarlo todo como en la copia?', 'Las tareas de tus tableros, la agenda, los tickets, los sitios, las grabaciones y los escritos que tienes ahora se cambiarán por los de la copia. (En los tableros que te han compartido solo se añade, no se borra nada.) Si no estás segura, haz antes una copia completa de lo que tienes ahora.', 'Sí, restaurar')) return;
+    if(modo === 'cambiar' && !await popConfirmar('¿Dejarlo todo como en la copia?', 'Las tareas de tus tableros, la agenda, los tickets, los sitios, las grabaciones y los escritos que tienes ahora se cambiarán por los de la copia. (En los tableros que te han compartido solo se añade, no se borra nada.) Antes se prepara una copia de cómo está todo ahora, para poder volver atrás.', 'Sí, restaurar')) return;
+    // V19 · «todo o nada»: antes de cambiar nada, copia de cómo está todo ahora (sin vídeos: los vídeos nunca se borran al restaurar)
+    let antes = null;
+    if(modo === 'cambiar') try{ toast('⏳ Preparando una copia de cómo está todo ahora…', null, null, 60000); antes = await this.construir(false); }
+    catch(e){ console.error(e); popAviso('No se ha restaurado nada', 'No se pudo preparar la copia de seguridad previa (' + (e.message || String(e)) + '). Por seguridad no se ha cambiado nada.'); return; }
+    const nomAntes = 'PorHacer_AntesDeRestaurar_' + hoyIso() + '.json';
+    if(modo === 'cambiar'){
+      const sigue = await popup({ tit:'🛟 Copia de ahora preparada', html:'<p>Guarda esta copia (' + esc(tamTxt(antes.size)) + ') antes de restaurar. Si algo sale mal, impórtala para volver a como estaba todo.</p>',
+        botones:[{ txt:'Cancelar', val:false }, { txt:'💾 Guardar y restaurar', cls:'btn-pri', val:() => { descargar(antes, nomAntes); return true; } }] });
+      if(!sigue) return;
+    }
+    // lo que se guarda en el aparato se puede deshacer al momento si algo falla
+    const lsAntes = {}; for(let i = 0; i < localStorage.length; i++){ const k = localStorage.key(i); if(/^ph3[-_]/.test(k)) lsAntes[k] = localStorage.getItem(k); }
     toast('⏳ Restaurando la copia… no cierres la app', null, null, 60000);
     const fallos = [];
     // 1. Tableros y tareas
@@ -170,7 +233,7 @@ const Completa = {
     // 5. Escritos, webs y lo demás que se guarda en el aparato
     try{
       for(const [k, v] of Object.entries(c.ls || {})){
-        if(this.NO.test(k) || v == null) continue;
+        if(!/^ph3[-_]/.test(k) || this.NO.test(k) || typeof v !== 'string') continue;
         if(k === 'ph3-escritos' && modo === 'juntar'){
           const mios = JSON.parse(localStorage.getItem(k) || '[]'), ids = new Set(mios.map(d => d.id));
           for(const d of JSON.parse(v)) if(!ids.has(d.id) && !Escribir.vacio(d)) mios.push(d);
@@ -180,8 +243,12 @@ const Completa = {
         if(modo === 'juntar' && /^ph3-web[12]$/.test(k)){ let ya = {}; try{ ya = JSON.parse(localStorage.getItem(k) || '{}'); }catch(e){} if(ya.url) continue; }
         localStorage.setItem(k, v);
       }
-    }catch(e){ console.warn(e); fallos.push('escritos y webs'); }
-    if(fallos.length) popAviso('Copia restaurada… casi', 'No se ha podido restaurar: ' + fallos.join(', ') + '. Lo demás sí.');
+    }catch(e){ console.warn(e); fallos.push('escritos y webs');
+      try{ for(const k of Object.keys(localStorage)) if(/^ph3[-_]/.test(k) && !(k in lsAntes)) localStorage.removeItem(k); for(const [k, v] of Object.entries(lsAntes)) localStorage.setItem(k, v); }catch(e2){} }
+    if(fallos.length){
+      const r = await popup({ tit:'Copia restaurada… casi', html:'<p>No se ha podido restaurar: ' + esc(fallos.join(', ')) + '. Lo demás sí.</p>' + (modo === 'cambiar' ? '<p>Para volver a como estaba todo antes, importa la copia <b>' + nomAntes + '</b> que has guardado.</p>' : '<p>No se ha borrado nada de lo que tenías.</p>'),
+        botones:[{ txt:'Cerrar', val:false }] });
+    }
     else { toast('✅ Copia restaurada. La app se vuelve a abrir…', null, null, 4000); setTimeout(() => location.reload(), 1600); }
   }
 };
@@ -191,7 +258,7 @@ const CopiaGastos = {
   async exportar(){
     if(!await Gastos.desbloquear()) return;
     const notas = Gastos._items(); if(!notas.filter(x => x.tipo === 'gasto').length){ popAviso('Copia de Gastos', 'Todavía no hay notas en Gastos.'); return; }
-    const ok = (a, b) => !a ? 'Escribe una contraseña' : a.length < 4 ? 'Pon al menos 4 caracteres' : a !== b ? 'Las dos contraseñas no son iguales' : '';
+    const ok = (a, b) => !a ? 'Escribe una contraseña' : a.length < 8 ? 'Pon al menos 8 caracteres' : a !== b ? 'Las dos contraseñas no son iguales' : '';
     const v = await Bloc.pedir('🔒 Contraseña de la copia', 'La copia de <b>' + esc(Gastos.nombre()) + '</b> irá <b>cifrada</b>: sin esta contraseña nadie la puede abrir. Escríbela dos veces y no la olvides.',
       [['cgP1', 'Contraseña'], ['cgP2', 'Repítela']], async ([a, b]) => ok(a, b));
     if(!v) return;

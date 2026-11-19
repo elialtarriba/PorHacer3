@@ -73,11 +73,11 @@ const Correo = {
     const prio = t.prio ? ['', '🔵 Baja', '🟠 Media', '🔴 Alta'][t.prio] : '';
     const fechas = r ? (r[0] === r[1] ? fLarga(r[0]) : 'Del ' + fLarga(r[0]) + '<br><span style="display:inline-block;width:26px;"></span>al ' + fLarga(r[1])) : '';
     const subs = (t.subs || []);
-    return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${fondo};border:3px solid ${col.color};border-radius:16px;margin:0 0 18px;">
+    return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${fondo};border:3px solid ${esc(col.color)};border-radius:16px;margin:0 0 18px;">
       <tr><td style="padding:16px 18px;">
         <div style="font-size:20px;font-weight:800;color:#2a2a2c;margin-bottom:8px;">${esc(t.titulo)}</div>
         <table role="presentation" cellpadding="0" cellspacing="0">
-          ${fila('📌', `<span style="display:inline-block;background:${col.color};color:#fff;border-radius:7px;padding:2px 9px;font-weight:700;font-size:14px;">${esc(col.nombre)}</span>`)}
+          ${fila('📌', `<span style="display:inline-block;background:${esc(col.color)};color:#fff;border-radius:7px;padding:2px 9px;font-weight:700;font-size:14px;">${esc(col.nombre)}</span>`)}
           ${fechas ? fila('📅', fechas) : ''}
           ${prio ? fila('⚡', 'Prioridad ' + prio) : ''}
           ${p ? fila('👤', esc(nombreP(p))) : ''}

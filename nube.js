@@ -12,7 +12,7 @@
      (plan gratis, sin tarjeta). En el móvil queda una copia del tablero
      abierto, para que funcione sin internet.                               */
 
-const SDK_FB = 'https://www.gstatic.com/firebasejs/10.14.1/';
+const SDK_FB = './';   // V19: librería de Firebase guardada en la app (no depende de otra web)
 const _orig = { poner:DB.poner, borrar:DB.borrar, ponerVarios:DB.ponerVarios, deTarea:DB.deTarea, uno:DB.uno, resumen:DB.resumen, borrarDeTarea:DB.borrarDeTarea };
 const limpioFS = o => JSON.parse(JSON.stringify(o));   // Firestore no acepta «undefined»
 const TIPOS_MEDIA = ['fotos','videos','audios'];
@@ -105,7 +105,7 @@ const Nube = {
     [ref.where('dueno','==',this.user.uid), ref.where('miembros','array-contains',this.email())].forEach((q, i) => {
       let primera = true;
       this.subsLista.push(q.onSnapshot(snap => {
-        partes[i] = {}; snap.forEach(d => { partes[i][d.id] = { id:d.id, ...d.data() }; });
+        partes[i] = {}; snap.forEach(d => { partes[i][d.id] = limpiarDato({ id:d.id, ...d.data() }); });
         unir();
         if(primera){ primera = false; this.listos++; if(this.listos === 2) this.alTenerLista(); }
         else this.alCambiarLista();
@@ -219,16 +219,16 @@ const Nube = {
     App.filtro = 'todas';
     pintarTodo(); pintarCabecera();
     const T = this.db.collection('tableros').doc(tid);
-    this.subs.push(T.onSnapshot(d => { if(this.tid !== tid) return; this.tablero = d.exists ? { id:d.id, ...d.data() } : null; this.pintarEstado(); pintarCabecera(); }, e => this.errorSub(e)));
+    this.subs.push(T.onSnapshot(d => { if(this.tid !== tid) return; this.tablero = d.exists ? limpiarDato({ id:d.id, ...d.data() }) : null; this.pintarEstado(); pintarCabecera(); }, e => this.errorSub(e)));
     if(subir) await this.subirTodo();
 
     this.subs.push(this.col('tareas').onSnapshot(async snap => {
       if(this.tid !== tid) return;
       for(const ch of snap.docChanges()){
         if(ch.type === 'removed') await _orig.borrar('tareas', ch.doc.id);
-        else await _orig.poner('tareas', ch.doc.data());
+        else await _orig.poner('tareas', limpiarDato(ch.doc.data()));
       }
-      App.tareas = snap.docs.map(d => d.data());
+      App.tareas = snap.docs.map(d => limpiarDato(d.data()));
       await contarMedia(); pintarTodo();
       this.pintarEstado();
     }, e => this.errorSub(e)));
@@ -237,15 +237,15 @@ const Nube = {
       if(this.tid !== tid) return;
       for(const ch of snap.docChanges()){
         if(ch.type === 'removed') await _orig.borrar('personas', ch.doc.id);
-        else await _orig.poner('personas', ch.doc.data());
+        else await _orig.poner('personas', limpiarDato(ch.doc.data()));
       }
-      App.personas = snap.docs.map(d => d.data());
+      App.personas = snap.docs.map(d => limpiarDato(d.data()));
       pintarTodo();
     }, e => this.errorSub(e)));
 
     this.subs.push(this.col('config').doc('tablero').onSnapshot(async d => {
       if(this.tid !== tid) return;
-      const c = d.data(); if(!c){ if(this.esDueno()) this.subirConfig(); return; }
+      const c = limpiarDato(d.data()); if(!c){ if(this.esDueno()) this.subirConfig(); return; }
       const a = App.ajustes;
       if(JSON.stringify(c.columnas) !== JSON.stringify(a.columnas) || c.bordeColumna !== a.bordeColumna){
         a.columnas = c.columnas; a.bordeColumna = c.bordeColumna;
@@ -256,7 +256,7 @@ const Nube = {
     setTimeout(() => { if(this.tid === tid) this.subirPendiente(false); }, 6000);   // por si quedó algo sin subir
     this.subs.push(this.col('media').onSnapshot(async snap => {
       if(this.tid !== tid) return;
-      this.media = snap.docs.map(d => d.data());
+      this.media = snap.docs.map(d => limpiarDato(d.data()));
       await contarMedia(); pintarTodo();
       if(App.ed){ const p = $('#editor .tab-pan.on'); if(p && TIPOS_MEDIA.includes(p.dataset.p)) pintarMedia(p.dataset.p); }
     }, e => this.errorSub(e)));
@@ -298,7 +298,7 @@ const Nube = {
     toast('📋 Moviendo…', null, null, 15000);
     // 1. la columna: si en el otro tablero no existe, va a su primera columna sin acabar
     let cols = COLUMNAS_INICIO;
-    try{ const c = await D('config').doc('tablero').get(); if(c.exists && c.data().columnas) cols = c.data().columnas; }catch(e){}
+    try{ const c = await D('config').doc('tablero').get(); if(c.exists && c.data().columnas) cols = limpiarDato(c.data()).columnas; }catch(e){}
     const nueva = limpioFS(limpiaTarea(t));
     if(!cols.some(c => c.id === nueva.colId)) nueva.colId = (cols.find(c => !c.hecha) || cols[0]).id;
     delete nueva.colPrev;
@@ -328,19 +328,23 @@ const Nube = {
 
   /* ---------- Copia completa: todos los tableros (los míos y los compartidos) ---------- */
   async copiaTableros(conVideos, avance){
-    const out = [], lista = [...this.misTableros(), ...this.compartidos()];
+    const out=[], lista=[...this.misTableros(),...this.compartidos()];
     for(const t of lista){
-      avance && avance('📋 ' + (t.nombre || 'Tablero'));
-      const get = async n => { try{ return (await this.colDe(t.id, n).get()).docs.map(d => d.data()); }catch(e){ console.warn(e); return []; } };
-      let config = null; try{ const d = await this.colDe(t.id, 'config').doc('tablero').get(); config = d.exists ? d.data() : null; }catch(e){}
-      const media = [];
-      for(const m of await get('media')){
-        if(!m.listo || (m.tipo === 'videos' && !conVideos)) continue;
-        const blob = await this._bajarTrozos(m.id, m.partes, m.mime, t.id).catch(() => null); if(!blob) continue;
-        const mini = m.partesMini ? await this._bajarTrozos(m.id + '_m', m.partesMini, 'image/jpeg', t.id).catch(() => null) : null;
-        media.push({ ...m, datos:await blobADatos(blob), datosMini:mini ? await blobADatos(mini) : null });
+      const etapa=t.nombre||'Tablero'; avance && avance('📋 '+etapa);
+      const get=async n=>(await esperaCopia(this.colDe(t.id,n).get({source:'server'}),etapa+' / '+n)).docs.map(d=>limpiarDato(d.data()));
+      const d=await esperaCopia(this.colDe(t.id,'config').doc('tablero').get({source:'server'}),etapa+' / configuración');
+      const config=d.exists?limpiarDato(d.data()):null, media=[], archivos=(await get('media')).filter(m=>m.tipo!=='videos'||conVideos);
+      let i=0;
+      for(const m of archivos){
+        avance && avance(etapa+' · archivo '+(++i)+' de '+archivos.length);
+        if(!m.listo) throw new Error('Hay un archivo pendiente de subir en '+etapa+'. Espera a que se sincronice.');
+        const blob=await esperaCopia(this._bajarTrozos(m.id,m.partes,m.mime,t.id,true),etapa+' / archivo '+i);
+        if(!blob) throw new Error('Faltan partes del archivo '+i+' de '+etapa+'. No se ha creado una copia incompleta.');
+        const mini=m.partesMini?await esperaCopia(this._bajarTrozos(m.id+'_m',m.partesMini,'image/jpeg',t.id,true),etapa+' / miniatura'):null;
+        if(m.partesMini&&!mini) throw new Error('Falta una miniatura en '+etapa);
+        media.push({...m,datos:await esperaCopia(blobADatos(blob),'convertir archivo'),datosMini:mini?await esperaCopia(blobADatos(mini),'convertir miniatura'):null});
       }
-      out.push({ id:t.id, nombre:t.nombre || '', mio:this.esDueno(t), creado:t.creado || 0, tareas:await get('tareas'), personas:await get('personas'), config, media });
+      out.push({id:t.id,nombre:t.nombre||'',mio:this.esDueno(t),creado:t.creado||0,tareas:await get('tareas'),personas:await get('personas'),config,media});
     }
     return out;
   },
@@ -475,10 +479,10 @@ const Nube = {
     }
     return n;
   },
-  async _bajarTrozos(clave, n, mime, tid){
-    const snap = await this.colDe(tid || this.tid, 'trozos').where('clave', '==', clave).get();
+  async _bajarTrozos(clave, n, mime, tid, servidor=false){
+    const snap = await this.colDe(tid || this.tid, 'trozos').where('clave', '==', clave).get(servidor ? {source:'server'} : {});
     const partes = snap.docs.map(d => d.data()).sort((a,b) => a.k - b.k);
-    if(!partes.length || (n && partes.length < n)) return null;
+    if(!partes.length || (n && partes.length !== n) || partes.some((p,i)=>p.k!==i)) return null;
     return new Blob(partes.map(p => p.b.toUint8Array()), { type: mime || 'application/octet-stream' });
   },
   async subirMedia(tipo, o){
@@ -513,7 +517,7 @@ const Nube = {
     const subirDoc = (a, o) => {
       if(!N.activa) return;
       if(a === 'tareas' || a === 'personas') N.col(a).doc(o.id).set(limpioFS(limpiaTarea(o))).catch(e => console.warn(e));
-      else if(a === 'ajustes') N.subirConfig();
+      else if(a === 'ajustes'){ if(N.esDueno()) N.subirConfig(); }   // V19: las columnas del tablero solo las cambia el dueño
       else if(TIPOS_MEDIA.includes(a)) N.subirMedia(a, o);
     };
     DB.poner = async (a, o) => { const r = await _orig.poner(a, o); subirDoc(a, o); return r; };

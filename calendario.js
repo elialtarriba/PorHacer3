@@ -145,7 +145,7 @@ const Cal = {
   inicialTab(tid){ const n = this.nombreTab(tid).replace(/^\s*tablero\s+(de|del|de la)\s+/i, '').trim(); return ([...n][0] || '?').toUpperCase(); },
   bola(x, varios){
     if(!varios || !x.tid) return '';
-    return `<i class="tb-bola" data-tb="${x.tid}" style="background:${this.colorTab(x.tid)}" title="${esc(this.nombreTab(x.tid))}">${esc(this.inicialTab(x.tid))}</i>`;
+    return `<i class="tb-bola" data-tb="${esc(x.tid)}" style="background:${this.colorTab(x.tid)}" title="${esc(this.nombreTab(x.tid))}">${esc(this.inicialTab(x.tid))}</i>`;
   },
   burbuja(el){
     let b = $('#tbBurbuja'); if(!b){ b = document.createElement('div'); b.id = 'tbBurbuja'; document.body.appendChild(b); }
@@ -182,7 +182,7 @@ const Cal = {
   },
   async elegirTableros(){
     const lista = this.todosTab(), sel = new Set(this.elegidos());
-    const fila = t => `<label class="ct-op"><input type="checkbox" value="${t.id}" ${sel.has(t.id) ? 'checked' : ''}>
+    const fila = t => `<label class="ct-op"><input type="checkbox" value="${esc(t.id)}" ${sel.has(t.id) ? 'checked' : ''}>
       <i style="background:${this.colorTab(t.id)}">${esc(this.inicialTab(t.id))}</i>
       <span><b>${esc(Nube.nombreTablero(t))}</b><small>${t.id === Nube.tid ? 'Abierto ahora' : Nube.esDueno(t) ? 'Tuyo' : 'Compartido contigo'}</small></span></label>`;
     const v = await popup({ tit:'📅 ¿Qué tableros quieres ver?',
@@ -266,7 +266,7 @@ const Cal = {
       }).join('') + '<div class="barras">' + segs.filter(z => z.k < MAX).map(z => {
         const t = z.t, fondo = fondoTarea(t.color) || '#ffffff', bola = this.bola(z, this.varios);
         const cls = ['barra-t', z.r[0] < a ? 'cont-izq' : '', z.r[1] > b ? 'cont-der' : '', bola ? 'con-tb' : ''].join(' ');
-        return `<div class="${cls}" data-t="${t.id}" ${z.tid ? `data-tid="${z.tid}"` : ''} title="${esc(t.titulo)}" style="left:calc(${z.s/7*100}% + 2px);width:calc(${(z.e-z.s+1)/7*100}% - 4px);top:${z.k*22}px;background:${fondo};border-color:${this.borde(z)}">${esc(t.titulo)}${bola}</div>`;
+        return `<div class="${cls}" data-t="${esc(t.id)}" ${z.tid ? `data-tid="${z.tid}"` : ''} title="${esc(t.titulo)}" style="left:calc(${z.s/7*100}% + 2px);width:calc(${(z.e-z.s+1)/7*100}% - 4px);top:${z.k*22}px;background:${fondo};border-color:${this.borde(z)}">${esc(t.titulo)}${bola}</div>`;
       }).join('') + '</div></div>';
     }
     return html + '</div>';
@@ -312,9 +312,9 @@ const Cal = {
     html += lista.map(x => {
       const { t, r, col } = x, otro = x.tid && x.tid !== (typeof Nube !== 'undefined' && Nube.tid);
       const n = difDias(r[0], r[1]) + 1, i = difDias(r[0], s) + 1, p = otro ? null : persona(t.personaId);
-      return `<div class="dia-t ${this.varios ? 'con-tb' : ''}" data-t="${t.id}" ${x.tid ? `data-tid="${x.tid}"` : ''} style="--tc:${fondoTarea(t.color)||'#fff'};--tb:${this.borde(x)}">
+      return `<div class="dia-t ${this.varios ? 'con-tb' : ''}" data-t="${esc(t.id)}" ${x.tid ? `data-tid="${esc(x.tid)}"` : ''} style="--tc:${fondoTarea(t.color)||'#fff'};--tb:${this.borde(x)}">
         ${this.bola(x, this.varios)}<b>${esc(t.titulo)}</b>
-        <div class="lin"><span class="tag" style="border-color:${col.color}">● ${esc(col.nombre)}</span>${t.prio?`<span class="tag prio${t.prio}">${['','Baja','Media','Alta'][t.prio]}</span>`:''}${p?`<span class="tag">👤 ${esc(nombreP(p))}</span>`:''}${vencida(t)?'<span class="tag vencida">Vencida</span>':''}</div>
+        <div class="lin"><span class="tag" style="border-color:${esc(col.color)}">● ${esc(col.nombre)}</span>${t.prio?`<span class="tag prio${t.prio}">${['','Baja','Media','Alta'][t.prio]}</span>`:''}${p?`<span class="tag">👤 ${esc(nombreP(p))}</span>`:''}${vencida(t)?'<span class="tag vencida">Vencida</span>':''}</div>
         ${n > 1 ? `<div class="tramo"><i style="left:0;width:${i/n*100}%"></i></div><div class="tramo-txt">Día ${i} de ${n} · del ${fCorta(r[0])} al ${fCorta(r[1])}</div>` : '<div class="tramo-txt">Solo este día</div>'}
       </div>`;
     }).join('');

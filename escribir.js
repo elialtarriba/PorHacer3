@@ -19,7 +19,7 @@ const Escribir = {
   cargar(){
     const d = this.actual(); if(!d) return;
     $('#esTitulo').value = d.titulo || '';
-    $('#esTexto').innerHTML = d.html || '';
+    $('#esTexto').innerHTML = htmlSeguro(d.html);
     this.figs = JSON.parse(JSON.stringify(d.figs || [])); this.sel = null; this.hf = d.hf ? JSON.parse(JSON.stringify(d.hf)) : null; this.orient = d.orient || 'v'; this.tabs = (d.tabs || []).slice();
     this.pintarFigs(); this.contar();
     requestAnimationFrame(() => { this.migrar(); this.paginar(); });
@@ -191,8 +191,8 @@ const Escribir = {
     if(!h.on) return `<span class="es-guia">${i + 1}</span>`;
     if(i === 0 && h.primera === false) return '';
     const num = h.num && h.num !== 'no' ? h.num : '', al = 'al-' + (h.alin || 'centro');
-    return (h.cab ? `<div class="es-pcab ${al} ${/^arriba/.test(num) ? 'con-num' : ''}">${h.cab}</div>` : '')
-      + (h.pie ? `<div class="es-ppie ${al} ${/^abajo/.test(num) ? 'con-num' : ''}">${h.pie}</div>` : '')
+    return (h.cab ? `<div class="es-pcab ${al} ${/^arriba/.test(num) ? 'con-num' : ''}">${htmlSeguro(h.cab)}</div>` : '')
+      + (h.pie ? `<div class="es-ppie ${al} ${/^abajo/.test(num) ? 'con-num' : ''}">${htmlSeguro(h.pie)}</div>` : '')
       + (num ? `<span class="es-pnum ${num}">${i + 1}</span>` : '');
   },
   menuCabecera(){
@@ -203,10 +203,10 @@ const Escribir = {
       <label class="check"><input type="checkbox" id="hfOn" ${h.on ? 'checked' : ''}><span class="caja"></span><span>Poner cabecera y pie de página<small>Se ven en cada hoja, al imprimir, en el PDF y en el .docx</small></span></label>
       <div id="hfCuerpo" class="${h.on ? '' : 'hf-off'}">
         <div class="ab-tit">⬆ Cabecera <small>(hasta 3 líneas)</small></div>
-        <div class="hf-ed" id="hfCab" contenteditable="true" data-ph="Escribe aquí la cabecera…">${h.cab}</div>
+        <div class="hf-ed" id="hfCab" contenteditable="true" data-ph="Escribe aquí la cabecera…">${htmlSeguro(h.cab)}</div>
         <div class="hf-bar"><button data-img="hfCab">📷 Imagen</button><button data-neg="hfCab"><b>B</b> Negrita</button><button data-vaciar="hfCab">🧹 Vaciar</button></div>
         <div class="ab-tit">⬇ Pie de página <small>(hasta 3 líneas)</small></div>
-        <div class="hf-ed" id="hfPie" contenteditable="true" data-ph="Escribe aquí el pie de página…">${h.pie}</div>
+        <div class="hf-ed" id="hfPie" contenteditable="true" data-ph="Escribe aquí el pie de página…">${htmlSeguro(h.pie)}</div>
         <div class="hf-bar"><button data-img="hfPie">📷 Imagen</button><button data-neg="hfPie"><b>B</b> Negrita</button><button data-vaciar="hfPie">🧹 Vaciar</button></div>
         <div class="ab-tit">Alineación del texto</div>
         <div class="seg" id="hfAl">${[['izq','⇤ Izquierda'],['centro','↔ Centro'],['der','⇥ Derecha']].map(([v, t]) => `<button data-al="${v}" class="${h.alin === v ? 'on' : ''}">${t}</button>`).join('')}</div>
@@ -615,7 +615,7 @@ const Escribir = {
     if(f.tipo === 'img' || f.tipo === 'tit'){
       Object.assign(el.style, { left:f.x + 'px', top:f.y + 'px', width:f.w + 'px', height:f.h + 'px', transform:f.giro ? `rotate(${f.giro}deg)` : '', border:'0', background:'transparent', borderRadius:'0' });
       el.classList.remove('es-fl'); el.classList.toggle('es-fimg', f.tipo === 'img'); el.classList.toggle('es-ftit', f.tipo === 'tit');
-      if(f.tipo === 'img'){ if(!el.firstChild || el.firstChild.tagName !== 'IMG' || el.firstChild.getAttribute('src') !== f.src) el.innerHTML = `<img src="${f.src}" alt="" draggable="false">`; }
+      if(f.tipo === 'img'){ if(!el.firstChild || el.firstChild.tagName !== 'IMG' || el.firstChild.getAttribute('src') !== f.src) el.innerHTML = `<img src="${esc(f.src)}" alt="" draggable="false">`; }
       else { el.innerHTML = this.titHtml(f.t || {}); const d = el.firstChild; if(d){ d.style.fontSize = Math.max(8, f.h * .78) + 'px'; d.style.margin = '0'; d.style.lineHeight = f.h + 'px'; d.style.whiteSpace = 'nowrap'; d.removeAttribute('contenteditable'); } }
       return;
     }
@@ -859,6 +859,18 @@ const Escribir = {
   },
   idioma(){ return (App.ajustes && (App.ajustes.idiomaEscribir || App.ajustes.idiomaVoz)) || 'es-ES';
   },
+  IDIOMAS: [['es-ES','ES','Español'], ['ca-ES','CAT','Català'], ['en-GB','EN','English']],
+  pintarIdioma(){
+    const v = this.idioma(), i = this.IDIOMAS.find(x => x[0] === v) || [v, v.slice(0,2).toUpperCase(), v];
+    const b = $('#esIdioma'); if(!b) return;
+    b.innerHTML = '<span class="es-idi-ic">🌍</span><b>' + i[1] + '</b>'; b.title = 'Dictar en ' + i[2] + ' (toca para cambiar)'; b.setAttribute('aria-label', b.title);
+  },
+  async cambiarIdioma(){
+    const v = this.idioma(), n = this.IDIOMAS.findIndex(x => x[0] === v), sig = this.IDIOMAS[(n + 1) % this.IDIOMAS.length];
+    App.ajustes.idiomaEscribir = sig[0]; await guardarAjustes(); this.pintarIdioma();
+    if(Voz.activo){ Voz.parar(); setTimeout(() => this.dictar(), 700); }   // si estaba escuchando, sigue en el idioma nuevo
+    toast('🎤 Ahora dicto en ' + sig[2]);
+  },
 
   /* ---------- Mis escritos ---------- */
   misEscritos(){
@@ -1044,6 +1056,10 @@ const Escribir = {
     $('#esMic').addEventListener('mousedown', ev => ev.preventDefault());   // que no se pierda el cursor
     $('#esMic').onclick = () => this.dictar();
     $('#esMic').innerHTML = icIn('mic') + '<b>Dictar</b>';
+    // V19 · idioma del dictado a mano (el navegador no sabe adivinarlo): ES → CAT → EN
+    $('#esIdioma').addEventListener('mousedown', ev => ev.preventDefault());
+    $('#esIdioma').onclick = () => this.cambiarIdioma();
+    this.pintarIdioma();
     deslizarLado($('#esBarra'));
     $('#esDocx').innerHTML = this.ICO_CARPETA + this.ICO_IMPRESORA + '<span class="es-largo">Guardar · imprimir</span><span class="es-flechita">▾</span>';
     $('#esDocx').setAttribute('aria-label', 'Guardar o imprimir');
@@ -1141,7 +1157,7 @@ const DocxSimple = {
   },
   // cabecera o pie (con su número de página) como parte de Word
   parteHF(tipo, html, num, al, run){
-    const div = document.createElement('div'); div.innerHTML = html || '';
+    const div = document.createElement('div'); div.innerHTML = htmlSeguro(html);
     div.querySelectorAll('img').forEach(im => { const w = im.naturalWidth || 300, h = im.naturalHeight || 100; im.dataset.w = Math.max(4, Math.min(100, Math.round(7.5 * w / h))); });
     const jc = al === 'izq' ? 'left' : al === 'der' ? 'right' : 'center', base = this.fotos.length;
     const ps = html ? this.parrafos(div) : [];
@@ -1294,7 +1310,7 @@ const LeerArchivo = {
   // PDF: se saca el texto, página por página (las imágenes y el diseño del PDF no se pueden cambiar)
   async pdf(f){
     const L = await Manual.lib();
-    const pdf = await L.getDocument({ data:new Uint8Array(await f.arrayBuffer()) }).promise;
+    const pdf = await L.getDocument({ isEvalSupported:false, data:new Uint8Array(await f.arrayBuffer()) }).promise;
     const esc2 = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     let html = '';
     for(let n = 1; n <= pdf.numPages; n++){

@@ -1,5 +1,7 @@
 rules_version = '2';
-// PorHacer V4 · varios tableros, invitaciones, miembros y listas fáciles
+// PorHacer3 V19 · varios tableros, invitaciones, miembros y listas fáciles
+// V19: solo las colecciones de la app, identificadores y colores comprobados,
+//      la configuración del tablero (columnas y colores) solo la cambia el dueño.
 service cloud.firestore {
   match /databases/{database}/documents {
     function conEmail() {
@@ -11,22 +13,53 @@ service cloud.firestore {
     function aceptados(d) {
       return d.get('aceptados', []);
     }
+    function datosTablero(t) {
+      return get(/databases/$(database)/documents/tableros/$(t)).data;
+    }
     // Puede entrar: el dueño, o quien ha sido invitado y ha aceptado
     function dentro(t) {
-      let d = get(/databases/$(database)/documents/tableros/$(t)).data;
+      let d = datosTablero(t);
       return conEmail() && (d.dueno == request.auth.uid || (miEmail() in d.miembros && miEmail() in aceptados(d)));
     }
-    // Las listas fáciles: solo las ve y las cambia su dueña o dueño
+    function esDueno(t) {
+      return conEmail() && datosTablero(t).dueno == request.auth.uid;
+    }
+    // Identificadores: solo letras, números y _ - . : (nada de comillas ni < >)
+    function idOk(v) {
+      return v is string && v.matches('^[A-Za-z0-9_.:-]{1,200}$');
+    }
+    // Colores: #abc, #aabbcc, rgb()/hsl(), un nombre (red) o vacío
+    function colorOk(v) {
+      return v == null || (v is string && v.matches('^(|#[0-9A-Fa-f]{3,8}|(rgb|hsl)a?\\([0-9 .,%A-Za-z]{1,60}\\)|[A-Za-z]{3,30}|var\\(--[A-Za-z0-9_-]{1,40}\\))$'));
+    }
+    function opcIdOk(d, campo) {
+      return !(campo in d) || d[campo] == null || d[campo] == '' || idOk(d[campo]);
+    }
+    // Tareas y personas: el id del documento coincide con el de dentro y los campos «peligrosos» son limpios
+    function elementoOk(doc) {
+      let d = request.resource.data;
+      return d.size() <= 80
+        && (!('id' in d) || d.id == doc)
+        && colorOk(d.get('color', null))
+        && opcIdOk(d, 'colId') && opcIdOk(d, 'personaId') && opcIdOk(d, 'tareaId');
+    }
+
+    // Las listas fáciles y lo personal: solo las ve y las cambia su dueña o dueño
     match /usuarios/{uid}/{doc=**} {
       allow read, write: if request.auth != null && request.auth.uid == uid;
     }
+
     match /tableros/{t} {
       allow get, list: if conEmail() && (resource.data.dueno == request.auth.uid || miEmail() in resource.data.miembros);
-      allow create: if conEmail() && request.resource.data.dueno == request.auth.uid;
+      allow create: if conEmail() && request.resource.data.dueno == request.auth.uid
+        && request.resource.data.get('nombre', '') is string && request.resource.data.get('nombre', '').size() <= 200
+        && request.resource.data.miembros is list && request.resource.data.miembros.size() <= 100;
       allow delete: if conEmail() && resource.data.dueno == request.auth.uid;
       allow update: if conEmail() && (
         // el dueño cambia lo que quiera (menos quién es el dueño)
-        (resource.data.dueno == request.auth.uid && request.resource.data.dueno == resource.data.dueno)
+        (resource.data.dueno == request.auth.uid && request.resource.data.dueno == resource.data.dueno
+          && request.resource.data.get('nombre', '') is string && request.resource.data.get('nombre', '').size() <= 200
+          && request.resource.data.miembros is list && request.resource.data.miembros.size() <= 100)
         // un invitado solo puede aceptar, rechazar o salir (solo él mismo)
         || (miEmail() in resource.data.miembros
             && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['aceptados', 'miembros'])
@@ -37,9 +70,30 @@ service cloud.firestore {
                 && request.resource.data.get('aceptados', []).toSet() == aceptados(resource.data).toSet().difference([miEmail()].toSet()))
             ))
       );
-      match /{coleccion}/{doc} {
-        allow read, write: if dentro(t);
+
+      // Columnas y colores del tablero: todos los de dentro las ven; solo el dueño las cambia
+      match /config/{doc} {
+        allow read: if dentro(t);
+        allow write: if esDueno(t) && doc == 'tablero';
       }
+      match /tareas/{doc} {
+        allow read, delete: if dentro(t);
+        allow create, update: if dentro(t) && idOk(doc) && elementoOk(doc);
+      }
+      match /personas/{doc} {
+        allow read, delete: if dentro(t);
+        allow create, update: if dentro(t) && idOk(doc) && elementoOk(doc);
+      }
+      match /media/{doc} {
+        allow read, delete: if dentro(t);
+        allow create, update: if dentro(t) && idOk(doc) && request.resource.data.size() <= 40
+          && opcIdOk(request.resource.data, 'tareaId') && opcIdOk(request.resource.data, 'id');
+      }
+      match /trozos/{doc} {
+        allow read, delete: if dentro(t);
+        allow create, update: if dentro(t) && idOk(doc);
+      }
+      // Cualquier otra colección dentro de un tablero: cerrada
     }
   }
 }

@@ -1,21 +1,17 @@
 // PorHacer3 · service worker: la app funciona sin conexión
-const CACHE = 'porhacer3-v183';
+const CACHE = 'porhacer3-v185';
 const ARCHIVOS = [
-  './', './index.html', './manifest.json', './estilos.css?v=183', './estilos3.css?v=183',
-  './iconos.js?v=183', './iconos-home.js?v=183', './mio.js?v=183', './agenda.js?v=183', './tickets.js?v=183', './gastos.js?v=183', './guardar.js?v=183', './aparatos.js?v=183', './pdfvisor.js?v=183', './sitios.js?v=183', './grabar.js?v=183', './estudio.js?v=183', './escribir.js?v=183', './celdas.js?v=183', './documentos.js?v=183', './edicion.js?v=183', './portada.js?v=183', './temas.js?v=183', './db.js?v=183', './firebase-config.js?v=183', './email-config.js?v=183', './nube.js?v=183',
-  './correo.js?v=183', './audio.js?v=183', './fiesta.js?v=183', './avisos.js?v=183', './bloc.js?v=183', './listas.js?v=183', './listas.png', './lame.min.js', './html2canvas.min.js', './jspdf.min.js', './pdf.min.js', './pdf.worker.min.js',
-  './fotos.js?v=183', './videos.js?v=183', './voz.js?v=183', './calendario.js?v=183', './ajustes.js?v=183',
-  './copias.js?v=183', './app.js?v=183',
-  './logo.png', './calculadora.html?v=183', './logo_elibi.jpg', './icon-192.png', './icon-512.png', './apple-touch-icon.png'
+  './', './index.html', './manifest.json', './estilos.css?v=185', './estilos3.css?v=185',
+  './iconos.js?v=185', './iconos-home.js?v=185', './mio.js?v=185', './agenda.js?v=185', './tickets.js?v=185', './gastos.js?v=185', './guardar.js?v=185', './aparatos.js?v=185', './pdfvisor.js?v=185', './sitios.js?v=185', './grabar.js?v=185', './estudio.js?v=185', './escribir.js?v=185', './celdas.js?v=185', './documentos.js?v=185', './edicion.js?v=185', './portada.js?v=185', './temas.js?v=185', './db.js?v=185', './firebase-config.js?v=185', './email-config.js?v=185', './nube.js?v=185',
+  './correo.js?v=185', './audio.js?v=185', './fiesta.js?v=185', './avisos.js?v=185', './bloc.js?v=185', './listas.js?v=185', './listas.png', './lame.min.js', './html2canvas.min.js', './jspdf.min.js', './pdf6.min.js?v=185', './pdf6.worker.min.js?v=185',
+  './fotos.js?v=185', './videos.js?v=185', './voz.js?v=185', './calendario.js?v=185', './ajustes.js?v=185',
+  './copias.js?v=185', './app.js?v=185',
+  './zoom.js?v=185', './pipeta.js?v=185', './purify.min.js', './firebase-app-compat.js', './firebase-auth-compat.js', './firebase-firestore-compat.js', './logo.png', './calculadora.html?v=185', './logo_elibi.jpg', './icon-192.png', './icon-512.png', './apple-touch-icon.png'
 ];
-// Librería de Firebase: también se guarda para poder abrir la app sin internet
-const SDK = ['app','auth','firestore'].map(n => `https://www.gstatic.com/firebasejs/10.14.1/firebase-${n}-compat.js`);
+// V19: la librería de Firebase va dentro de la app (carpeta firebase/), así funciona sin internet desde el primer día
 
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(CACHE).then(c => Promise.all([
-    ...ARCHIVOS.map(u => c.add(u).catch(() => {})),
-    ...SDK.map(u => fetch(u, { mode:'cors' }).then(r => r.ok && c.put(u, r)).catch(() => {}))
-  ])));
+  e.waitUntil(caches.open(CACHE).then(c => Promise.all(ARCHIVOS.map(u => c.add(u).catch(() => {})))));
   self.skipWaiting();
 });
 self.addEventListener('activate', e => {
@@ -24,21 +20,16 @@ self.addEventListener('activate', e => {
 self.addEventListener('fetch', e => {
   const req = e.request;
   if(req.method !== 'GET') return;
-  // Firebase SDK: primero lo guardado
-  if(SDK.includes(req.url)){
-    e.respondWith(caches.match(req.url).then(h => h || fetch(req).then(r => { const c2 = r.clone(); caches.open(CACHE).then(c => c.put(req.url, c2)); return r; })));
-    return;
-  }
   if(new URL(req.url).origin !== location.origin) return;
   if(/\.pdf$/i.test(new URL(req.url).pathname)) return;      // el manual (PDF): directo de internet, sin guardarlo
   // Archivos de la app: primero internet (versión nueva); si no hay o tarda, lo guardado
   e.respondWith(new Promise(ok => {
     let hecho = false;
-    const deCache = () => caches.match(req, { ignoreSearch: req.mode === 'navigate' }).then(h => h || caches.match('./index.html'));
-    const t = setTimeout(() => { if(!hecho){ hecho = true; ok(deCache()); } }, 3500);
+    const deCache = async () => { const h = await caches.match(req, { ignoreSearch:req.mode === 'navigate' }); if(h) return h; if(req.mode === 'navigate') return (await caches.match('./index.html')) || Response.error(); return null; };
+    const t = setTimeout(async () => { if(!hecho){ const h=await deCache(); if(h && !hecho){ hecho=true;ok(h); } } }, 3500);
     fetch(req).then(r => {
       if(r && r.ok && r.type === 'basic'){ const copia = r.clone(); caches.open(CACHE).then(c => c.put(req, copia)); }
       if(!hecho){ hecho = true; clearTimeout(t); ok(r); }
-    }).catch(() => { if(!hecho){ hecho = true; clearTimeout(t); ok(deCache()); } });
+    }).catch(() => { if(!hecho){ hecho = true; clearTimeout(t); deCache().then(h=>ok(h||Response.error())); } });
   }));
 });

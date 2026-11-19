@@ -159,7 +159,7 @@ const Listas = {
     this.pintarFondo();
     const pend = this.ordenados(l, false), hechos = this.ordenados(l, true);
     const fila = (x, i, n) => `<div class="ls-item ${x.ok ? 'ok' : ''}" data-id="${x.id}" tabindex="0">
-        <div class="ls-acc izq"><span>📋 Al PorHacer</span></div><div class="ls-acc der"><span>🗑 Borrar</span></div>
+        <div class="ls-acc izq"><button data-pc="enviar">📋 Al PorHacer</button><button data-pc="completar">${x.ok ? "↶ Pendiente" : "✓ Completado"}</button></div><div class="ls-acc der"><span>🗑 Borrar</span></div>
         <div class="ls-cara">
           <button class="ls-check" aria-label="${x.ok ? 'Desmarcar' : 'Marcar como hecho'}">${x.ok ? '✓' : ''}</button>
           <div class="ls-txt"><span>${esc(x.t)}</span>${x.env ? `<small>📋 En «${esc(x.env)}»</small>` : x.nota ? `<small>${esc(x.nota)}</small>` : ''}</div>
@@ -284,40 +284,50 @@ const Listas = {
   rotuloTarea(t){ const b = $('#edALista'); if(!b) return; const o = t && t.deLista && this.datos.find(l => l.id === t.deLista.id); b.textContent = o ? '📝 Devolver a «' + o.nombre + '»' : '📝 Pasar a una lista'; },
 
   /* ---------------- Deslizar (dedo o ratón) ---------------- */
+  async accionDerecha(id){
+    const [,x] = this.item(id); if(!x) return;
+    const v = await popup({tit:'¿Qué quieres hacer?', html:'<p>'+esc(x.t)+'</p>', botones:[{txt:'Cancelar',val:null},{txt:'📋 Al PorHacer',val:'enviar'},{txt:x.ok?'↶ Pendiente':'✓ Completado',cls:'btn-pri',val:'completar'}]});
+    if(v==='enviar') return this.enviar(id);
+    if(v==='completar'){ this.verHechos=true; return this.marcar(id); }
+  },
   iniciarDeslizar(){
     const cuerpo = $('#lsCuerpo'); let D = null;
-    const UMBRAL = 90;
+    const cerrarFilas = () => $$('.ls-item.a-izq', cuerpo).forEach(it => { it.classList.remove('a-izq'); $('.ls-cara',it).style.transform=''; });
     cuerpo.addEventListener('pointerdown', e => {
-      if(this.reordenar || e.button > 0) return;
-      const cara = e.target.closest('.ls-cara'); if(!cara || e.target.closest('button')) return;
-      D = { cara, item:cara.parentNode, x:e.clientX, y:e.clientY, dx:0, mov:false, id:e.pointerId };
+      if(this.reordenar || e.button > 0 || e.target.closest('button')) return;
+      const cara=e.target.closest('.ls-cara'); if(!cara) return;
+      const estaba=cara.parentNode.classList.contains('a-izq'); cerrarFilas();
+      D={cara,item:cara.parentNode,x:e.clientX,y:e.clientY,dx:0,mov:false,id:e.pointerId,estaba};
     });
     cuerpo.addEventListener('pointermove', e => {
-      if(!D || e.pointerId !== D.id) return;
-      const dx = e.clientX - D.x, dy = e.clientY - D.y;
-      if(!D.mov){ if(Math.abs(dx) < 8) return; if(Math.abs(dy) > Math.abs(dx)){ D = null; return; } D.mov = true; try{ D.cara.setPointerCapture(e.pointerId); }catch(_){} D.item.classList.add('desliza'); }
-      D.dx = dx; D.cara.style.transform = `translateX(${dx}px)`;
-      D.item.classList.toggle('a-izq', dx > 0); D.item.classList.toggle('a-der', dx < 0);
-      D.item.classList.toggle('listo', Math.abs(dx) > UMBRAL);
+      if(!D || e.pointerId!==D.id) return;
+      const dx=e.clientX-D.x, dy=e.clientY-D.y;
+      if(!D.mov){ if(Math.abs(dx)<8) return; if(Math.abs(dy)>Math.abs(dx)){D=null;return;} D.mov=true; try{D.cara.setPointerCapture(e.pointerId);}catch(_){} }
+      D.dx=dx; D.cara.style.transform=`translateX(${dx}px)`;
+      D.item.classList.toggle('a-izq',dx>0); D.item.classList.toggle('a-der',dx<0);
     });
     const fin = e => {
-      if(!D) return; const d = D; D = null;
-      if(!d.mov){ if(e.type === 'pointerup' && !e.target.closest('button')) this.editar(d.item.dataset.id); return; }
-      this._sinClick = Date.now();
-      const id = d.item.dataset.id;
-      if(d.dx < -UMBRAL){ d.cara.style.transition = 'transform .2s'; d.cara.style.transform = 'translateX(-110%)'; setTimeout(() => this.quitar(id), 180); return; }
-      d.cara.style.transition = 'transform .25s'; d.cara.style.transform = '';
-      setTimeout(() => { d.item.classList.remove('desliza', 'a-izq', 'a-der', 'listo'); d.cara.style.transition = ''; }, 260);
-      if(d.dx > UMBRAL) this.enviar(id);
+      if(!D || e.pointerId!==D.id) return; const d=D; D=null;
+      try{d.cara.releasePointerCapture(e.pointerId);}catch(_){}
+      d.cara.style.transform=''; d.item.classList.remove('a-izq','a-der');
+      if(e.type==='pointercancel') return;
+      if(!d.mov){if(!d.estaba) this.editar(d.item.dataset.id);return;}
+      this._sinClick=Date.now(); const id=d.item.dataset.id;
+      if(d.dx < -90){this.quitar(id);return;}
+      if(d.dx > Math.max(180,d.item.clientWidth*.72)){this.accionDerecha(id);return;}
+      if(d.dx > 35){d.item.classList.add('a-izq'); d.cara.style.transform='translateX(240px)';}
     };
-    cuerpo.addEventListener('pointerup', fin); cuerpo.addEventListener('pointercancel', fin);
+    cuerpo.addEventListener('pointerup',fin); cuerpo.addEventListener('pointercancel',fin);
     cuerpo.addEventListener('click', e => {
-      const it = e.target.closest('.ls-item'); if(!it) return;
-      const id = it.dataset.id;
+      if(Date.now()-(this._sinClick||0)<250) return;
+      const it=e.target.closest('.ls-item'); if(!it) return; const id=it.dataset.id;
       if(e.target.closest('.ls-check')) this.marcar(id);
       else if(e.target.closest('.ls-estrella')) this.estrella(id);
-      else if(e.target.closest('.ls-mov')) this.mover(id, +e.target.closest('.ls-mov').dataset.m);
-      else if(e.target.closest('[data-pc]')) e.target.closest('[data-pc]').dataset.pc === 'borrar' ? this.quitar(id) : this.enviar(id);
+      else if(e.target.closest('.ls-mov')) this.mover(id,+e.target.closest('.ls-mov').dataset.m);
+      else if(e.target.closest('[data-pc]')){
+        const acc=e.target.closest('[data-pc]').dataset.pc; cerrarFilas();
+        if(acc==='borrar') this.quitar(id); else if(acc==='completar'){this.verHechos=true;this.marcar(id);} else this.enviar(id);
+      }
     });
     // teclado (ordenador): con un punto enfocado, Supr borra y → lo pasa al PorHacer
     cuerpo.addEventListener('keydown', e => { const it = e.target.closest('.ls-item'); if(!it || e.target.tagName === 'BUTTON' && e.key === 'Enter') return;

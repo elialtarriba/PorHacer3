@@ -2,7 +2,9 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; media-src 'self' data: blob:; font-src 'self' data: blob:; connect-src 'self' https: data: blob:; frame-src 'self' blob: data: https://porhacer-36f11.firebaseapp.com; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; manifest-src 'self'">
+<meta name="viewport" id="vp" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<script src="zoom.js?v=185"></script>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="PorHacer3">
@@ -10,10 +12,10 @@
 <meta name="theme-color" content="#eeeff1">
 <title>PorHacer3</title>
 <link rel="icon" href="logo.png" type="image/png">
-<link rel="apple-touch-icon" href="apple-touch-icon.png?v=183">
+<link rel="apple-touch-icon" href="apple-touch-icon.png?v=185">
 <link rel="manifest" href="manifest.json">
-<link rel="stylesheet" href="estilos.css?v=183">
-<link rel="stylesheet" href="estilos3.css?v=183">
+<link rel="stylesheet" href="estilos.css?v=185">
+<link rel="stylesheet" href="estilos3.css?v=185">
 </head>
 <body>
 
@@ -47,7 +49,7 @@
         <button class="ibtn ibtn-portada" data-portada title="Portada" aria-label="Ir a la portada"></button>
       </div>
       <div class="insignias">
-            <span class="ver" id="verTxt">V18.5</span>
+            <span class="ver" id="verTxt">V19</span>
             <button class="nube-estado off" id="nubeEstado" hidden title="Nube" aria-label="Nube"></button>
           </div>
     </div>
@@ -122,7 +124,7 @@
     <header class="po-cab">
       <img src="logo.png" alt="" class="po-logo">
       <div class="po-tit"><h1>Por<span>Hacer</span><sup>3</sup></h1><small id="poSaludo"></small></div>
-      <div class="po-der"><span class="ver" id="verTxt2">V18.5</span><div class="po-der-f"><button class="po-nube" id="poNube" data-nube aria-label="Conexión"></button><button class="ibtn ibtn-tema po-tema-b" data-temasec="portada" title="Colores de la portada" aria-label="Colores de la portada"></button></div></div>
+      <div class="po-der"><span class="ver" id="verTxt2">V19</span><div class="po-der-f"><button class="po-nube" id="poNube" data-nube aria-label="Conexión"></button><button class="ibtn ibtn-tema po-tema-b" data-temasec="portada" title="Colores de la portada" aria-label="Colores de la portada"></button></div></div>
     </header>
     <div class="po-hoy" id="poHoy"></div>
     <div class="po-rejilla" id="poRejilla"></div>
@@ -258,6 +260,7 @@
     <button class="es-salir" id="esSalir">✕ Cerrar</button><button class="es-docx" id="esGuardar">💾 Guardar ▾</button>
     <span class="es-info"><b id="esEstado">✓ Guardado</b><small id="esCuenta"></small></span>
     <button class="es-docx" id="esDocx">💾 Guardar <span class="es-largo">· imprimir </span>▾</button>
+    <button class="es-idioma" id="esIdioma" aria-label="Idioma del dictado"></button>
     <button class="es-mic" id="esMic" aria-label="Dictar"></button>
   </div>
 </section>
@@ -304,7 +307,7 @@
     <div class="hoja-scroll">
       <!-- Pestaña tarea -->
       <div class="tab-pan on" data-p="tarea">
-        <div class="ed-fotos-nota" id="edFotosNota"></div><button type="button" class="mini-btn" onclick="document.getElementById('inFotos').click()">🖼️ Insertar imagen en la nota</button>
+        <div class="ed-fotos-nota" id="edFotosNota"></div><button type="button" class="mini-btn" id="btnImgNota">🖼️ Insertar imagen en la nota</button>
         <div class="campo-nota">
           <div class="notas-barra" id="edNotasBarra"></div>
           <div id="edNotas" class="notas-rico" contenteditable="true" data-ph="Notas… (pulsa el micro y habla)"></div>
@@ -507,40 +510,42 @@
 
 <div class="toast" id="toast"></div>
 
-<script src="iconos.js?v=183"></script>
-<script src="iconos-home.js?v=183"></script>
-<script src="temas.js?v=183"></script>
-<script src="db.js?v=183"></script>
-<script src="firebase-config.js?v=183"></script>
-<script src="email-config.js?v=183"></script>
-<script src="correo.js?v=183"></script>
-<script src="audio.js?v=183"></script>
-<script src="listas.js?v=183"></script>
-<script src="bloc.js?v=183"></script>
-<script src="avisos.js?v=183"></script>
-<script src="fiesta.js?v=183"></script>
-<script src="nube.js?v=183"></script>
-<script src="fotos.js?v=183"></script>
-<script src="videos.js?v=183"></script>
-<script src="voz.js?v=183"></script>
-<script src="calendario.js?v=183"></script>
-<script src="ajustes.js?v=183"></script>
-<script src="copias.js?v=183"></script>
-<script src="mio.js?v=183"></script>
-<script src="agenda.js?v=183"></script>
-<script src="tickets.js?v=183"></script>
-<script src="gastos.js?v=183"></script>
-<script src="guardar.js?v=183"></script>
-<script src="aparatos.js?v=183"></script>
-<script src="pdfvisor.js?v=183"></script>
-<script src="sitios.js?v=183"></script>
-<script src="grabar.js?v=183"></script>
-<script src="estudio.js?v=183"></script>
-<script src="escribir.js?v=183"></script>
-<script src="celdas.js?v=183"></script>
-<script src="portada.js?v=183"></script>
-<script src="documentos.js?v=183"></script>
-<script src="edicion.js?v=183"></script>
-<script src="app.js?v=183"></script>
+<script src="iconos.js?v=185"></script>
+<script src="iconos-home.js?v=185"></script>
+<script src="temas.js?v=185"></script>
+<script src="db.js?v=185"></script>
+<script src="firebase-config.js?v=185"></script>
+<script src="email-config.js?v=185"></script>
+<script src="correo.js?v=185"></script>
+<script src="audio.js?v=185"></script>
+<script src="listas.js?v=185"></script>
+<script src="bloc.js?v=185"></script>
+<script src="avisos.js?v=185"></script>
+<script src="fiesta.js?v=185"></script>
+<script src="nube.js?v=185"></script>
+<script src="fotos.js?v=185"></script>
+<script src="videos.js?v=185"></script>
+<script src="voz.js?v=185"></script>
+<script src="calendario.js?v=185"></script>
+<script src="ajustes.js?v=185"></script>
+<script src="copias.js?v=185"></script>
+<script src="mio.js?v=185"></script>
+<script src="agenda.js?v=185"></script>
+<script src="tickets.js?v=185"></script>
+<script src="gastos.js?v=185"></script>
+<script src="guardar.js?v=185"></script>
+<script src="aparatos.js?v=185"></script>
+<script src="pdfvisor.js?v=185"></script>
+<script src="sitios.js?v=185"></script>
+<script src="grabar.js?v=185"></script>
+<script src="estudio.js?v=185"></script>
+<script src="escribir.js?v=185"></script>
+<script src="celdas.js?v=185"></script>
+<script src="portada.js?v=185"></script>
+<script src="documentos.js?v=185"></script>
+<script src="edicion.js?v=185"></script>
+<script src="pipeta.js?v=185"></script>
+<script src="purify.min.js"></script>
+<script src="app.js?v=185"></script>
 </body>
 </html>

@@ -1,11 +1,16 @@
 /* PorHacer · app principal: tablero de columnas, tareas y editor */
 
-const VERSION = 'V18.5';
+const VERSION = 'V19';
 const $ = (s, r=document) => r.querySelector(s);
 const $$ = (s, r=document) => Array.from(r.querySelectorAll(s));
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const norm = s => String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
 
+// HTML de documentos: filtrar antes de insertarlo en el DOM, también sin conexión.
+function htmlSeguro(html){
+  if(typeof DOMPurify==='undefined') return esc(html);
+  return DOMPurify.sanitize(String(html||''),{USE_PROFILES:{html:true},FORBID_TAGS:['style','form','input','button','textarea','select','iframe','object','embed'],FORBID_ATTR:['id','name','srcset']});
+}
 /* ---------- Fechas ---------- */
 const MESES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
 const DIAS = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
@@ -207,13 +212,35 @@ const popConfirmar = (tit, txt, si='Sí', peligro) => popup({ tit, html:'<p>'+es
     return v; });
 
 /* ---------- Selector de color desplegable ---------- */
-function selColor(cont, valor, paleta, alCambiar, conPersonalizado=true){
+// recientes: nombre del ajuste donde se guardan los últimos colores personalizados (máx. 5); solo en Tareas
+const MAX_RECIENTES = 5;
+function coloresRecientes(clave){ const l = App.ajustes[clave]; return Array.isArray(l) ? l.filter(c => /^#[0-9a-f]{6}$/i.test(c)).slice(-MAX_RECIENTES) : []; }
+// Devuelve true si el color ha quedado en la lista. Con la lista llena, pregunta cuál sustituir.
+async function guardarReciente(clave, color){
+  color = color.toLowerCase();
+  const l = coloresRecientes(clave);
+  if(l.includes(color)) return true;
+  if(l.length < MAX_RECIENTES){ l.push(color); }
+  else {
+    const i = await popup({ tit:'🎨 ¿Qué color sustituyo?',
+      html:`<p>Ya tienes ${MAX_RECIENTES} colores personalizados. Toca el que quieras cambiar por el nuevo <span class="rc-nuevo" style="background:${esc(color)}"></span></p><div class="rc-sustituir">${l.map((c, n) => `<button type="button" data-n="${n}" style="background:${esc(c)}" aria-label="Sustituir ${esc(c)}"></button>`).join('')}</div>`,
+      botones:[{ txt:'No guardarlo', val:null }],
+      alAbrir:(cx, fin) => $$('[data-n]', cx).forEach(b => b.onclick = () => fin(+b.dataset.n)) });
+    if(i == null) return false;
+    l[i] = color;
+  }
+  App.ajustes[clave] = l; await guardarAjustes(); return true;
+}
+function selColor(cont, valor, paleta, alCambiar, conPersonalizado=true, recientes=null){
   cont.classList.add('sel-color');
   let val = valor || '';
   const pinta = () => {
-    cont.innerHTML = `<button type="button"><span class="muestra" style="background:${val||'#fff'}"></span><span>${esc(nombreColor(val))}</span></button>
+    cont.innerHTML = `<button type="button"><span class="muestra" style="background:${val||'#fff'}"></span><span>${esc((paleta.find(p => p[0] && String(p[2]).toLowerCase()===String(val).toLowerCase()) || [null,nombreColor(val)])[1])}</span></button>
       <div class="paleta">${paleta.map(p => `<button type="button" data-c="${p[0]?p[2]:''}" class="${(p[0]?p[2]:'').toLowerCase()===String(val).toLowerCase()?'on':''}"><span class="muestra" style="background:${p[2]}"></span>${esc(p[1])}</button>`).join('')}
-      ${conPersonalizado ? `<label class="pers"><input type="color" value="${val && val.startsWith('#') && val.length===7 ? val : '#cccccc'}"> Otro color…</label>` : ''}</div>`;
+      ${recientes ? (() => { const r = coloresRecientes(recientes); return r.length ? `<div class="recientes"><small>Mis personalizados</small><div>${r.map(c => `<button type="button" data-rc="${esc(c)}" class="rc ${c===String(val).toLowerCase()?'on':''}" style="background:${esc(c)}" title="${esc(c)}" aria-label="Color ${esc(c)}"></button>`).join('')}</div></div>` : ''; })() : ''}
+      ${conPersonalizado ? (recientes
+        ? `<div class="pers pers-escoger"><input type="color" value="${val && val.startsWith('#') && val.length===7 ? val : '#cccccc'}"><span>Personalizado: toca el cuadro</span><button type="button" class="btn-pipeta">🧪 Buscar color</button><button type="button" class="btn-escoger">✓ Escoger este color</button></div>`
+        : `<label class="pers"><input type="color" value="${val && val.startsWith('#') && val.length===7 ? val : '#cccccc'}"> Otro color…</label>`) : ''}</div>`;
     cont.firstElementChild.onclick = e => {
       e.stopPropagation();
       const ab = cont.classList.contains('abierto');
@@ -222,10 +249,51 @@ function selColor(cont, valor, paleta, alCambiar, conPersonalizado=true){
     };
     $$('.paleta button', cont).forEach(b => b.onclick = e => { e.stopPropagation(); val = b.dataset.c; cont.classList.remove('abierto'); pinta(); alCambiar(val); });
     const ci = cont.querySelector('input[type=color]');
-    if(ci){ ci.onclick = e => e.stopPropagation(); ci.onchange = () => { val = ci.value; cont.classList.remove('abierto'); pinta(); alCambiar(val); }; }
+    if(ci && !recientes){ ci.onclick = e => e.stopPropagation(); ci.onchange = () => { val = ci.value; cont.classList.remove('abierto'); pinta(); alCambiar(val); }; }
+    if(ci && recientes){
+      // V19: el color personalizado no se aplica hasta pulsar «Escoger»; entonces pasa a «Mis personalizados» (máx. 5)
+      const fila = ci.closest('.pers-escoger'), be = $('.btn-escoger', fila);
+      fila.onclick = e => e.stopPropagation();
+      ci.oninput = ci.onchange = () => be.classList.add('listo');
+      $('.btn-pipeta', fila).onclick = async e => {
+        e.stopPropagation(); cont.classList.remove('abierto');
+        const c = typeof Pipeta !== 'undefined' ? await Pipeta.buscar() : null;
+        if(!c) return;
+        ci.value = c; be.classList.add('listo'); cont.classList.add('abierto');
+        fila.scrollIntoView({ block:'nearest' }); toast('🧪 Color encontrado: pulsa «✓ Escoger este color»');
+      };
+      be.onclick = async e => { e.stopPropagation(); val = ci.value.toLowerCase(); cont.classList.remove('abierto'); const ok = await guardarReciente(recientes, val); pinta(); alCambiar(val); toast(ok ? '🎨 Color escogido y guardado en «Mis personalizados»' : '🎨 Color escogido (sin guardarlo en la lista)'); };
+    }
+    $$('[data-rc]', cont).forEach(b => b.onclick = e => { e.stopPropagation(); val = b.dataset.rc; cont.classList.remove('abierto'); pinta(); alCambiar(val); });
   };
   pinta();
   return { get valor(){ return val; }, poner(v){ val = v; pinta(); } };
+}
+// Paleta personal de tareas: persiste en ajustes y en las copias.
+function paletaTareas(){
+  const p = App.ajustes.paletaTareas;
+  return Array.isArray(p) ? [['','Sin color','#ffffff'], ...p.filter(x => Array.isArray(x) && /^#[0-9a-f]{6}$/i.test(x[2])).map(x => [x[2], String(x[1]), x[2]])] : PALETA_TAREA;
+}
+function selectorColorTarea(valor){
+  const cont = $('#edColor');
+  const selector = selColor(cont, valor, paletaTareas(), v => { if(App.ed) App.ed.t.color = v; }, true, 'coloresRecientes');
+  const herramientas = document.createElement('div'); herramientas.className = 'paleta-tarea-tools';
+  herramientas.innerHTML = '<button type="button" class="mini-btn">＋ Guardar este color</button><button type="button" class="mini-btn">✎ Mi paleta</button>';
+  cont.after(herramientas);
+  herramientas.children[0].onclick = async () => {
+    const color = selector.valor; if(!color){ toast('Escoge primero un color'); return; }
+    const nombre = await popup({tit:'Guardar color en mi paleta', html:'<label class="lbl">Nombre<input id="palNombre" maxlength="40" value="'+esc(nombreColor(color))+'"></label>', botones:[{txt:'Cancelar',val:null},{txt:'Guardar',cls:'btn-pri',val:c=>$('#palNombre',c).value.trim()}]});
+    if(!nombre) return;
+    const p = paletaTareas().filter(x => x[0] && x[2].toLowerCase() !== color.toLowerCase()); p.push([color,nombre,color]);
+    App.ajustes.paletaTareas = p; await guardarAjustes(); renovar(); toast('Color guardado en tu paleta');
+  };
+  herramientas.children[1].onclick = async () => {
+    const p = paletaTareas().filter(x=>x[0]);
+    const elegidos = await popup({tit:'Mi paleta de tareas',html:'<p>Desmarca los colores que quieras quitar. Las tareas conservan sus colores.</p>'+p.map((x,i)=>'<label class="check"><input type="checkbox" data-pal="'+i+'" checked><span class="caja"></span><span>'+esc(x[1])+'</span></label>').join(''), botones:[{txt:'Cancelar',val:null},{txt:'Guardar',cls:'btn-pri',val:c=>$$('[data-pal]:checked',c).map(e=>p[+e.dataset.pal])}]});
+    if(!elegidos) return; App.ajustes.paletaTareas=elegidos; await guardarAjustes(); renovar();
+  };
+  function renovar(){ const v=selector.valor; herramientas.remove(); selColorTarea=selectorColorTarea(v); }
+  return selector;
 }
 document.addEventListener('click', () => $$('.sel-color.abierto').forEach(x => x.classList.remove('abierto')));
 
@@ -256,7 +324,7 @@ function textoFiltro(){
 }
 async function elegirFiltro(){
   const ops = FILTROS.map(f => `<button class="opcion ${App.filtro===f[0]?'on':''}" data-f="${f[0]}">${f[2]} ${f[1]}</button>`).join('')
-    + (App.personas.length ? '<div class="lbl" style="margin-top:14px">Asignadas a</div>' + App.personas.map(p => `<button class="opcion ${App.filtro==='p:'+p.id?'on':''}" data-f="p:${p.id}"><span class="avatar" style="margin:0;background:${colorPersona(p)}">${esc(iniciales(p))}</span>${esc(nombreP(p))}</button>`).join('') : '');
+    + (App.personas.length ? '<div class="lbl" style="margin-top:14px">Asignadas a</div>' + App.personas.map(p => `<button class="opcion ${App.filtro==='p:'+p.id?'on':''}" data-f="p:${esc(p.id)}"><span class="avatar" style="margin:0;background:${colorPersona(p)}">${esc(iniciales(p))}</span>${esc(nombreP(p))}</button>`).join('') : '');
   const v = await popup({ tit:'Ver tareas', html:ops, botones:[{txt:'Cerrar', val:null}],
     alAbrir:(c, fin) => $$('.opcion', c).forEach(b => b.onclick = () => fin(b.dataset.f)) });
   if(v){ App.filtro = v; pintarTodo(); }
@@ -268,12 +336,12 @@ function tareasDeCol(id){ return App.tareas.filter(t => t.colId === id && pasaFi
 function pintarChips(){
   $('#chipsCols').innerHTML = columnas().map(c => {
     const n = App.tareas.filter(t => t.colId===c.id && pasaFiltro(t)).length;
-    return `<button class="chip ${c.visible?'':'oculta'}" data-c="${c.id}" title="${c.visible?'Ocultar':'Mostrar'} columna"><span class="bola" style="background:${c.color}"></span>${esc(c.nombre)}<span class="n">${n}</span><span class="ojo">${c.visible?'👁':'🙈'}</span></button>`;
+    return `<button class="chip ${c.visible?'':'oculta'}" data-c="${esc(c.id)}" title="${c.visible?'Ocultar':'Mostrar'} columna"><span class="bola" style="background:${esc(c.color)}"></span>${esc(c.nombre)}<span class="n">${n}</span><span class="ojo">${c.visible?'👁':'🙈'}</span></button>`;
   }).join('');
   $$('#chipsCols .chip').forEach(b => b.onclick = async () => {
     const c = colDe(b.dataset.c); c.visible = !c.visible;
     await guardarAjustes(); pintarTodo();
-    if(c.visible){ const el = $(`.columna[data-c="${c.id}"]`); el && el.scrollIntoView({behavior:'smooth', inline:'start', block:'nearest'}); }
+    if(c.visible){ const el = $(`.columna[data-c="${esc(c.id)}"]`); el && el.scrollIntoView({behavior:'smooth', inline:'start', block:'nearest'}); }
   });
   const fb = $('#btnFiltro'); $('#filtroTxt').textContent = textoFiltro(); fb.classList.toggle('activo', App.filtro !== 'todas');
 }
@@ -297,9 +365,9 @@ function htmlTarjeta(t){
   if(t.emailEnviado || t.recordado) meta += `<span class="tag" title="Se le ha enviado por email">📧${t.recordado ? ' 🔔' : ''}</span>`;
   const comp = compartidaCon(t);
   const asg = asignadas(t).map(persona).filter(Boolean), extra = Math.max(0, comp.length - asg.length);
-  if(asg.length || comp.length > 1) meta += `<button class="avatares" data-gente="${t.id}" title="${asg.length ? 'Asignada a ' + esc(asg.map(nombreP).join(', ')) : 'Con quién se comparte'}">${asg.slice(0, 3).map(q => `<span class="avatar" style="background:${colorPersona(q)}">${esc(iniciales(q))}</span>`).join('')}${asg.length > 3 ? `<span class="avatar mas">+${asg.length - 3}</span>` : extra && comp.length > 1 ? `<span class="avatar mas">+${extra}</span>` : ''}</button>`;
+  if(asg.length || comp.length > 1) meta += `<button class="avatares" data-gente="${esc(t.id)}" title="${asg.length ? 'Asignada a ' + esc(asg.map(nombreP).join(', ')) : 'Con quién se comparte'}">${asg.slice(0, 3).map(q => `<span class="avatar" style="background:${colorPersona(q)}">${esc(iniciales(q))}</span>`).join('')}${asg.length > 3 ? `<span class="avatar mas">+${asg.length - 3}</span>` : extra && comp.length > 1 ? `<span class="avatar mas">+${extra}</span>` : ''}</button>`;
   const fondo = fondoTarea(t.color);
-  return `<article class="tarjeta ${col.hecha?'hecha':''}" data-id="${t.id}" style="${fondo?'--tc:'+fondo+';':''}--tb:${bordeDe(t)}">
+  return `<article class="tarjeta ${col.hecha?'hecha':''}" data-id="${esc(t.id)}" style="${fondo?'--tc:'+fondo+';':''}--tb:${bordeDe(t)}">
     <button class="t-check" aria-label="Marcar como acabada">${col.hecha?'✓':''}</button>
     <div class="t-tit">${esc(t.titulo || 'Sin título')}</div>
     ${t.notas ? `<div class="t-nota">${notaHtml(t)}</div>` : ''}
@@ -318,9 +386,9 @@ function pintarTablero(){
   }
   tab.innerHTML = vis.map(c => {
     const ts = tareasDeCol(c.id);
-    return `<section class="columna" data-c="${c.id}" style="--cc:${c.color}">
+    return `<section class="columna" data-c="${esc(c.id)}" style="--cc:${esc(c.color)}">
       <div class="col-cab"><button type="button" class="col-mover" title="Arrastra para mover la columna" aria-label="Mover columna">⠿</button><span class="bola"></span><h3>${esc(c.nombre)}</h3><span class="n">${ts.length}</span>
-        <button class="col-add" data-add="${c.id}" aria-label="Añadir tarea en ${esc(c.nombre)}">＋</button></div>
+        <button class="col-add" data-add="${esc(c.id)}" aria-label="Añadir tarea en ${esc(c.nombre)}">＋</button></div>
       <div class="col-lista">${ts.map(htmlTarjeta).join('') || `<div class="col-vacia">${App.q||App.filtro!=='todas' ? 'Nada con este filtro' : 'Sin tareas.<br>Arrastra aquí o pulsa ＋'}</div>`}</div>
     </section>`;
   }).join('');
@@ -640,7 +708,7 @@ function pintarAsig(){
   el.innerHTML = as.length ? `<span class="ed-asig-t">👥 ${as.length > 1 ? 'Asignada a ' + as.length + ':' : 'Asignada a:'}</span>${as.map(id => `<span class="ed-asig-c">${esc(nombreP(persona(id)))}<button type="button" data-quitarasig="${id}" aria-label="Quitar">✕</button></span>`).join('')}<small>Elige otra persona arriba para añadirla también</small>` : '';
 }
 function opcionesPersonas(sel){
-  return '<option value="">— Nadie —</option>' + App.personas.slice().sort((a,b)=>nombreP(a).localeCompare(nombreP(b))).map(p => `<option value="${p.id}" ${p.id===sel?'selected':''}>${esc(nombreP(p))}${p.email?'':' (sin email)'}</option>`).join('');
+  return '<option value="">— Nadie —</option>' + App.personas.slice().sort((a,b)=>nombreP(a).localeCompare(nombreP(b))).map(p => `<option value="${esc(p.id)}" ${p.id===sel?'selected':''}>${esc(nombreP(p))}${p.email?'':' (sin email)'}</option>`).join('');
 }
 function tabEditor(t){
   $$('#edTabs button').forEach(b => b.classList.toggle('on', b.dataset.t === t));
@@ -661,8 +729,9 @@ async function abrirEditor(id, colId){
   }
   $('#edCab').textContent = App.ed.nueva ? 'Nueva tarea' : 'Editar tarea';
   $('#edTitulo').value = t.titulo; $('#edNotas').innerHTML = notaHtml(t); _rangoNota = null;
-  $('#edCol').innerHTML = columnas().map(c => `<option value="${c.id}" ${c.id===t.colId?'selected':''}>${esc(c.nombre)}${c.visible?'':' (oculta)'}</option>`).join('');
-  selColorTarea = selColor($('#edColor'), t.color, PALETA_TAREA, v => { App.ed.t.color = v; });
+  $('#edCol').innerHTML = columnas().map(c => `<option value="${esc(c.id)}" ${c.id===t.colId?'selected':''}>${esc(c.nombre)}${c.visible?'':' (oculta)'}</option>`).join('');
+  $$('.paleta-tarea-tools').forEach(e => e.remove());
+  selColorTarea = selectorColorTarea(t.color);
   $$('#edPrio button').forEach(b => b.classList.toggle('on', +b.dataset.p === (t.prio||0)));
   $('#edIni').value = t.ini || ''; $('#edFin').value = t.fin || '';
   Avisos.pintarEditor(t);
@@ -729,7 +798,7 @@ async function pintarFotos(){
   $('#nFotos').textContent = l.length || '';
   const tot = l.reduce((s,x) => s+x.size, 0), ori = l.reduce((s,x) => s+(x.original||x.size), 0);
   $('#fotosInfo').textContent = l.length ? `${l.length} foto${l.length>1?'s':''} · ocupan ${tamTxt(tot)}${ori>tot ? ' (sin aligerar serían '+tamTxt(ori)+')' : ''}` : 'Las fotos se aligeran solas antes de guardarse.';
-  $('#galFotos').innerHTML = l.length ? l.map(f => `<div class="mini" data-id="${f.id}">${(f.mini||f.blob) ? `<img src="${urlDe(f.mini||f.blob)}" alt="">` : '<span class="play">⏳</span>'}<span class="pes">${tamTxt(f.size)}</span></div>`).join('') : '<div class="vacio">📷 Todavía no hay fotos en esta tarea</div>';
+  $('#galFotos').innerHTML = l.length ? l.map(f => `<div class="mini" data-id="${esc(f.id)}">${(f.mini||f.blob) ? `<img src="${urlDe(f.mini||f.blob)}" alt="">` : '<span class="play">⏳</span>'}<span class="pes">${tamTxt(f.size)}</span></div>`).join('') : '<div class="vacio">📷 Todavía no hay fotos en esta tarea</div>';
   $$('#galFotos .mini').forEach(m => m.onclick = () => verMedia('fotos', m.dataset.id));
 }
 async function pintarVideos(){
@@ -737,7 +806,7 @@ async function pintarVideos(){
   $('#nVideos').textContent = l.length || '';
   const tot = l.reduce((s,x) => s+x.size, 0), ori = l.reduce((s,x) => s+(x.original||x.size), 0);
   $('#videosInfo').textContent = l.length ? `${l.length} vídeo${l.length>1?'s':''} · ocupan ${tamTxt(tot)}${ori>tot ? ' (sin aligerar serían '+tamTxt(ori)+')' : ''}` : 'Los vídeos se aligeran (tamaño y calidad) antes de guardarse. Tarda lo mismo que dura el vídeo.';
-  $('#galVideos').innerHTML = l.length ? l.map(v => `<div class="mini" data-id="${v.id}">${v.poster ? `<img src="${urlDe(v.poster)}" alt="">` : ''}<span class="play">▶</span><span class="pes">${durTxt(v.dur)} · ${tamTxt(v.size)}</span></div>`).join('') : '<div class="vacio">🎬 Todavía no hay vídeos en esta tarea</div>';
+  $('#galVideos').innerHTML = l.length ? l.map(v => `<div class="mini" data-id="${esc(v.id)}">${v.poster ? `<img src="${urlDe(v.poster)}" alt="">` : ''}<span class="play">▶</span><span class="pes">${durTxt(v.dur)} · ${tamTxt(v.size)}</span></div>`).join('') : '<div class="vacio">🎬 Todavía no hay vídeos en esta tarea</div>';
   $$('#galVideos .mini').forEach(m => m.onclick = () => verMedia('videos', m.dataset.id));
 }
 async function pintarAudios(){
@@ -745,11 +814,11 @@ async function pintarAudios(){
   $('#nAudios').textContent = l.length || '';
   const tot = l.reduce((s,x) => s+(x.size||0), 0);
   $('#audiosInfo').textContent = l.length ? `${l.length} nota${l.length>1?'s':''} de audio · ocupan ${tamTxt(tot)}` : 'Graba una nota de voz: la escuchas y decides si la guardas.';
-  $('#listaAudios').innerHTML = l.length ? l.map(a => `<div class="audio-fila" data-id="${a.id}">
+  $('#listaAudios').innerHTML = l.length ? l.map(a => `<div class="audio-fila" data-id="${esc(a.id)}">
       <div class="audio-cab"><b>🎙️ ${new Date(a.fecha).toLocaleDateString('es-ES',{day:'numeric',month:'short'})} · ${new Date(a.fecha).toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'})}</b>
       <small>${durTxt(a.dur)} · ${tamTxt(a.size)}${a.autorNombre ? ' · ' + esc(a.autorNombre.split(' ')[0]) : ''}</small>
-      <button class="ico-b peligro" data-borrar="${a.id}" aria-label="Borrar">🗑</button></div>
-      ${a.blob ? `<audio controls preload="metadata" src="${urlDe(a.blob)}"></audio>` : `<button class="mini-btn" data-cargar="${a.id}">▶ Escuchar</button>`}
+      <button class="ico-b peligro" data-borrar="${esc(a.id)}" aria-label="Borrar">🗑</button></div>
+      ${a.blob ? `<audio controls preload="metadata" src="${urlDe(a.blob)}"></audio>` : `<button class="mini-btn" data-cargar="${esc(a.id)}">▶ Escuchar</button>`}
     </div>`).join('') : '<div class="vacio">🎙️ Todavía no hay notas de audio en esta tarea</div>';
   $$('#listaAudios [data-cargar]').forEach(b => b.onclick = async () => { b.textContent = '⏳ Cargando…'; const o = await DB.uno('audios', b.dataset.cargar); if(o && o.blob){ const au = document.createElement('audio'); au.controls = true; au.src = urlDe(o.blob); b.replaceWith(au); au.play().catch(()=>{}); } else b.textContent = '⚠️ No se pudo cargar'; });
   $$('#listaAudios [data-borrar]').forEach(b => b.onclick = async () => {
@@ -945,7 +1014,7 @@ function pintarTableroTarea(){
   const lista = (typeof Nube !== 'undefined' && Nube.activa) ? [...Nube.misTableros(), ...Nube.compartidos()] : [];
   fila.hidden = !App.ed || App.ed.nueva || lista.length < 2;
   if(fila.hidden) return;
-  sel.innerHTML = lista.map(t => `<option value="${t.id}" ${t.id === Nube.tid ? 'selected' : ''}>📋 ${esc(Nube.nombreTablero(t))}${Nube.esDueno(t) ? '' : ' (de ' + esc((t.duenoNombre || t.duenoEmail || '').split(' ')[0]) + ')'}</option>`).join('');
+  sel.innerHTML = lista.map(t => `<option value="${esc(t.id)}" ${t.id === Nube.tid ? 'selected' : ''}>📋 ${esc(Nube.nombreTablero(t))}${Nube.esDueno(t) ? '' : ' (de ' + esc((t.duenoNombre || t.duenoEmail || '').split(' ')[0]) + ')'}</option>`).join('');
 }
 async function cambiarTableroTarea(){
   const sel = $('#edTablero'), destino = sel.value;
@@ -974,7 +1043,7 @@ async function enviarRecordatorio(){
   const t = leerEditor(), p0 = persona(t.personaId), con = App.personas.filter(p => p.email);
   const otro = !(p0 && p0.email);
   const v = await popup({ tit:'🔔 Recordatorio por email', html:`
-    <label class="lbl">¿A quién?<select id="rcPara">${con.map(p => `<option value="${p.id}" ${p0 && p0.id === p.id ? 'selected' : ''}>${esc(nombreP(p))} · ${esc(p.email)}</option>`).join('')}<option value="__otro" ${otro ? 'selected' : ''}>✉️ Otro email…</option></select></label>
+    <label class="lbl">¿A quién?<select id="rcPara">${con.map(p => `<option value="${esc(p.id)}" ${p0 && p0.id === p.id ? 'selected' : ''}>${esc(nombreP(p))} · ${esc(p.email)}</option>`).join('')}<option value="__otro" ${otro ? 'selected' : ''}>✉️ Otro email…</option></select></label>
     <input id="rcMail" type="email" inputmode="email" placeholder="email@ejemplo.com" style="${otro ? '' : 'display:none'}">
     <label class="lbl" style="margin-top:10px">Tu mensaje (opcional)<textarea id="rcMsg" class="rc-msg" rows="3" placeholder="Por ejemplo: ¡Que no se te olvide, es para el viernes! 😊"></textarea></label>`,
     botones:[{ txt:'Cancelar', val:null }, { txt:'📧 Enviar', cls:'btn-pri',
@@ -1060,6 +1129,7 @@ function pintarCabecera(){
 function fechaCabecera(){ const d = new Date(); const tx = DIAS[d.getDay()]+', '+d.getDate()+' de '+MESES[d.getMonth()]; $('#hoyTxt').textContent = tx.charAt(0).toUpperCase()+tx.slice(1); }
 function eventos(){
   $('#btnCal').innerHTML = icono('calendario');
+  { const bi = $('#btnImgNota'); if(bi) bi.onclick = () => $('#inFotos').click(); }
   $('#btnAjustes').innerHTML = icono('ajustes');
   $('#btnAjustes2').innerHTML = icono('ajustes');
   $('#icoBuscar').innerHTML = icono('buscar');
@@ -1156,9 +1226,10 @@ async function iniciar(){
   try{
     App.ajustes = await DB.uno('ajustes', 'ajustes');
     if(!App.ajustes){ App.ajustes = ajustesInicio(); await guardarAjustes(); }
-    App.ajustes = Object.assign(ajustesInicio(), App.ajustes);
+    App.ajustes = Object.assign(ajustesInicio(), App.ajustes); limpiarDato(App.ajustes.columnas, 'columnas');
     aplicarTema(App.ajustes.colores);
     [App.tareas, App.personas] = await Promise.all([DB.todos('tareas'), DB.todos('personas')]);
+    App.tareas.forEach(t => limpiarDato(t)); App.personas.forEach(p => limpiarDato(p));
     await contarMedia();
   }catch(e){
     console.error(e);

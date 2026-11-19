@@ -46,9 +46,26 @@ const Voz = {
     c.dispatchEvent(new Event('input', { bubbles:true }));
   },
 
+  // Avisos claros cuando el dictado no puede funcionar
+  _aviso(err){
+    const iosApp = /iP(hone|ad|od)/.test(navigator.userAgent) && (navigator.standalone || matchMedia('(display-mode: standalone)').matches);
+    const truco = iosApp ? '<br><br>En el iPhone, cuando la app está en la pantalla de inicio, Apple a veces no deja dictar. Puedes: abrir la app en <b>Safari</b>, o tocar la hoja y usar el <b>micro 🎤 del teclado</b> del iPhone.' : '';
+    const T = {
+      'not-allowed':'Hay que dar permiso al micrófono. En el iPhone: Ajustes › Safari › Micrófono › Permitir. En el ordenador: el candado 🔒 al lado de la dirección › Micrófono › Permitir.',
+      'service-not-allowed':'El sistema no deja usar el dictado. En el iPhone/Mac: Ajustes › General › Teclado › activa «Dictado».',
+      'audio-capture':'No encuentro ningún micrófono. Mira que esté conectado y que ninguna otra app lo esté usando.',
+      'network':'El dictado necesita internet (el navegador envía la voz a su servicio para escribirla). Mira la conexión.',
+      'language-not-supported':'Este navegador no sabe dictar en ese idioma. Prueba con otro.',
+      'nada':'El navegador no ha empezado a escuchar.'
+    };
+    popAviso('🎤 Dictar', (T[err] || ('No se ha podido dictar (' + err + ').')) + truco);
+  },
+
   empezar(campo, boton, estado, op){
     if(!this.soportado()){
-      popAviso('Micrófono', 'Este navegador no permite dictar. En iPhone funciona en Safari; en Android, en Chrome.');
+      popAviso('🎤 Dictar', /firefox/i.test(navigator.userAgent)
+        ? 'Firefox no tiene dictado por voz. Abre la app en Chrome, Edge o Safari para dictar.'
+        : 'Este navegador no permite dictar. En iPhone y Mac funciona en Safari; en ordenador, en Chrome o Edge; en Android, en Chrome.');
       return;
     }
     // Si ya está escuchando: se para (y si era otro campo, se empieza en el nuevo)
@@ -103,10 +120,13 @@ const Voz = {
       campo.dispatchEvent(new Event('input', { bubbles:true }));
       if(campo.tagName === 'TEXTAREA') campo.scrollTop = campo.scrollHeight;
     };
+    r.onstart = () => { ses.empezado = true; clearTimeout(ses.vigia); };
+    // si en 4 s el navegador no ha empezado a escuchar, se avisa (antes no pasaba nada)
+    ses.vigia = setTimeout(() => { if(!ses.empezado && !ses.terminado && this.activo === ses){ this.parar(); this._aviso('nada'); } }, 4000);
     r.onerror = ev => {
       ses.error = ev.error;
-      if(ev.error === 'not-allowed' || ev.error === 'service-not-allowed')
-        popAviso('Micrófono', 'Hay que dar permiso al micrófono en el navegador para poder dictar.');
+      if(ev.error === 'no-speech' || ev.error === 'aborted') return;
+      if(!ses.avisado){ ses.avisado = true; this._aviso(ev.error); }
     };
     r.onend = () => {
       clearTimeout(ses.corte); ses.terminado = true;
@@ -126,6 +146,6 @@ const Voz = {
       if(ses.alTerminar) ses.alTerminar();
     };
     if(op && op._reintento) ses.reintento = true;
-    try{ r.start(); }catch(e){ this.activo = null; ses.terminado = true; this._apagar(ses); }
+    try{ r.start(); }catch(e){ this.activo = null; ses.terminado = true; clearTimeout(ses.vigia); this._apagar(ses); this._aviso(e && e.name === 'NotAllowedError' ? 'not-allowed' : (e && e.message) || 'nada'); }
   }
 };

@@ -20,7 +20,7 @@ const VisorPdf = {
     try{
       const L = await Manual.lib();
       const datos = new Uint8Array(await f.arrayBuffer());
-      this.doc = await L.getDocument({ data:datos }).promise;
+      this.doc = await L.getDocument({ isEvalSupported:false, data:datos }).promise;
       this.nombre = (f.name || 'documento.pdf').replace(/\.pdf$/i, ''); this.clave = 'pdfm:' + f.name + ':' + f.size;
       this.trazos = this.leerMarcas(); this.deshacer = []; this.zoom = 1;
       this.soloLapiz = lsGet('ph3-pdf-lapiz') === '1'; this.idioma = lsGet('ph3-pdf-idioma') || 'es';
@@ -291,6 +291,11 @@ const VisorPdf = {
     return { w, rect:r.getBoundingClientRect(), frase:t };
   },
   async traducirTexto(txt, a){
+    // V19 · privacidad: la primera vez se avisa de que el texto sale a un traductor de internet
+    if(lsGet('ph3-traducir-ok') !== '1'){
+      const si = await popConfirmar('🌐 Traducir', 'Para traducir, la palabra o frase que tocas se envía a un traductor de internet (Google Translate o, si falla, MyMemory). No lo uses con documentos privados. Solo se avisa esta vez.', 'Entendido, traducir');
+      if(!si) return null; lsSet('ph3-traducir-ok', '1');
+    }
     try{   // traductor de Google (sin clave)
       const r = await fetch('https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=' + a + '&dt=t&q=' + encodeURIComponent(txt));
       if(r.ok){ const j = await r.json(); const t = (j[0] || []).map(x => x[0]).join(''); if(t) return { t, de:j[2] || '' }; }

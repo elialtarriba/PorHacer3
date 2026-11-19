@@ -237,7 +237,7 @@ const Ajustes = {
         <label class="check" style="margin-top:4px"><input type="checkbox" id="ccVid"><span class="caja"></span><span>Incluir también los vídeos<small>Ocupan mucho; márcalo solo si los quieres guardar</small></span></label>
         <div class="gen-btns"><button class="btn-pri" id="ccExp">⬇️ Exportar todo</button><button class="btn-sec" id="ccImp">⬆️ Importar todo</button></div>
         <input type="file" id="ccImpIn" accept=".json,application/json" hidden>
-        <p class="aj-ayuda" style="margin-top:8px">Se guarda <b>PorHacer_Todo_fecha.json</b>. Para recuperarlo, pulsa «⬆️ Importar todo» y elige ese archivo. ⚠️ Lleva las contraseñas de tus webs personales: guárdalo en un sitio seguro.</p></div>`;
+        <p class="aj-ayuda" style="margin-top:8px">Se guarda <b>PorHacer_Todo_fecha.json</b>. Para recuperarlo, pulsa «⬆️ Importar todo» y elige ese archivo. Las contraseñas de tus webs personales <b>no</b> se guardan en la copia (al restaurar tendrás que volver a ponerlas). ⚠️ La copia lleva tus tareas y datos: guárdala en un sitio privado o márcala «con contraseña».</p></div>`;
     return this.nota('💡 Haz copias de vez en cuando y guárdalas en un sitio seguro (iCloud, un pendrive…). <b>No subas nunca estos archivos a GitHub</b>: tienen tus datos.')
       + todo
       + '<p class="cc-o">O, si solo quieres una parte:</p>'
@@ -727,7 +727,7 @@ const GxCifra = {
         setTimeout(() => { const i = $('input', c); i && i.focus(); }, 200);
       } });
   },
-  nueva(a, b){ return !a ? 'Escribe la contraseña nueva.' : a.length < 4 ? 'Pon al menos 4 letras o números.' : a !== b ? 'Las dos contraseñas no son iguales.' : ''; },
+  nueva(a, b){ return !a ? 'Escribe la contraseña nueva.' : a.length < 8 ? 'Pon al menos 8 letras o números.' : a !== b ? 'Las dos contraseñas no son iguales.' : ''; },
   async activar(){
     if(!window.crypto || !crypto.subtle){ popAviso('Cifrado', 'Este navegador no permite cifrar. Abre la app desde su dirección https.'); return false; }
     const v = await this.pedir('🔒 Activar el cifrado', `Elige una contraseña para <b>${esc(Gastos.nombre())}</b>. <b>⚠️ Apúntala en un sitio seguro:</b> si la olvidas, nadie (ni tú, ni yo, ni Google) podrá volver a abrir estas notas.`,

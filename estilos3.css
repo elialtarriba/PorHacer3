@@ -1695,3 +1695,62 @@ button.gx-nueva-abajo:active{background:color-mix(in srgb,var(--accent) 8%,trans
 #ceTabla th[data-col],#ceTabla th[data-fila]{touch-action:none;user-select:none;-webkit-user-select:none}
 #ceTabla td .cv{white-space:pre-wrap;overflow-wrap:anywhere}
 .ce-pop input[type=number]{width:100%;padding:10px;font:inherit;border:1px solid var(--line);border-radius:8px}
+
+/* V19: acciones de lista y paleta personal */
+.ls-acc.izq{padding:0;width:240px;right:auto;gap:0}
+.ls-acc.izq button{width:120px;align-self:stretch;border:0;background:#d88913;color:white;font:inherit;font-size:14px;padding:8px;white-space:normal}
+.ls-acc.izq button+button{background:#287c49}
+.paleta-tarea-tools{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.paleta-tarea-tools button{flex:1;white-space:normal;min-height:40px}
+
+/* V19 · Tareas: «Mis personalizados» (últimos 5) y botón Escoger del color personalizado */
+.paleta .recientes{border-top:1px solid var(--line);margin-top:4px;padding:8px 8px 4px}
+.paleta .recientes small{display:block;font-size:12px;font-weight:800;color:var(--ink2);margin-bottom:6px}
+.paleta .recientes>div{display:flex;gap:6px;flex-wrap:nowrap}
+.paleta .recientes button.rc{width:28px;height:28px;padding:0;border-radius:50%;border:2px solid rgba(0,0,0,.15);flex:0 0 auto;display:block}
+.paleta .recientes button.rc.on{outline:3px solid var(--accent);outline-offset:2px}
+.paleta .recientes button.rc.on::after{content:none}
+.paleta .pers-escoger{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.paleta .pers-escoger input{flex:0 0 44px;width:44px;min-width:44px}
+.paleta .pers-escoger span{flex:1;min-width:0}
+.paleta .pers-escoger .btn-escoger{flex:1 0 100%;width:100%;justify-content:center;padding:9px 12px;border-radius:10px;background:var(--colbg);font-size:14.5px;font-weight:800;color:var(--ink)}
+.paleta .pers-escoger .btn-escoger.listo{background:var(--accent);color:#fff}
+.rc-sustituir{display:flex;gap:12px;justify-content:center;margin:14px 0 4px}
+.rc-sustituir button{width:46px;height:46px;border-radius:50%;border:3px solid rgba(0,0,0,.15)}
+.rc-sustituir button:active{transform:scale(.92)}
+.rc-nuevo{display:inline-block;width:18px;height:18px;border-radius:50%;vertical-align:middle;border:2px solid rgba(0,0,0,.2)}
+
+/* V19 · Pipeta (🧪 Buscar color) */
+.paleta .pers-escoger .btn-pipeta{flex:1 0 100%;width:100%;justify-content:center;padding:9px 12px;border-radius:10px;background:var(--colbg);font-size:14.5px;font-weight:800;color:var(--ink)}
+body.pipeta-on #editor{visibility:hidden}
+.pipeta-capa{position:fixed;inset:0;z-index:100000;cursor:crosshair;touch-action:none;user-select:none;-webkit-user-select:none}
+.pipeta-capa.con-foto{background:#111;display:flex;align-items:center;justify-content:center;padding-top:56px}
+.pipeta-capa.con-foto canvas{display:block;max-width:100%;max-height:calc(100% - 0px)}
+.pipeta-barra{position:absolute;left:0;right:0;top:0;padding:calc(env(safe-area-inset-top) + 8px) 12px 8px;display:flex;align-items:center;gap:10px;background:rgba(20,20,24,.88);color:#fff;font-weight:800;font-size:15px;z-index:2}
+.pipeta-barra span{flex:1}
+.pipeta-barra button{background:#fff;color:#222;border-radius:10px;padding:8px 12px;font-weight:800}
+.pipeta-lupa{position:fixed;pointer-events:none;transform:translate(-50%,calc(-100% - 34px));display:flex;flex-direction:column;align-items:center;gap:4px}
+.pipeta-lupa i{width:64px;height:64px;border-radius:50%;border:4px solid #fff;box-shadow:0 2px 10px rgba(0,0,0,.45)}
+.pipeta-lupa b{background:rgba(20,20,24,.85);color:#fff;font-size:12px;padding:2px 8px;border-radius:8px;font-family:ui-monospace,monospace}
+
+/* V19 · Escribir: botones de abajo en 3D (se ven hundidos cuando están pulsados) */
+#vEscribir .es-pie>button{position:relative;border-radius:16px;transition:transform .08s ease,box-shadow .08s ease;
+  box-shadow:0 5px 0 rgba(0,0,0,.28),0 8px 14px rgba(0,0,0,.18),inset 0 1px 0 rgba(255,255,255,.45);
+  background-image:linear-gradient(180deg,rgba(255,255,255,.28),rgba(255,255,255,0) 55%,rgba(0,0,0,.08));margin-bottom:5px}
+#vEscribir .es-pie>button:active,#vEscribir .es-pie>button.oyendo{transform:translateY(4px);
+  box-shadow:0 1px 0 rgba(0,0,0,.3),0 2px 4px rgba(0,0,0,.2),inset 0 3px 7px rgba(0,0,0,.35);background-image:linear-gradient(180deg,rgba(0,0,0,.14),rgba(0,0,0,0) 60%)}
+#vEscribir .es-pie .es-salir{background-color:var(--card);color:var(--ink);border:1.5px solid var(--line)}
+#vEscribir .es-pie .es-idioma{flex:0 0 auto;min-width:64px;height:auto;min-height:44px;padding:6px 10px;display:flex;align-items:center;justify-content:center;gap:4px;
+  background-color:var(--card);color:var(--ink);border:1.5px solid var(--line);font:inherit;font-weight:900;font-size:15px}
+#vEscribir .es-pie .es-idioma .es-idi-ic{font-size:16px}
+#vEscribir .es-pie .es-mic.oyendo{background-color:#d92019;border-color:#a8140f;color:#fff;animation:none}
+#vEscribir .es-pie .es-mic.oyendo .ic-in{animation:latido 1.2s infinite}
+#vEscribir .es-pie .es-mic.oyendo b::after{content:" · Parar"}
+@media (max-width:520px){#vEscribir .es-pie .es-mic.oyendo b{display:inline}#vEscribir .es-pie .es-mic.oyendo b::after{content:""}#vEscribir .es-pie .es-mic.oyendo b{font-size:0}#vEscribir .es-pie .es-mic.oyendo b::before{content:"Parar";font-size:15px}}
+@media (max-width:520px){
+  #vEscribir .es-pie .es-idioma{min-width:48px;padding:6px 8px}
+  #vEscribir .es-pie .es-idioma .es-idi-ic{display:none}
+  #vEscribir .es-pie .es-mic{padding:6px 8px;min-width:58px}
+  #vEscribir .es-pie .es-mic.oyendo b::before{font-size:13px}
+  #vEscribir .es-pie .es-mic.oyendo .ic-in{width:18px;height:18px}
+}
