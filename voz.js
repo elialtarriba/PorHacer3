@@ -22,6 +22,8 @@ const Voz = {
   // Para el micro. La pantalla se actualiza YA, sin esperar al navegador
   // (en el iPhone, a veces el reconocimiento tarda o no avisa al terminar).
   parar(){
+    // V19: si estaba a punto de volver a escuchar sola, se cancela
+    if(this._sigueT){ clearTimeout(this._sigueT); this._sigueT = null; if(this._sigueBoton) this._sigueBoton.classList.remove('oyendo'); if(this._sigueEstado) this._sigueEstado.textContent = ''; }
     const ses = this.activo; if(!ses) return;
     this.activo = null;
     ses.parado = true;
@@ -91,11 +93,12 @@ const Voz = {
     this._ultimo = ses;
     if(campo.isContentEditable && op && op.rango){   // Escribir: lo dictado entra donde está el cursor
       const r = op.rango; r.deleteContents();
-      const antes = r.startContainer.nodeType === 3 ? r.startContainer.nodeValue.slice(0, r.startOffset) : '';
+      // todo el texto que hay antes del cursor (para saber si toca mayúscula y si hace falta un espacio)
+      const antes = (() => { try{ const q = document.createRange(); q.selectNodeContents(campo); q.setEnd(r.startContainer, r.startOffset); return q.toString(); }catch(e){ return r.startContainer.nodeType === 3 ? r.startContainer.nodeValue.slice(0, r.startOffset) : ''; } })();
       ses.span = document.createElement('span');
       if(antes && !/\s$/.test(antes)) r.insertNode(document.createTextNode(' '));
       r.collapse(false); r.insertNode(ses.span);
-      ses.base = antes.trim() ? 'x ' : '';
+      ses.base = (!antes.trim() || /[.?!¿¡:]\s*$|\n\s*$/.test(antes)) ? '' : 'x ';
       try{ const s = getSelection(), rr = document.createRange(); rr.setStartAfter(ses.span); rr.collapse(true); s.removeAllRanges(); s.addRange(rr); }catch(e){}
     } else if(campo.isContentEditable){       // notas con negrita: lo dictado va al final, sin tocar lo de antes
       if(campo.textContent && !/\s$/.test(campo.textContent)) campo.appendChild(document.createTextNode(' '));
@@ -142,6 +145,18 @@ const Voz = {
         return;
       }
       this._apagar(ses);
+      // V19 · el iPhone corta solo cada poco: si no se ha pulsado «Parar», se vuelve a escuchar donde estaba el cursor
+      const mudos = ses.oido ? 0 : ((op && op._mudos) || 0) + 1;
+      if(solo && !ses.parado && op && op.seguir && !/not-allowed|audio-capture|network|language/.test(ses.error || '') && mudos <= 3 && ((op._auto || 0) < 60)){
+        boton.classList.add('oyendo');
+        let rango = null;
+        try{ const sl = getSelection(); if(sl.rangeCount && campo.contains(sl.getRangeAt(0).startContainer)) rango = sl.getRangeAt(0).cloneRange(); }catch(e){}
+        if(!rango){ rango = document.createRange(); rango.selectNodeContents(campo); rango.collapse(false); }
+        this._sigueBoton = boton; this._sigueEstado = estado;
+        this._sigueT = setTimeout(() => { this._sigueT = null; if(this.activo) return; this.empezar(campo, boton, estado, { ...op, rango, _esperado:true, _reintento:true, _auto:(op._auto || 0) + 1, _mudos:mudos }); }, 250);
+        if(ses.alTerminar) ses.alTerminar();
+        return;
+      }
       if(!ses.oido && !ses.parado && estado){ estado.dataset.de = ''; estado.textContent = '🎙️ No te he oído. Pulsa otra vez el micro'; }
       if(ses.alTerminar) ses.alTerminar();
     };

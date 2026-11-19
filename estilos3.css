@@ -1754,3 +1754,41 @@ body.pipeta-on #editor{visibility:hidden}
   #vEscribir .es-pie .es-mic.oyendo b::before{font-size:13px}
   #vEscribir .es-pie .es-mic.oyendo .ic-in{width:18px;height:18px}
 }
+
+/* V19 · botones «Guardar este color» y «Mi paleta»: el texto queda dentro; 12 personalizados en dos filas */
+.paleta-tarea-tools button.mini-btn{height:auto;min-height:40px;padding:7px 8px;line-height:1.2;white-space:normal}
+.paleta .recientes>div{flex-wrap:wrap}
+.pal-item .pal-muestra{width:24px;height:24px;flex:0 0 24px;border-radius:7px;border:1.5px solid rgba(0,0,0,.18);display:inline-block;margin-right:2px}
+.rc-sustituir{flex-wrap:wrap}
+
+/* V19 · Escribir: los 5 botones arriba (debajo de las opciones y encima de la regla), iguales, rectangulares, bajos y en 3D */
+#vEscribir .es-pie.es-botones{order:0;display:flex;flex-wrap:nowrap;gap:6px;padding:6px 10px 9px;flex:none;align-items:stretch}
+#vEscribir .es-pie.es-botones>button,#vEscribir .es-pie.es-botones>button.es-mic,#vEscribir .es-pie.es-botones>button.es-docx,#vEscribir .es-pie.es-botones>button.es-salir,#vEscribir .es-pie.es-botones>button.es-idioma{
+  flex:1 1 0;min-width:0;height:36px;min-height:36px;margin:0;padding:0 6px;border-radius:9px;
+  display:flex;align-items:center;justify-content:center;gap:4px;white-space:nowrap;overflow:hidden;line-height:1;
+  font:inherit;font-size:13.5px;font-weight:800;
+  background-color:var(--card);color:var(--ink);border:1.5px solid var(--line);
+  background-image:linear-gradient(180deg,rgba(255,255,255,.55),rgba(255,255,255,0) 60%,rgba(0,0,0,.05));
+  box-shadow:0 3px 0 rgba(0,0,0,.22),0 5px 9px rgba(0,0,0,.12),inset 0 1px 0 rgba(255,255,255,.7);
+  transition:transform .08s ease,box-shadow .08s ease}
+#vEscribir .es-pie.es-botones>button .ic-in{width:17px;height:17px;flex:none}
+#vEscribir .es-pie.es-botones>button .ic-in *{stroke:currentColor}
+#vEscribir .es-pie.es-botones>button svg{max-height:17px;flex:none}
+#vEscribir .es-pie.es-botones>button:active,#vEscribir .es-pie.es-botones>button.oyendo{transform:translateY(3px);
+  box-shadow:0 0 0 rgba(0,0,0,.2),inset 0 2px 6px rgba(0,0,0,.3);background-image:linear-gradient(180deg,rgba(0,0,0,.1),rgba(0,0,0,0) 60%)}
+#vEscribir .es-pie.es-botones>button.es-mic.oyendo{background-color:#d92019;border-color:#a8140f;color:#fff;animation:none}
+#vEscribir .es-pie.es-botones>button.es-mic b{display:inline;font-size:13.5px}
+#vEscribir .es-pie.es-botones>button.es-mic.oyendo b{font-size:0}
+#vEscribir .es-pie.es-botones>button.es-mic.oyendo b::before{content:"Parar";font-size:13.5px}
+#vEscribir .es-pie.es-botones>button.es-mic.oyendo b::after{content:""}
+#vEscribir .es-pie.es-botones .es-idioma .es-idi-ic{display:none}
+#vEscribir .es-pie.es-botones .es-largo{display:none}
+@media (max-width:440px){
+  #vEscribir .es-pie.es-botones{gap:5px;padding-left:8px;padding-right:8px}
+  #vEscribir .es-pie.es-botones>button,#vEscribir .es-pie.es-botones>button.es-mic,#vEscribir .es-pie.es-botones>button.es-docx,#vEscribir .es-pie.es-botones>button.es-salir,#vEscribir .es-pie.es-botones>button.es-idioma{flex:1 1 auto;font-size:12.5px;padding:0 5px;gap:3px}
+  #vEscribir .es-pie.es-botones>button.es-mic b,#vEscribir .es-pie.es-botones>button.es-mic.oyendo b::before{font-size:12.5px}
+  #vEscribir .es-pie.es-botones>button .ic-in{width:15px;height:15px}
+}
+#vEscribir .es-pie-info{flex:none;text-align:center;padding:4px 10px calc(6px + var(--safeB));font-size:12px}
+#vEscribir .es-pie-info .es-info{display:flex;justify-content:center;gap:8px;flex-wrap:wrap}
+#vEscribir.sin-documento .es-pie-info{display:none}

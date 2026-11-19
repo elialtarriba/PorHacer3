@@ -326,7 +326,7 @@ const Calc = {
     this._carga = new Promise(ok => {
       const f = $('#calcFrame');
       f.addEventListener('load', () => setTimeout(() => ok(this.win()), 60), { once:true });
-      f.src = 'calculadora.html?v=185';
+      f.src = 'calculadora.html?v=186';
     });
     return this._carga;
   },
@@ -635,8 +635,8 @@ const Manual = {
   async lib(){
     if(window.pdfjsLib) return window.pdfjsLib;
     // V19: PDF.js 6.5 (archivos pdf6.min.js y pdf6.worker.min.js, versión «legacy», funciona también en iPhone/Safari antiguos). Sin el fallo CVE-2024-4367.
-    const L = await import('./pdf6.min.js?v=185');
-    L.GlobalWorkerOptions.workerSrc = './pdf6.worker.min.js?v=185';
+    const L = await import('./pdf6.min.js?v=186');
+    L.GlobalWorkerOptions.workerSrc = './pdf6.worker.min.js?v=186';
     window.pdfjsLib = L;
     return L;
   },

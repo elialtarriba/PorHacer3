@@ -850,12 +850,12 @@ const Escribir = {
   /* ---------- Dictar ---------- */
   dictar(){
     const b = $('#esMic'), e = $('#esTexto');
-    if(Voz.activo){ Voz.parar(); setTimeout(() => this.cambio(), 300); return; }
+    if(Voz.activo || Voz._sigueT){ Voz.parar(); setTimeout(() => this.cambio(), 300); return; }
     // el texto dictado entra donde está el cursor (si no, al final)
     e.focus();
     const sel = getSelection(); let r = sel.rangeCount ? sel.getRangeAt(0) : null;
     if(!r || !e.contains(r.startContainer)){ r = document.createRange(); r.selectNodeContents(e); r.collapse(false); }
-    Voz.empezar(e, b, $('#esEstado'), { rango:r, idioma:this.idioma() });
+    Voz.empezar(e, b, $('#esEstado'), { rango:r, idioma:this.idioma(), seguir:true });
   },
   idioma(){ return (App.ajustes && (App.ajustes.idiomaEscribir || App.ajustes.idiomaVoz)) || 'es-ES';
   },
@@ -863,12 +863,13 @@ const Escribir = {
   pintarIdioma(){
     const v = this.idioma(), i = this.IDIOMAS.find(x => x[0] === v) || [v, v.slice(0,2).toUpperCase(), v];
     const b = $('#esIdioma'); if(!b) return;
+    const tx = $('#esTexto'); if(tx) tx.lang = v.slice(0, 2);   // el corrector usa el mismo idioma
     b.innerHTML = '<span class="es-idi-ic">🌍</span><b>' + i[1] + '</b>'; b.title = 'Dictar en ' + i[2] + ' (toca para cambiar)'; b.setAttribute('aria-label', b.title);
   },
   async cambiarIdioma(){
     const v = this.idioma(), n = this.IDIOMAS.findIndex(x => x[0] === v), sig = this.IDIOMAS[(n + 1) % this.IDIOMAS.length];
     App.ajustes.idiomaEscribir = sig[0]; await guardarAjustes(); this.pintarIdioma();
-    if(Voz.activo){ Voz.parar(); setTimeout(() => this.dictar(), 700); }   // si estaba escuchando, sigue en el idioma nuevo
+    if(Voz.activo || Voz._sigueT){ Voz.parar(); setTimeout(() => this.dictar(), 700); }   // si estaba escuchando, sigue en el idioma nuevo
     toast('🎤 Ahora dicto en ' + sig[2]);
   },
 

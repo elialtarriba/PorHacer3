@@ -1,6 +1,6 @@
 /* PorHacer · app principal: tablero de columnas, tareas y editor */
 
-const VERSION = 'V19';
+const VERSION = 'V19.2';
 const $ = (s, r=document) => r.querySelector(s);
 const $$ = (s, r=document) => Array.from(r.querySelectorAll(s));
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -213,7 +213,7 @@ const popConfirmar = (tit, txt, si='Sí', peligro) => popup({ tit, html:'<p>'+es
 
 /* ---------- Selector de color desplegable ---------- */
 // recientes: nombre del ajuste donde se guardan los últimos colores personalizados (máx. 5); solo en Tareas
-const MAX_RECIENTES = 5;
+const MAX_RECIENTES = 12;
 function coloresRecientes(clave){ const l = App.ajustes[clave]; return Array.isArray(l) ? l.filter(c => /^#[0-9a-f]{6}$/i.test(c)).slice(-MAX_RECIENTES) : []; }
 // Devuelve true si el color ha quedado en la lista. Con la lista llena, pregunta cuál sustituir.
 async function guardarReciente(clave, color){
@@ -278,7 +278,7 @@ function selectorColorTarea(valor){
   const cont = $('#edColor');
   const selector = selColor(cont, valor, paletaTareas(), v => { if(App.ed) App.ed.t.color = v; }, true, 'coloresRecientes');
   const herramientas = document.createElement('div'); herramientas.className = 'paleta-tarea-tools';
-  herramientas.innerHTML = '<button type="button" class="mini-btn">＋ Guardar este color</button><button type="button" class="mini-btn">✎ Mi paleta</button>';
+  herramientas.innerHTML = '<button type="button" class="mini-btn" title="Guardar este color, con un nombre, en mi paleta">＋ A mi paleta</button><button type="button" class="mini-btn" title="Ver y quitar colores de mi paleta">✎ Editar paleta</button>';
   cont.after(herramientas);
   herramientas.children[0].onclick = async () => {
     const color = selector.valor; if(!color){ toast('Escoge primero un color'); return; }
@@ -289,7 +289,7 @@ function selectorColorTarea(valor){
   };
   herramientas.children[1].onclick = async () => {
     const p = paletaTareas().filter(x=>x[0]);
-    const elegidos = await popup({tit:'Mi paleta de tareas',html:'<p>Desmarca los colores que quieras quitar. Las tareas conservan sus colores.</p>'+p.map((x,i)=>'<label class="check"><input type="checkbox" data-pal="'+i+'" checked><span class="caja"></span><span>'+esc(x[1])+'</span></label>').join(''), botones:[{txt:'Cancelar',val:null},{txt:'Guardar',cls:'btn-pri',val:c=>$$('[data-pal]:checked',c).map(e=>p[+e.dataset.pal])}]});
+    const elegidos = await popup({tit:'Mi paleta de tareas',html:'<p>Desmarca los colores que quieras quitar. Las tareas conservan sus colores.</p>'+p.map((x,i)=>'<label class="check pal-item"><input type="checkbox" data-pal="'+i+'" checked><span class="caja"></span><span class="muestra pal-muestra" style="background:'+esc(x[2])+'"></span><span>'+esc(x[1])+'</span></label>').join(''), botones:[{txt:'Cancelar',val:null},{txt:'Guardar',cls:'btn-pri',val:c=>$$('[data-pal]:checked',c).map(e=>p[+e.dataset.pal])}]});
     if(!elegidos) return; App.ajustes.paletaTareas=elegidos; await guardarAjustes(); renovar();
   };
   function renovar(){ const v=selector.valor; herramientas.remove(); selColorTarea=selectorColorTarea(v); }
