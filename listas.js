@@ -150,6 +150,7 @@ const Listas = {
     return [...it.filter(x => x.imp), ...it.filter(x => !x.imp)];      // los importantes ⭐, siempre arriba
   },
   pintar(){
+    if(this._ordenando) return;     // V19.4: no repintar mientras se arrastra un punto
     if(!$('#vListas') || !$('#vListas').classList.contains('activa')) return;
     const l = this.lista(); if(!l) return;
     const d = new Date(), f = DIAS[d.getDay()] + ', ' + d.getDate() + ' de ' + MESES[d.getMonth()];
@@ -159,7 +160,7 @@ const Listas = {
     this.pintarFondo();
     const pend = this.ordenados(l, false), hechos = this.ordenados(l, true);
     const fila = (x, i, n) => `<div class="ls-item ${x.ok ? 'ok' : ''}" data-id="${x.id}" tabindex="0">
-        <div class="ls-acc izq"><button data-pc="enviar">📋 Al PorHacer</button><button data-pc="completar">${x.ok ? "↶ Pendiente" : "✓ Completado"}</button></div><div class="ls-acc der"><span>🗑 Borrar</span></div>
+        <div class="ls-acc izq"><button data-pc="enviar">📋 Al PorHacer</button><button data-pc="completar">${x.ok ? "↶ Pendiente" : "✓ Completado"}</button></div><div class="ls-acc der"><button data-pc="completar">${x.ok ? "↶ Pendiente" : "✓ Tachar"}</button><button data-pc="borrar">🗑 Borrar</button></div>
         <div class="ls-cara">
           <button class="ls-check" aria-label="${x.ok ? 'Desmarcar' : 'Marcar como hecho'}">${x.ok ? '✓' : ''}</button>
           <div class="ls-txt"><span>${esc(x.t)}</span>${x.env ? `<small>📋 En «${esc(x.env)}»</small>` : x.nota ? `<small>${esc(x.nota)}</small>` : ''}</div>
@@ -187,7 +188,7 @@ const Listas = {
   async quitar(id){
     const [l, x] = this.item(id); if(!x) return;
     const i = l.items.indexOf(x); l.items.splice(i, 1); await this.guardar(l);
-    toast('🗑 «' + x.t + '» borrado', 'Deshacer', async () => { const l2 = this.datos.find(z => z.id === l.id); if(l2){ l2.items.splice(i, 0, x); await this.guardar(l2); } }, 6000);
+    toast('🗑 «' + x.t + '» borrado', '↶ Deshacer', async () => { const l2 = this.datos.find(z => z.id === l.id); if(l2 && !l2.items.some(z => z.id === x.id)){ l2.items.splice(i, 0, x); await this.guardar(l2); } }, 7000, true);
   },
   async mover(id, dir){
     const l = this.lista(), pend = this.ordenados(l, false), i = pend.findIndex(x => x.id === id), j = i + dir;
@@ -291,33 +292,87 @@ const Listas = {
     if(v==='completar'){ this.verHechos=true; return this.marcar(id); }
   },
   iniciarDeslizar(){
-    const cuerpo = $('#lsCuerpo'); let D = null;
-    const cerrarFilas = () => $$('.ls-item.a-izq', cuerpo).forEach(it => { it.classList.remove('a-izq'); $('.ls-cara',it).style.transform=''; });
+    const cuerpo = $('#lsCuerpo'); let D = null, R = null;
+    const ANCHO = 240;     // lo que se queda abierto al deslizar a medias
+    const cerrarFilas = () => $$('.ls-item.a-izq, .ls-item.a-der', cuerpo).forEach(it => { it.classList.remove('a-izq','a-der'); $('.ls-cara',it).style.transform=''; });
+
+    /* V19.4 · Mantener pulsado y arrastrar arriba/abajo para cambiar el orden (dedo y ratón) */
+    const scroller = () => { let el = cuerpo; while(el && el !== document.body){ const o = getComputedStyle(el).overflowY; if((o === 'auto' || o === 'scroll') && el.scrollHeight > el.clientHeight) return el; el = el.parentElement; } return document.scrollingElement; };
+    const empezarOrden = d => {
+      const it = d.item; if(!it.isConnected || it.classList.contains('ok')) return;
+      cerrarFilas();
+      const r = it.getBoundingClientRect();
+      R = { it, id:d.id, y0:d.y, y:d.y, agarre:d.y - r.top, sc:scroller(), bucle:0 };
+      it.classList.add('ls-levanta'); cuerpo.classList.add('ls-ordenando'); this._ordenando = true;
+      try{ d.cara.setPointerCapture(d.id); }catch(_){}
+      if(navigator.vibrate) try{ navigator.vibrate(15); }catch(_){}
+      const paso = () => { if(!R) return; const m = 70, H = innerHeight;
+        if(R.y < m) R.sc.scrollTop -= 9; else if(R.y > H - m) R.sc.scrollTop += 9;
+        colocar(); R.bucle = requestAnimationFrame(paso); };
+      R.bucle = requestAnimationFrame(paso);
+    };
+    const colocar = () => {
+      const it = R.it;
+      const otros = $$('.ls-item:not(.ok)', cuerpo).filter(x => x !== it);
+      let antes = null;
+      for(const o of otros){ const r = o.getBoundingClientRect(); if(R.y < r.top + r.height/2){ antes = o; break; } }
+      if(antes){ if(it.nextElementSibling !== antes) cuerpo.insertBefore(it, antes); }
+      else if(otros.length){ const ult = otros[otros.length-1]; if(ult.nextElementSibling !== it) ult.after(it); }
+      it.style.transform = '';
+      const top = it.getBoundingClientRect().top;
+      it.style.transform = `translateY(${R.y - R.agarre - top}px)`;
+    };
+    const acabarOrden = async (guardar) => {
+      const r = R; R = null; cancelAnimationFrame(r.bucle);
+      r.it.classList.remove('ls-levanta'); r.it.style.transform = ''; cuerpo.classList.remove('ls-ordenando'); this._ordenando = false;
+      this._sinClick = Date.now();
+      if(!guardar){ this.pintar(); return; }
+      const l = this.lista(); if(!l) return;
+      const ids = $$('.ls-item:not(.ok)', cuerpo).map(x => x.dataset.id);
+      if((l.modo || 'manual') !== 'manual') l.modo = 'manual';
+      ids.forEach((id, k) => { const x = l.items.find(z => z.id === id); if(x) x.pos = k; });
+      await this.guardar(l); this.pintar();
+    };
+    // en el iPhone: mientras se ordena, la pantalla no se mueve con el dedo
+    document.addEventListener('touchmove', e => { if(R) e.preventDefault(); }, { passive:false });
+    cuerpo.addEventListener('contextmenu', e => { if(e.target.closest('.ls-cara')) e.preventDefault(); });
+
     cuerpo.addEventListener('pointerdown', e => {
-      if(this.reordenar || e.button > 0 || e.target.closest('button')) return;
+      if(R || this.reordenar || e.button > 0 || e.target.closest('button')) return;
       const cara=e.target.closest('.ls-cara'); if(!cara) return;
-      const estaba=cara.parentNode.classList.contains('a-izq'); cerrarFilas();
-      D={cara,item:cara.parentNode,x:e.clientX,y:e.clientY,dx:0,mov:false,id:e.pointerId,estaba};
+      const it = cara.parentNode;
+      const estaba = it.classList.contains('a-izq') || it.classList.contains('a-der'); cerrarFilas();
+      D={cara,item:it,x:e.clientX,y:e.clientY,dx:0,mov:false,id:e.pointerId,estaba};
+      if(!estaba && !it.classList.contains('ok')) D.timer = setTimeout(() => { if(D && !D.mov){ const d = D; D = null; empezarOrden(d); } }, 420);
     });
-    cuerpo.addEventListener('pointermove', e => {
+    document.addEventListener('pointermove', e => {
+      if(R && e.pointerId === R.id){ e.preventDefault(); R.y = e.clientY; colocar(); return; }
       if(!D || e.pointerId!==D.id) return;
       const dx=e.clientX-D.x, dy=e.clientY-D.y;
-      if(!D.mov){ if(Math.abs(dx)<8) return; if(Math.abs(dy)>Math.abs(dx)){D=null;return;} D.mov=true; try{D.cara.setPointerCapture(e.pointerId);}catch(_){} }
+      if(!D.mov){
+        if(Math.abs(dx)<8 && Math.abs(dy)<8) return;
+        clearTimeout(D.timer);
+        if(Math.abs(dy)>Math.abs(dx)){D=null;return;}
+        D.mov=true; try{D.cara.setPointerCapture(e.pointerId);}catch(_){} }
       D.dx=dx; D.cara.style.transform=`translateX(${dx}px)`;
       D.item.classList.toggle('a-izq',dx>0); D.item.classList.toggle('a-der',dx<0);
     });
     const fin = e => {
-      if(!D || e.pointerId!==D.id) return; const d=D; D=null;
+      if(R && e.pointerId === R.id){ try{ R.it.querySelector('.ls-cara').releasePointerCapture(e.pointerId); }catch(_){} acabarOrden(e.type !== 'pointercancel'); return; }
+      if(!D || e.pointerId!==D.id) return; const d=D; D=null; clearTimeout(d.timer);
       try{d.cara.releasePointerCapture(e.pointerId);}catch(_){}
       d.cara.style.transform=''; d.item.classList.remove('a-izq','a-der');
       if(e.type==='pointercancel') return;
       if(!d.mov){if(!d.estaba) this.editar(d.item.dataset.id);return;}
-      this._sinClick=Date.now(); const id=d.item.dataset.id;
-      if(d.dx < -90){this.quitar(id);return;}
-      if(d.dx > Math.max(180,d.item.clientWidth*.72)){this.accionDerecha(id);return;}
-      if(d.dx > 35){d.item.classList.add('a-izq'); d.cara.style.transform='translateX(240px)';}
+      this._sinClick=Date.now(); const id=d.item.dataset.id, w=d.item.clientWidth;
+      // Hacia la IZQUIERDA (V19.4): hasta el final = tachar y bajar a «Completado»; a medias = se queda abierto con «Tachar» y «Borrar»
+      if(d.dx < -Math.max(200, w*.72)){ this.verHechos=true; this.marcar(id); return; }
+      if(d.dx < -35){ d.item.classList.add('a-der'); d.cara.style.transform=`translateX(-${ANCHO}px)`; return; }
+      // Hacia la derecha: como antes
+      if(d.dx > Math.max(180,w*.72)){this.accionDerecha(id);return;}
+      if(d.dx > 35){d.item.classList.add('a-izq'); d.cara.style.transform=`translateX(${ANCHO}px)`;}
     };
-    cuerpo.addEventListener('pointerup',fin); cuerpo.addEventListener('pointercancel',fin);
+    document.addEventListener('pointerup',fin); document.addEventListener('pointercancel',fin);   // en todo el documento: aunque el dedo salga de la lista
     cuerpo.addEventListener('click', e => {
       if(Date.now()-(this._sinClick||0)<250) return;
       const it=e.target.closest('.ls-item'); if(!it) return; const id=it.dataset.id;

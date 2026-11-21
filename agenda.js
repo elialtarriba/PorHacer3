@@ -35,7 +35,7 @@ const Agenda = {
     if(this.modo === 'anio'){
       const y = this.mes.getFullYear();
       cab = `<div class="ag-titulo">Año ${y}</div>`;
-      cuerpo = `<div class="ag-anio">${MESES_C.map((n, m) => `<div class="ag-mini ${y === new Date().getFullYear() && m === new Date().getMonth() ? 'ahora' : ''}"><button class="ag-mini-t" data-mes="${m}">${n}</button>${this.rejilla(y, m, true)}</div>`).join('')}</div>`;
+      cuerpo = `<div class="ag-anio">${MESES_C.map((n, m) => `<div class="ag-mini ${y === new Date().getFullYear() && m === new Date().getMonth() ? 'ahora' : ''}"><button class="ag-mini-t" data-mes="${m}">${n} <span class="ag-mini-y">${y}</span></button>${this.rejilla(y, m, true)}</div>`).join('')}</div>`;
     } else if(this.modo === 'dia'){
       cab = `<label class="ag-titulo ag-titulo-dia">${fechaBonita(this.dia)}<small>${deIso(this.dia).getFullYear()}${this.dia === hoyIso() ? ' · Hoy' : ''}</small><input type="date" id="agElegirDia" value="${this.dia}"></label>`;
       cuerpo = this.vistaDia();

@@ -1792,3 +1792,22 @@ body.pipeta-on #editor{visibility:hidden}
 #vEscribir .es-pie-info{flex:none;text-align:center;padding:4px 10px calc(6px + var(--safeB));font-size:12px}
 #vEscribir .es-pie-info .es-info{display:flex;justify-content:center;gap:8px;flex-wrap:wrap}
 #vEscribir.sin-documento .es-pie-info{display:none}
+
+/* V19.4: año al lado de cada mes en Agenda › Año */
+.ag-mini-y{font-weight:700;opacity:.55;margin-left:4px;font-size:.85em}
+
+/* V19.4 · Listas: deslizar a la izquierda deja «Tachar» y «Borrar»; mantener pulsado para ordenar */
+.ls-acc.der{padding:0;width:240px;left:auto;gap:0;justify-content:flex-end;background:transparent}
+.ls-acc.der button{width:120px;align-self:stretch;border:0;background:#287c49;color:#fff;font:inherit;font-size:14px;font-weight:900;padding:8px;white-space:normal}
+.ls-acc.der button+button{background:#e5342c}
+.ls-item.a-der{background:#287c49}
+.ls-cara{-webkit-touch-callout:none}
+.ls-item.ls-levanta{z-index:20;overflow:visible;transition:none!important}
+.ls-item.ls-levanta .ls-cara{box-shadow:0 14px 30px rgba(0,0,0,.28)!important;transform:scale(1.03)!important;cursor:grabbing}
+.ls-ordenando .ls-item:not(.ls-levanta){transition:transform .15s}
+.ls-ordenando, .ls-ordenando *{user-select:none;-webkit-user-select:none}
+/* Aviso «Deshacer» más grande */
+.toast.toast-grande{font-size:17px;padding:16px 16px 16px 20px;border-radius:20px;display:flex;align-items:center;gap:14px;max-width:calc(100vw - 24px)}
+.toast.toast-grande button{font-size:16px;padding:10px 16px;border-radius:12px;flex:none}
+.toast.toast-grande{width:min(calc(100vw - 24px),460px);justify-content:space-between}
+.toast.toast-grande span{flex:1;min-width:0}

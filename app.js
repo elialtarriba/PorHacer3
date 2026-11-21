@@ -1,6 +1,6 @@
 /* PorHacer · app principal: tablero de columnas, tareas y editor */
 
-const VERSION = 'V19.3';
+const VERSION = 'V19.4';
 const $ = (s, r=document) => r.querySelector(s);
 const $$ = (s, r=document) => Array.from(r.querySelectorAll(s));
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -58,8 +58,8 @@ function bordeDe(t){ return App.ajustes.bordeColumna ? colDe(t.colId).color : (t
 function abrir(id){ $('#'+id).classList.add('abierto'); }
 function cerrar(id){ $('#'+id).classList.remove('abierto'); if(id === 'ajustes' && typeof TemaSec !== 'undefined') TemaSec.aplicar(TemaSec.DE_VISTA[document.body.dataset.vista] || null); }
 let _toastT;
-function toast(txt, accion, fn, ms=3200){
-  const t = $('#toast');
+function toast(txt, accion, fn, ms=3200, grande=false){
+  const t = $('#toast'); t.classList.toggle('toast-grande', !!grande);   // V19.4: aviso grande (Deshacer en Listas)
   t.innerHTML = '<span>'+esc(txt)+'</span>' + (accion ? '<button>'+esc(accion)+'</button>' : '');
   if(accion) t.querySelector('button').onclick = () => { t.classList.remove('ver'); fn && fn(); };
   t.classList.add('ver'); clearTimeout(_toastT);
@@ -395,6 +395,8 @@ function pintarTablero(){
   tab.scrollLeft = scroll;
 }
 function pintarTodo(){
+  if(App.arrastrando){ App.repintarLuego = true; return; }   // V19.4: no repintar a mitad de un arrastre (la nube lo hacía y dejaba restos)
+  App.repintarLuego = false;
   pintarChips(); pintarTablero();
   if($('#vCal').classList.contains('activa')) Cal.pintar();
 }
@@ -583,8 +585,15 @@ function iniciarArrastre(){
   const tab = $('#tablero');
   let st = null, bucle = null;
 
+  // V19.4: quita restos de arrastres anteriores (fantasmas y huecos que se quedaban pegados)
+  const limpiarRestos = () => { $$('body > .fantasma').forEach(g => g.remove()); $$('#tablero .hueco').forEach(h => h.remove()); $$('#tablero .tarjeta').forEach(c => { if(c.style.display === 'none') c.style.display = ''; }); };
   const empezar = (x, y) => {
-    const card = st.card, r = card.getBoundingClientRect();
+    const card = st.card;
+    // Si el tablero se ha repintado (la tarjeta ya no está en pantalla), no arrastrar nada
+    if(!card.isConnected){ st = null; return; }
+    const r = card.getBoundingClientRect();
+    if(r.width < 30 || r.height < 10){ st = null; return; }
+    limpiarRestos(); App.arrastrando = true;
     st.activo = true; st.offX = x - r.left; st.offY = y - r.top; st.x = x; st.y = y;
     const g = card.cloneNode(true); g.classList.add('fantasma');
     g.style.width = r.width+'px'; g.style.left = r.left+'px'; g.style.top = r.top+'px';
@@ -627,11 +636,14 @@ function iniciarArrastre(){
   };
   const soltar = async () => {
     cancelAnimationFrame(bucle);
-    const { card, hueco, ghost } = st;
-    const lista = hueco.parentNode, col = lista.closest('.columna');
-    const id = card.dataset.id, t = App.tareas.find(x => x.id === id);
+    const yo = st; st = null;                 // V19.4: se libera al momento (antes esperaba a guardar y se mezclaban arrastres)
+    const { card, hueco, ghost } = yo;
     ghost.remove(); tab.style.scrollSnapType = ''; document.body.style.userSelect = '';
     $$('.columna.encima').forEach(c => c.classList.remove('encima'));
+    App.ignorarClick = true; setTimeout(() => App.ignorarClick = false, 80);
+    const lista = hueco.parentNode, col = lista && lista.closest('.columna');
+    const id = card.dataset.id, t = App.tareas.find(x => x.id === id);
+    if(!lista || !card.isConnected){ hueco.remove(); limpiarRestos(); App.arrastrando = false; pintarTodo(); return; }
     if(t && col){
       const antes = t.colId, nueva = col.dataset.c;
       lista.insertBefore(card, hueco); card.style.display = ''; hueco.remove();
@@ -645,15 +657,16 @@ function iniciarArrastre(){
         if(colDe(nueva).hecha && !colDe(antes).hecha){ t.hechaEn = Date.now(); Fiesta.celebrar(t); }
         toast('Movida a «'+colDe(nueva).nombre+'»');
       }
-      for(const x of cambiadas) await guardarTarea(x);
-    }
-    App.ignorarClick = true; setTimeout(() => App.ignorarClick = false, 80);
-    st = null; pintarTodo();
+      App.arrastrando = false; limpiarRestos(); pintarTodo();
+      try{ for(const x of cambiadas) await guardarTarea(x); }catch(e){ console.warn(e); }
+    } else { hueco.remove(); card.style.display = ''; }
+    App.arrastrando = false; limpiarRestos(); pintarTodo();
   };
   const cancelar = () => {
     if(!st) return; clearTimeout(st.timer);
-    if(st.activo){ cancelAnimationFrame(bucle); st.ghost.remove(); st.hueco.remove(); st.card.style.display=''; tab.style.scrollSnapType=''; pintarTodo(); }
-    st = null;
+    const yo = st; st = null;
+    if(yo.activo){ cancelAnimationFrame(bucle); yo.ghost && yo.ghost.remove(); yo.hueco && yo.hueco.remove(); yo.card.style.display=''; tab.style.scrollSnapType=''; document.body.style.userSelect=''; }
+    App.arrastrando = false; limpiarRestos(); pintarTodo();
   };
 
   // Ratón (ordenador)
@@ -664,17 +677,21 @@ function iniciarArrastre(){
   });
   addEventListener('mousemove', e => {
     if(!st) return;
-    if(!st.activo){ if(Math.hypot(e.clientX-st.x0, e.clientY-st.y0) < 7) return; empezar(st.x0, st.y0); }
+    if(!e.buttons){ if(st.activo) soltar(); else st = null; return; }   // se soltó el botón sin que llegara el mouseup
+    if(!st.activo){ if(Math.hypot(e.clientX-st.x0, e.clientY-st.y0) < 7) return; empezar(st.x0, st.y0); if(!st) return; }
     e.preventDefault(); mover(e.clientX, e.clientY);
   });
   addEventListener('mouseup', () => { if(!st) return; if(st.activo) soltar(); else st = null; });
+  // Si el ratón se suelta fuera de la ventana o se cambia de ventana, no dejar nada colgado
+  addEventListener('blur', () => { if(st && st.activo) cancelar(); else st = null; });
+  addEventListener('keydown', e => { if(e.key === 'Escape' && st && st.activo) cancelar(); });
 
   // Dedo (móvil): mantener pulsado un momento y arrastrar
   tab.addEventListener('touchstart', e => {
     const c = e.target.closest('.tarjeta'); if(!c || e.touches.length > 1 || e.target.closest('.t-check')) return;
     const t = e.touches[0];
     st = { card:c, x0:t.clientX, y0:t.clientY };
-    st.timer = setTimeout(() => { if(st && !st.activo){ empezar(st.x0, st.y0); mover(st.x0, st.y0); } }, 380);
+    st.timer = setTimeout(() => { if(st && !st.activo){ empezar(st.x0, st.y0); if(st) mover(st.x0, st.y0); } }, 380);
   }, { passive:true });
   tab.addEventListener('touchmove', e => {
     if(!st) return;
