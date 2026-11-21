@@ -160,7 +160,7 @@ const Listas = {
     this.pintarFondo();
     const pend = this.ordenados(l, false), hechos = this.ordenados(l, true);
     const fila = (x, i, n) => `<div class="ls-item ${x.ok ? 'ok' : ''}" data-id="${x.id}" tabindex="0">
-        <div class="ls-acc izq"><button data-pc="enviar">📋 Al PorHacer</button><button data-pc="completar">${x.ok ? "↶ Pendiente" : "✓ Completado"}</button></div><div class="ls-acc der"><button data-pc="completar">${x.ok ? "↶ Pendiente" : "✓ Tachar"}</button><button data-pc="borrar">🗑 Borrar</button></div>
+        <div class="ls-acc izq"><button data-pc="enviar">📋 Al PorHacer</button><button data-pc="completar">${x.ok ? "↶ Pendiente" : "✓ Completado"}</button></div><div class="ls-acc der"><button data-pc="completar">${x.ok ? "↶ Pendiente" : "✓ Completado"}</button><button data-pc="borrar">🗑 Borrar</button></div>
         <div class="ls-cara">
           <button class="ls-check" aria-label="${x.ok ? 'Desmarcar' : 'Marcar como hecho'}">${x.ok ? '✓' : ''}</button>
           <div class="ls-txt"><span>${esc(x.t)}</span>${x.env ? `<small>📋 En «${esc(x.env)}»</small>` : x.nota ? `<small>${esc(x.nota)}</small>` : ''}</div>

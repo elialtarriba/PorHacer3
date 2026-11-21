@@ -7,7 +7,7 @@ const Ajustes = {
   pagina: null,
   PAGS: [
     { grupo:'Para toda la app' },
-    { k:'general', ico:'portada',    t:'General',              s:'Qué se ve al abrir · micrófono' },
+    { k:'general', ico:'portada',    t:'General',              s:'Qué se ve al abrir · idioma · micrófono' },
     { k:'tema',    ico:'paleta',     t:'Tema y colores',       s:'Los colores de toda la app' },
     { k:'cuenta',  ico:'ajustes',    t:'Cuenta y nube',        s:'Tu cuenta, tus tableros y dónde se guarda cada cosa' },
     { k:'donde',   ico:'guardar',    t:'Guardar: nube o aparato', s:'Dónde se guarda cada apartado' },
@@ -91,7 +91,12 @@ const Ajustes = {
   p_general(){
     const a = App.ajustes, ini = a.inicio === 'tablero' ? 'tareas' : (a.inicio || 'portada');
     const ops = [['portada','portada','Portada'],['tareas','tablero','Tareas'],['cal','calendario','Calendario Tareas'],['listas','listas','Listas'],['agenda','agenda','Agenda'],['tickets','tickets','Tickets'],['sitios','sitios','Sitios'],['calc','calculadora','Calculadora'],['grabar','grabar','Grabar']];
-    return this.tarjeta('🚪 Al abrir la app, ver…', `<div class="gen-inicio">${ops.map(([k, ic, t]) => `<button data-ini="${k}" class="${k === ini ? 'on' : ''}"><span>${icono(ic)}</span>${t}</button>`).join('')}</div>`, 'Lo primero que se ve al entrar en la app, en este aparato.')
+    const ID = (typeof I18N !== 'undefined') ? I18N.lang : 'es';
+    const notaIdioma = { es:'Cambia los textos de la app (botones, menús, avisos). Lo que escribes tú no se traduce. Por ahora están traducidos la portada, los menús, Tareas y Configuración; el resto se irá añadiendo.',
+      ca:'Canvia els textos de l’app (botons, menús, avisos). El que escrius tu no es tradueix. De moment estan traduïts la portada, els menús, Tasques i Configuració; la resta s’anirà afegint.',
+      en:'Changes the app’s texts (buttons, menus, messages). What you write is not translated. For now the home screen, menus, Tasks and Settings are translated; the rest will follow.' }[ID];
+    return this.tarjeta('🌐 Idioma de la app', '<div class="no-i18n">' + this.seg('ajIdioma', [['es','Castellano'],['ca','Català'],['en','English']], ID) + '</div>', '<span class="no-i18n">' + notaIdioma + '</span>')
+      + this.tarjeta('🚪 Al abrir la app, ver…', `<div class="gen-inicio">${ops.map(([k, ic, t]) => `<button data-ini="${k}" class="${k === ini ? 'on' : ''}"><span>${icono(ic)}</span>${t}</button>`).join('')}</div>`, 'Lo primero que se ve al entrar en la app, en este aparato.')
       + this.acord('colores', '🎨', 'Colores de la portada', 'Ahora: ' + TemaSec.nombre('portada'), TemaSec.rejilla('portada') + '<p class="aj-ayuda">Solo cambia la pantalla de inicio (también con el botón 🎨 de la portada).</p>')
       + this.tarjeta('👁 Botones de la portada', `<div class="gen-po">${[...Portada.SECC.map(s => [s.k, s.ico, s.k.startsWith('web') ? Webs.nombre(s.k) : s.k === 'escribir' ? Escribir.nombre() : s.t]), ['bloc', 'bloc', 'Notas secretas']].map(([k, ic, t]) => `<label class="check" style="margin-top:0"><input type="checkbox" data-pover="${k}" ${Portada.ocultos().includes(k) ? '' : 'checked'}><span class="caja"></span><span class="gen-po-t"><i>${icono(ic)}</i>${t}</span></label>`).join('')}</div>`,
           'Quita la marca de los que no uses y desaparecerán de la portada. Vuelve a marcarlos para que salgan otra vez. Lo que tengas guardado no se borra. <b>Configuración</b> siempre se ve.')
@@ -105,6 +110,7 @@ const Ajustes = {
     const a = App.ajustes;
     $$('[data-ini]', cont).forEach(b => b.onclick = async () => { a.inicio = b.dataset.ini; await this.guardar(); $$('[data-ini]', cont).forEach(x => x.classList.toggle('on', x === b)); toast('🚪 Al abrir: ' + b.textContent.trim()); });
     this.enlazarSeg('ajVoz', async v => { a.idiomaVoz = v; await this.guardar(); });
+    this.enlazarSeg('ajIdioma', async v => { if(typeof I18N === 'undefined' || v === I18N.lang) return; toast({ es:'🌐 Castellano', ca:'🌐 Català', en:'🌐 English' }[v]); await I18N.poner(v); });
     $$('[data-pover]', cont).forEach(c => c.onchange = async () => {
       const k = c.dataset.pover, s = new Set(Portada.ocultos()); if(c.checked) s.delete(k); else s.add(k);
       a.poOcultos = [...s]; await this.guardar(); Portada.pintar();

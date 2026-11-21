@@ -1,6 +1,6 @@
 /* PorHacer · app principal: tablero de columnas, tareas y editor */
 
-const VERSION = 'V19.4';
+const VERSION = 'V19.5';
 const $ = (s, r=document) => r.querySelector(s);
 const $$ = (s, r=document) => Array.from(r.querySelectorAll(s));
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -1245,6 +1245,8 @@ async function iniciar(){
     if(!App.ajustes){ App.ajustes = ajustesInicio(); await guardarAjustes(); }
     App.ajustes = Object.assign(ajustesInicio(), App.ajustes); limpiarDato(App.ajustes.columnas, 'columnas');
     aplicarTema(App.ajustes.colores);
+    // V19.5: idioma guardado en la cuenta → también en este aparato (una sola vez)
+    try{ if(App.ajustes.idioma && !localStorage.getItem('ph3-idioma')){ localStorage.setItem('ph3-idioma', App.ajustes.idioma); if(App.ajustes.idioma !== 'es'){ location.reload(); return; } } }catch(e){}
     [App.tareas, App.personas] = await Promise.all([DB.todos('tareas'), DB.todos('personas')]);
     App.tareas.forEach(t => limpiarDato(t)); App.personas.forEach(p => limpiarDato(p));
     await contarMedia();
