@@ -350,7 +350,12 @@ const Nube = {
   },
   // Vuelve a poner un tablero de la copia. Si ya no existe (o ya no estás en él), se crea uno nuevo tuyo con sus tareas.
   async restaurarTablero(b, modo){
+    // V19.6: espera a tener la lista de tableros (antes, si aún no había llegado, creaba tableros repetidos «(copia)»)
+    for(let i = 0; i < 40 && this.listos < 2; i++) await new Promise(r => setTimeout(r, 250));
+    if(this.listos < 2) throw new Error('Tu cuenta aún está conectando. Espera un momento y vuelve a intentarlo.');
     let tid = b.id, t = this.tableros[tid];
+    // si no está por su id, se busca uno tuyo con el mismo nombre antes de crear otro
+    if(!t || !this.dentro(t)){ const n = s => norm(String(s || '')).trim(); const igual = this.misTableros().find(x => n(x.nombre) === n(b.nombre)); if(igual){ tid = igual.id; t = igual; } }
     if(!t || !this.dentro(t)){ tid = await this.crearTablero(b.nombre + (b.mio ? '' : ' (copia)')); this.tableros[tid] = this.tableros[tid] || { id:tid, dueno:this.user.uid, nombre:b.nombre, miembros:[this.email()], aceptados:[this.email()] }; t = this.tableros[tid]; }
     const mio = this.esDueno(t), C = n => this.colDe(tid, n);
     if(b.config && mio) await C('config').doc('tablero').set(limpioFS(b.config));
@@ -359,7 +364,9 @@ const Nube = {
       const ids = new Set((b.tareas || []).map(x => x.id));
       for(const d of (await C('tareas').get()).docs) if(!ids.has(d.id)) await d.ref.delete();
     }
-    for(const x of b.tareas || []) if(x && x.id) await C('tareas').doc(x.id).set(limpioFS(x));
+    // al juntar, si la tarea que ya tienes es más nueva que la de la copia, se queda la tuya
+    const yaT = {}; if(modo !== 'cambiar') (await C('tareas').get()).docs.forEach(d => yaT[d.id] = d.data());
+    for(const x of b.tareas || []){ if(!x || !x.id) continue; const y = yaT[x.id]; if(y && (y.actualizada || 0) >= (x.actualizada || 0)) continue; await C('tareas').doc(x.id).set(limpioFS(x)); }
     const ya = new Set((await C('media').get()).docs.map(d => d.id));
     for(const m of b.media || []){
       if(ya.has(m.id) || !m.datos) continue;

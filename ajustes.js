@@ -11,7 +11,7 @@ const Ajustes = {
     { k:'tema',    ico:'paleta',     t:'Tema y colores',       s:'Los colores de toda la app' },
     { k:'cuenta',  ico:'ajustes',    t:'Cuenta y nube',        s:'Tu cuenta, tus tableros y dónde se guarda cada cosa' },
     { k:'donde',   ico:'guardar',    t:'Guardar: nube o aparato', s:'Dónde se guarda cada apartado' },
-    { k:'copias',  ico:'copia',      t:'Copias de seguridad',  s:'Exportar e importar tus datos' },
+    { k:'copias',  ico:'copia',      t:'Copias de seguridad',  s:'Copias automáticas · recuperar · quitar repetidos' },
     { grupo:'Cada apartado' },
     { k:'porhacer', ico:'tablero',    t:'Tareas',   s:'Colores, columnas, personas, al acabar, fotos y emails' },
     { k:'cal',      ico:'calendario', t:'Calendario Tareas',          s:'Cómo se ve al abrirlo · colores' },
@@ -238,53 +238,30 @@ const Ajustes = {
       <div class="gen-btns"><button class="btn-pri" id="genExp">⬇️ Exportar copia</button><button class="btn-sec" id="genImp">⬆️ Importar copia</button></div>
       <input type="file" id="genImpIn" accept=".json,application/json" hidden>
       <p class="aj-ayuda" style="margin-top:10px">🏠 <b>¿Tienes cosas en HOME?</b> En HOME pulsa «⬇ Exportar copia» y aquí, «⬆️ Importar copia» con ese archivo (hogar-copia-….json): sus <b>casas, sitios y cosas</b> pasan a Sitios y sus <b>tickets</b> a Tickets, con las fotos.</p>`;
-    const todo = `<div class="cc-caja"><div class="cc-cab"><span class="cc-ic">📦</span><span><b>Copia completa: TODO</b><small>Un solo archivo con todo lo de la app</small></span></div>
-        <p class="cc-que">📋 <b>Todos los tableros</b> (los tuyos y los compartidos) con sus tareas, personas, 📷 fotos y 🎙️ audios · 📒 Agenda · 🧾 Tickets · 🏡 Sitios · 📝 Listas · 🎙️ Grabaciones · 📄 Escritos · 🔒 Notas secretas (siguen cifradas) · 🌐 Webs personales · ⚙️ Configuración</p>
-        <label class="check" style="margin-top:4px"><input type="checkbox" id="ccVid"><span class="caja"></span><span>Incluir también los vídeos<small>Ocupan mucho; márcalo solo si los quieres guardar</small></span></label>
-        <div class="gen-btns"><button class="btn-pri" id="ccExp">⬇️ Exportar todo</button><button class="btn-sec" id="ccImp">⬆️ Importar todo</button></div>
-        <input type="file" id="ccImpIn" accept=".json,application/json" hidden>
-        <p class="aj-ayuda" style="margin-top:8px">Se guarda <b>PorHacer_Todo_fecha.json</b>. Para recuperarlo, pulsa «⬆️ Importar todo» y elige ese archivo. Las contraseñas de tus webs personales <b>no</b> se guardan en la copia (al restaurar tendrás que volver a ponerlas). ⚠️ La copia lleva tus tareas y datos: guárdala en un sitio privado o márcala «con contraseña».</p></div>`;
-    return this.nota('💡 Haz copias de vez en cuando y guárdalas en un sitio seguro (iCloud, un pendrive…). <b>No subas nunca estos archivos a GitHub</b>: tienen tus datos.')
-      + todo
-      + '<p class="cc-o">O, si solo quieres una parte:</p>'
-      + this.acord('tareas', '✅', 'Tareas de PorHacer', 'Las tareas, personas, fotos, vídeos y audios · espacio usado', '<div id="ajCopias"></div>')
-      + this.acord('mio', '📒', 'Agenda, Tickets, Gastos, Sitios y Listas', 'En un solo archivo, con sus fotos', mia)
-      + this.acord('gastos', '💶', esc(Gastos.nombre()) + ' (de Tickets)', 'Solo esta lista, cifrada con una contraseña', `<p class="aj-ayuda">Se guarda <b>PorHacer_Gastos_fecha.json</b>, cifrado como las Notas secretas: <b>sin la contraseña nadie lo puede abrir</b>. Para recuperarlo, «Importar» y escribe esa contraseña.</p>
-          <div class="gen-btns"><button class="btn-pri" id="cgExp">⬇️ Exportar (cifrada)</button><button class="btn-sec" id="cgImp">⬆️ Importar</button></div><input type="file" id="cgImpIn" accept=".json,application/json" hidden>`)
-      + this.acord('bloc', '🔒', 'Notas secretas', 'Van cifradas, con tu contraseña', `<p class="aj-ayuda">La copia del bloc se hace desde su página, porque va cifrada.</p>${this.enlace('bloc', '🔒 Ir a Notas secretas')}`);
+    // V19.6 · Copias seguras: por apartados, automáticas y sin repetir (seguro.js)
+    const marca = Seguro.SECC.map(x => `<label class="check" style="margin-top:4px"><input type="checkbox" data-sg="${x.k}" checked><span class="caja"></span><span>${x.ico} ${x.t}</span></label>`).join('');
+    return this.nota('💡 La app ya hace <b>sola</b> una copia de cada apartado cada día. Aun así, guarda de vez en cuando una copia en iCloud (por ejemplo en «Copies Seg»). <b>No subas nunca estos archivos a GitHub</b>: tienen tus datos.')
+      + this.tarjeta('🛟 Copias automáticas', '<button class="btn-pri btn-ancho" id="sgAuto">🕒 Ver y recuperar</button>',
+          'Cada día, al abrir la app, se guarda sola una copia de Tareas, Listas, Agenda, Tickets, Sitios y Notas secretas: los últimos 14 días en este aparato y 10 días en tu cuenta. Si un día falta algo, recupéralo de aquí. (Las fotos y las grabaciones no van en estas copias.)')
+      + this.tarjeta('💾 Hacer una copia', `<div class="gen-que">${marca}</div><div class="gen-btns"><button class="btn-pri" id="sgExp">⬇️ Guardar copia</button><button class="btn-sec" id="sgImp">⬆️ Recuperar de un archivo</button></div><input type="file" id="sgImpIn" accept=".json,application/json" hidden>`,
+          'Con todo marcado se guarda <b>PorHacer_Todo_fecha.json</b>; si marcas solo un apartado, solo ese. Al recuperar eliges qué apartados y si <b>juntar</b> (nada se borra y <b>nada se repite</b>) o <b>dejarlo como en la copia</b>. También sirve para las copias de antes y para las de HOME.')
+      + this.tarjeta('🧹 Quitar repetidos', '<button class="btn-sec btn-ancho" id="sgRep">🧹 Buscar repetidos</button>', 'Busca tickets, notas de la agenda, puntos de las listas, cosas de los sitios y tareas que estén dos veces. Te enseña cuántos hay antes de quitarlos.')
+      + '<p class="cc-o">Otras copias:</p>'
+      + this.acord('tareas', '📊', 'Espacio y copia de las tareas', 'Fotos, vídeos y audios de las tareas · espacio usado', '<div id="ajCopias"></div>')
+      + this.acord('gastos', '💶', esc(Gastos.nombre()) + ' (de Tickets)', 'Solo esta lista, cifrada con una contraseña', `<p class="aj-ayuda">Se guarda <b>PorHacer_Gastos_fecha.json</b>, cifrado como las Notas secretas: <b>sin la contraseña nadie lo puede abrir</b>.</p>
+          <div class="gen-btns"><button class="btn-pri" id="cgExp">⬇️ Exportar (cifrada)</button><button class="btn-sec" id="cgImp">⬆️ Importar</button></div><input type="file" id="cgImpIn" accept=".json,application/json" hidden>`);
   },
   e_copias(cont){
     this.enlazarEnlaces(cont);
     $('#cgExp', cont).onclick = () => CopiaGastos.exportar();
     $('#cgImp', cont).onclick = () => $('#cgImpIn', cont).click();
     $('#cgImpIn', cont).onchange = e => { const f = e.target.files[0]; e.target.value = ''; if(f) CopiaGastos.importar(f); };
-    $('#ccExp', cont).onclick = ev => Completa.exportar($('#ccVid', cont).checked, ev.currentTarget);
-    $('#ccImp', cont).onclick = () => $('#ccImpIn', cont).click();
-    $('#ccImpIn', cont).onchange = e => { const f = e.target.files[0]; e.target.value = ''; if(f) Completa.importar(f); };
-    // la copia de las tareas se pinta al abrir su apartado
-    const dT = $('.aj-acord[data-ac="tareas"]', cont); dT.addEventListener('toggle', () => { if(dT.open) Copias.pintar(); });
-    const que = () => { const q = {}; $$('[data-que]', cont).forEach(c => q[c.dataset.que] = c.checked); return q; };
-    $('#genExp').onclick = async () => {
-      const q = que(); if(!Object.values(q).some(Boolean)){ toast('Marca al menos una cosa'); return; }
-      const obj = await Mio.exportar(q), txt = JSON.stringify(obj);
-      descargar(new Blob([txt], { type:'application/json' }), 'PorHacer_' + Object.keys(q).filter(k => q[k]).map(k => capital(k)).join('_') + '_' + hoyIso() + '.json');
-      toast('💾 Copia guardada (' + tamTxt(txt.length) + ')');
-    };
-    $('#genImp').onclick = () => $('#genImpIn').click();
-    $('#genImpIn').onchange = async e => {
-      const f = e.target.files[0]; e.target.value = ''; if(!f) return;
-      let obj; try{ obj = JSON.parse(await f.text()); }catch(err){ popAviso('Importar', 'Este archivo no es una copia válida.'); return; }
-      if(obj && obj.app === 'Hogar'){ await this.importarHome(obj); return; }
-      if(!obj || obj.tipo !== 'copia-mia'){ popAviso('Importar', 'Este archivo no es una copia de Agenda, Tickets, Sitios y Listas de PorHacer3. (Si es una copia de las tareas, impórtala en «Tareas de PorHacer»).'); return; }
-      const modo = await popup({ tit:'⬆️ Importar copia', html:`<p>Copia del ${new Date(obj.fecha).toLocaleDateString('es-ES')}: ${['agenda','tickets','gastos','sitios','listas'].filter(k => obj[k]).map(k => ({ agenda:'📒 Agenda', tickets:'🧾 Tickets', gastos:'💶 Gastos', sitios:'🏡 Sitios', listas:'📝 Listas' })[k]).join(', ')}.</p>
-        <button class="opcion" data-v="juntar">➕ Juntar con lo que ya tengo</button><button class="opcion" data-v="cambiar">♻️ Cambiar lo que tengo por la copia</button>`,
-        botones:[{ txt:'Cancelar', val:null }], alAbrir:(c, fin) => $$('[data-v]', c).forEach(b => b.onclick = () => fin(b.dataset.v)) });
-      if(!modo) return;
-      if(modo === 'cambiar' && !await popConfirmar('¿Cambiar lo que tienes?', 'Se borrará la Agenda, los Tickets y los Sitios que tienes ahora y se pondrá lo de la copia.', 'Cambiar')) return;
-      toast('⬆️ Importando…', null, null, 20000);
-      try{ const r = await Mio.importar(obj, modo); toast('✅ Importado: ' + r.agenda + ' días, ' + r.tickets + ' tickets, ' + r.sitios + ' sitios, ' + r.listas + ' listas'); this.ir('copias', 'mio', true); }
-      catch(err){ console.warn(err); popAviso('Importar', 'No se ha podido importar: ' + err.message); }
-    };
+    const dT = $('.aj-acord[data-ac="tareas"]', cont); if(dT) dT.addEventListener('toggle', () => { if(dT.open) Copias.pintar(); });
+    $('#sgAuto', cont).onclick = () => Seguro.verAutomaticas();
+    $('#sgRep', cont).onclick = () => Seguro.quitarRepetidos();
+    $('#sgExp', cont).onclick = ev => { const q = $$('[data-sg]', cont).filter(i => i.checked).map(i => i.dataset.sg); if(!q.length){ toast('Marca al menos un apartado'); return; } Seguro.exportar(q, ev.currentTarget); };
+    $('#sgImp', cont).onclick = () => $('#sgImpIn', cont).click();
+    $('#sgImpIn', cont).onchange = e => { const f = e.target.files[0]; e.target.value = ''; if(f) Seguro.importar(f); };
   },
 
   async importarHome(obj){

@@ -88,21 +88,40 @@ const Mio = {
         }catch(e){ console.warn('mio subir', e); }
       }
       if(!nube.length) return;
+      // V19.6: lo que se borró a propósito (en cualquier aparato) queda apuntado en la nube («borrados»)
+      this._lapidas = new Set();
+      try{ (await this.ref('borrados').get()).docs.forEach(d => this._lapidas.add(d.id)); }catch(e){ console.warn('mio borrados', e); }
+      this._resubidos = this._resubidos || new Set();
       [...nube, 'fotos'].forEach(col => {
         const mia = col === 'fotos' ? (v => nube.includes(this.secDeFoto(v))) : (() => true);
         this._subs.push(this.ref(col).onSnapshot(snap => {
           snap.docChanges().forEach(ch => {
             const id = ch.doc.id;
-            if(ch.type === 'removed'){ if(this.datos[col][id] && mia(this.datos[col][id])){ delete this.datos[col][id]; this.guardarAparato(u, col, id, null); } }
+            if(ch.type === 'removed'){ const v0 = this.datos[col][id]; if(v0 && mia(v0)) this.quitadoEnNube(u, col, id, v0); }
             else { const v = ch.doc.data(); if(!mia(v)) return; this.datos[col][id] = v; this.guardarAparato(u, col, id, v); }
           });
-          // lo que ya no está en la nube, fuera también del aparato
-          if(!(snap.metadata && snap.metadata.fromCache)){ const ids = new Set(snap.docs.map(d => d.id));
-            Object.keys(this.datos[col]).forEach(id => { const v = this.datos[col][id]; if(!ids.has(id) && mia(v)){ delete this.datos[col][id]; this.guardarAparato(u, col, id, null); } }); }
+          // V19.6 · Lo que está en el aparato y NO en la nube ya no se borra sin más (así se perdieron Sitios):
+          // si se borró a propósito (apuntado en «borrados») se quita; si no, se vuelve a subir a la nube.
+          if(!(snap.metadata && snap.metadata.fromCache)){ (this._servidor = this._servidor || {})[col] = true; const ids = new Set(snap.docs.map(d => d.id));
+            Object.keys(this.datos[col]).forEach(id => { const v = this.datos[col][id]; if(ids.has(id) || !mia(v)) return;
+              if(this._lapidas.has(col + '__' + id)){ delete this.datos[col][id]; this.guardarAparato(u, col, id, null); return; }
+              const k = col + '__' + id; if(this._resubidos.has(k)) return; this._resubidos.add(k);
+              console.warn('mio: se vuelve a subir lo que faltaba en la nube', col, id);
+              this.ref(col).doc(id).set(limpioFS(v)).catch(e => console.warn('mio resubir', e)); }); }
           this.avisar(col);
         }, e => this.falloNube(e)));
       });
     } finally { this._ocupado = false; }
+  },
+  // V19.6 · Algo ha desaparecido de la nube: solo se quita del aparato si alguien lo borró a propósito
+  async quitadoEnNube(u, col, id, v){
+    const k = col + '__' + id;
+    let borrado = this._lapidas && this._lapidas.has(k);
+    if(!borrado){ try{ borrado = (await this.ref('borrados').doc(k).get()).exists; if(borrado) this._lapidas.add(k); }catch(e){ borrado = false; } }
+    if(borrado){ if(this.datos[col][id]){ delete this.datos[col][id]; this.guardarAparato(u, col, id, null); this.avisar(col); } return; }
+    this._resubidos = this._resubidos || new Set(); if(this._resubidos.has(k)) return; this._resubidos.add(k);
+    console.warn('mio: ha desaparecido de la nube sin borrarlo; se vuelve a subir', col, id);
+    this.ref(col).doc(id).set(limpioFS(v)).catch(e => console.warn('mio resubir', e));
   },
   falloNube(e){
     console.warn('mio', e);
@@ -122,13 +141,20 @@ const Mio = {
     const sec = this.secDe(col, obj);
     this.datos[col][id] = obj; this.avisar(col);
     await this.guardarAparato(this.duenoDe(sec), col, id, obj);
-    if(this.enNube(sec)) this.ref(col).doc(id).set(obj).catch(e => { console.warn(e); if(e && /exceeds|too large|size/i.test(e.message || '')) toast('⚠️ Es demasiado grande para la nube'); });
+    if(this.enNube(sec)){
+      this.ref(col).doc(id).set(obj).catch(e => { console.warn(e); toast(e && /exceeds|too large|size/i.test(e.message || '') ? '⚠️ Es demasiado grande para la nube: queda guardado en este aparato' : '⚠️ No se ha podido subir a la nube: queda guardado en este aparato y se subirá luego'); });
+      const k = col + '__' + id; if(this._lapidas && this._lapidas.has(k)){ this._lapidas.delete(k); this.ref('borrados').doc(k).delete().catch(() => {}); }
+    }
   },
   async quitar(col, id){
     const viejo = this.datos[col][id], sec = this.secDe(col, viejo);
     delete this.datos[col][id]; this.avisar(col);
     await this.guardarAparato(this.duenoDe(sec), col, id, null);
-    if(this.enNube(sec)) this.ref(col).doc(id).delete().catch(e => console.warn(e));
+    if(this.enNube(sec)){
+      const k = col + '__' + id; (this._lapidas = this._lapidas || new Set()).add(k);
+      this.ref('borrados').doc(k).set({ col, id, t:Date.now() }).catch(() => {});
+      this.ref(col).doc(id).delete().catch(e => console.warn(e));
+    }
   },
   // fotos: se guardan aparte, con el apartado al que pertenecen; devuelve el id
   async ponerFoto(img, id, de){ id = id || nuevoId('f'); await this.poner('fotos', id, { img, t:Date.now(), de:de || 'agenda' }); return id; },
