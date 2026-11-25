@@ -67,7 +67,11 @@ const Seguro = {
 
   /* ================= PONER UN APARTADO (sin repetir) ================= */
   nuevo(a, b){ const t = x => (x && (x.cambiado || x.cambiada || x.actualizada || x.t || x.creado || x.creada)) || 0; return t(a) > t(b); },
-  claveTicket(t){ return [t.tipo || '', t.fecha || '', norm(String(t.titulo || '').trim()).replace(/\s+/g, ' '), t.importe == null ? '' : Number(t.importe).toFixed(2)].join('|'); },
+  // V19.7.1: más flexible: el importe se lee igual que en Tickets (con coma o punto) y del nombre solo cuentan letras y números
+  impTicket(v){ const n = (typeof Tickets !== 'undefined' && Tickets.importe) ? Tickets.importe(v) : parseFloat(String(v || '').replace(',', '.')); return n == null || !isFinite(n) ? '' : Number(n).toFixed(2); },
+  titTicket(s){ return norm(String(s || '')).replace(/[^a-z0-9]/g, ''); },
+  fotoTicket(t){ const f = t.mini || (t.foto && Mio.foto(t.foto)) || ''; return f ? f.length + ':' + f.slice(-300) : ''; },
+  claveTicket(t){ return [t.tipo || '', t.fecha || '', this.titTicket(t.titulo), this.impTicket(t.importe)].join('|'); },
   // une dos listas de cosas con id (puntos, notas): lo que falta se añade y, si está en las dos, se queda el más nuevo
   unirPorId(mios, copia){
     const out = (mios || []).map(x => ({ ...x })), idx = {}; out.forEach((x, i) => { if(x && x.id) idx[x.id] = i; });
@@ -273,9 +277,22 @@ const Seguro = {
   /* ================= QUITAR REPETIDOS ================= */
   buscarRepetidos(){
     const r = { tickets:[], agenda:[], listas:[], sitios:[], tareas:[] };
-    // Tickets: misma fecha, mismo nombre y mismo importe → se queda el primero que se hizo (o el que tiene foto)
-    const g = {}; Mio.todos('tickets').filter(t => !t.tipo).forEach(t => (g[this.claveTicket(t)] = g[this.claveTicket(t)] || []).push(t));
-    Object.values(g).forEach(a => { if(a.length < 2) return; a.sort((x, y) => (!!y.foto - !!x.foto) || ((x.creado || 0) - (y.creado || 0))); a.slice(1).forEach(t => r.tickets.push({ id:t.id, txt:(t.titulo || 'Ticket') + ' · ' + (t.fecha || '') })); });
+    // Tickets (V19.7.1): son el mismo si coinciden fecha + nombre + importe, o si tienen la misma foto (y la misma fecha o el mismo nombre).
+    // Se queda uno (el que tiene foto y, si no, el primero que se hizo); los demás se quitan.
+    const tks = Mio.todos('tickets').filter(t => !t.tipo), padre = {}, raiz = id => padre[id] === id ? id : (padre[id] = raiz(padre[id])), unir = (a, b) => { padre[raiz(a)] = raiz(b); };
+    tks.forEach(t => padre[t.id] = t.id);
+    const porClave = (fn) => { const m = {}; tks.forEach(t => { const k = fn(t); if(!k) return; if(m[k]) unir(t.id, m[k]); else m[k] = t.id; }); };
+    porClave(t => { const n = this.titTicket(t.titulo), i = this.impTicket(t.importe); if(!n && !i) return ''; if(!i && this.fotoTicket(t)) return ''; return (t.fecha || '') + '|' + n + '|' + i; });
+    porClave(t => { const f = this.fotoTicket(t); return f ? (t.fecha || '') + '|' + f : ''; });
+    porClave(t => { const f = this.fotoTicket(t), n = this.titTicket(t.titulo); return f && n ? n + '|' + f : ''; });
+    const grupos = {}; tks.forEach(t => (grupos[raiz(t.id)] = grupos[raiz(t.id)] || []).push(t));
+    const mejor = (x, y) => (!!y.foto - !!x.foto) || ((x.creado || 0) - (y.creado || 0));
+    Object.values(grupos).forEach(a => { if(a.length < 2) return; a.sort(mejor); a.slice(1).forEach(t => r.tickets.push({ id:t.id, txt:(t.titulo || 'Ticket') + ' · ' + (t.fecha || '') + (t.importe != null ? ' · ' + String(t.importe).replace('.', ',') + ' €' : '') })); });
+    // Parecidos: mismo nombre e importe pero OTRA fecha (pueden ser compras distintas: se enseñan sin marcar)
+    r.ticketsParecidos = [];
+    const ya = new Set(r.tickets.map(x => x.id)), pm = {};
+    tks.filter(t => !ya.has(t.id)).forEach(t => { const n = this.titTicket(t.titulo), i = this.impTicket(t.importe); if(!n || !i) return; (pm[n + '|' + i] = pm[n + '|' + i] || []).push(t); });
+    Object.values(pm).forEach(a => { if(a.length < 2) return; a.sort(mejor); a.slice(1).forEach(t => r.ticketsParecidos.push({ id:t.id, txt:(t.titulo || 'Ticket') + ' · ' + (t.fecha || '') + ' · ' + String(t.importe).replace('.', ',') + ' €' })); });
     // Agenda: la misma nota dos veces el mismo día
     Mio.todos('agenda').forEach(d => { const v = new Set(); (d.items || []).forEach(it => { const c = norm(String(it.texto || '')).trim() + '|' + (it.hora || ''); if(!c.trim() || c === '|') return; if(v.has(c)) r.agenda.push({ dia:d.id, id:it.id, txt:it.texto + ' · ' + d.id }); else v.add(c); }); });
     // Listas: el mismo punto dos veces en la misma lista
@@ -288,19 +305,21 @@ const Seguro = {
     return r;
   },
   async quitarRepetidos(){
-    const r = this.buscarRepetidos(), nom = { tickets:'🧾 Tickets', agenda:'📒 Notas de la agenda', listas:'📝 Puntos de las listas', sitios:'🏡 Cosas de los sitios', tareas:'✅ Tareas (del tablero abierto)' };
-    const ks = Object.keys(r).filter(k => r[k].length);
-    if(!ks.length){ popAviso('🧹 Quitar repetidos', '¡Todo en orden! No hay nada repetido.'); return; }
+    const r = this.buscarRepetidos(), nom = { tickets:'🧾 Tickets iguales', ticketsParecidos:'🧾 Tickets parecidos (mismo nombre e importe, otro día)', agenda:'📒 Notas de la agenda', listas:'📝 Puntos de las listas', sitios:'🏡 Cosas de los sitios', tareas:'✅ Tareas (del tablero abierto)' };
+    const ks = Object.keys(nom).filter(k => (r[k] || []).length);
+    if(!ks.length){ const n = Mio.todos('tickets').filter(t => !t.tipo).length;
+      popAviso('🧹 Quitar repetidos', 'No he encontrado nada repetido. Miro ' + n + ' tickets' + (Mio._listo ? '' : ' (todavía se están cargando: espera un momento y vuelve a probar)') + '. Si tú ves tickets repetidos, mándame una captura y lo miro.'); return; }
     const ej = a => a.slice(0, 4).map(x => esc(x.txt)).join(' · ') + (a.length > 4 ? ' …' : '');
     let marcados = [];
-    const ok = await popup({ tit:'🧹 Quitar repetidos', html:'<p>He encontrado cosas repetidas. Se queda <b>una</b> de cada y se quitan las otras:</p>' + ks.map(k => `<label class="check"><input type="checkbox" data-rk="${k}" checked><span class="caja"></span><span>${nom[k]} · <b>${r[k].length}</b> de más<small>${ej(r[k])}</small></span></label>`).join('')
+    const ok = await popup({ tit:'🧹 Quitar repetidos', html:'<p>He encontrado cosas repetidas. Se queda <b>una</b> de cada y se quitan las otras:</p>' + ks.map(k => `<label class="check"><input type="checkbox" data-rk="${k}" ${k === 'ticketsParecidos' ? '' : 'checked'}><span class="caja"></span><span>${nom[k]} · <b>${r[k].length}</b> de más<small>${ej(r[k])}</small></span></label>`).join('')
       + '<p class="aj-ayuda" style="margin-top:10px">Antes de quitar nada se guarda una copia automática, por si acaso.</p>',
       botones:[{ txt:'Cancelar', val:false }, { txt:'🧹 Quitar repetidos', cls:'btn-pri', val:true }], alAbrir:(c) => { c._leer = () => marcados = $$('[data-rk]', c).filter(i => i.checked).map(i => i.dataset.rk); $$('[data-rk]', c).forEach(i => i.onchange = c._leer); c._leer(); } });
     if(!ok || !marcados.length) return;
     toast('🛟 Guardando una copia antes…', null, null, 20000);
-    for(const k of marcados) await this.instantanea(k, 'antes').catch(e => console.warn(e));
+    for(const k of new Set(marcados.map(k => k === 'ticketsParecidos' ? 'tickets' : k))) await this.instantanea(k, 'antes').catch(e => console.warn(e));
     let n = 0;
     if(marcados.includes('tickets')) for(const x of r.tickets){ await Mio.quitar('tickets', x.id); n++; }
+    if(marcados.includes('ticketsParecidos')) for(const x of r.ticketsParecidos){ await Mio.quitar('tickets', x.id); n++; }
     if(marcados.includes('agenda')){ const por = {}; r.agenda.forEach(x => (por[x.dia] = por[x.dia] || new Set()).add(x.id));
       for(const [dia, ids] of Object.entries(por)){ const d = Mio.uno('agenda', dia); if(!d) continue; await Mio.poner('agenda', dia, { ...d, items:(d.items || []).filter(it => !ids.has(it.id)) }); n += ids.size; } }
     if(marcados.includes('listas')){ const por = {}; r.listas.forEach(x => (por[x.lista] = por[x.lista] || new Set()).add(x.id));
