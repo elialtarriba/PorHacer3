@@ -1,6 +1,6 @@
 /* PorHacer · app principal: tablero de columnas, tareas y editor */
 
-const VERSION = 'V19.6';
+const VERSION = 'V19.7';
 const $ = (s, r=document) => r.querySelector(s);
 const $$ = (s, r=document) => Array.from(r.querySelectorAll(s));
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -395,8 +395,10 @@ function pintarTablero(){
   tab.scrollLeft = scroll;
 }
 function pintarTodo(){
-  if(App.arrastrando){ App.repintarLuego = true; return; }   // V19.4: no repintar a mitad de un arrastre (la nube lo hacía y dejaba restos)
-  App.repintarLuego = false;
+  // V19.6.1 · Con el dedo encima del tablero no se redibuja (el iPhone deja de avisar si la tarjeta tocada desaparece).
+  // Nunca se queda parado: si el dedo no se mueve en 4 s, se redibuja igual.
+  if(App.tocando && Date.now() - App.tocando < 4000){ clearTimeout(App._repinta); App._repinta = setTimeout(pintarTodo, 250); return; }
+  App.tocando = 0; clearTimeout(App._repinta);
   pintarChips(); pintarTablero();
   if($('#vCal').classList.contains('activa')) Cal.pintar();
 }
@@ -583,17 +585,25 @@ async function verGente(tid){
 /* ---------- Arrastrar tarjetas entre columnas ---------- */
 function iniciarArrastre(){
   const tab = $('#tablero');
+  // V19.6.1 · dedo sobre el tablero o las etiquetas: se apunta para no redibujar debajo del dedo
+  const tocar = () => { App.tocando = Date.now(); };
+  tab.addEventListener('touchstart', tocar, { passive:true, capture:true });
+  $('#chipsCols') && $('#chipsCols').addEventListener('touchstart', tocar, { passive:true, capture:true });
+  document.addEventListener('touchmove', () => { if(App.tocando) App.tocando = Date.now(); }, { passive:true, capture:true });
+  const soltarDedo = e => { if(App.tocando && (!e.touches || !e.touches.length)){ App.tocando = 0; setTimeout(pintarTodo, 30); } };
+  document.addEventListener('touchend', soltarDedo, { capture:true }); document.addEventListener('touchcancel', soltarDedo, { capture:true });
+  document.addEventListener('visibilitychange', () => { App.tocando = 0; });
   let st = null, bucle = null;
 
   // V19.4: quita restos de arrastres anteriores (fantasmas y huecos que se quedaban pegados)
   const limpiarRestos = () => { $$('body > .fantasma').forEach(g => g.remove()); $$('#tablero .hueco').forEach(h => h.remove()); $$('#tablero .tarjeta').forEach(c => { if(c.style.display === 'none') c.style.display = ''; }); };
   const empezar = (x, y) => {
-    const card = st.card;
-    // Si el tablero se ha repintado (la tarjeta ya no está en pantalla), no arrastrar nada
-    if(!card.isConnected){ st = null; return; }
+    // V19.6.1: si el tablero se ha redibujado mientras pulsabas, se usa la tarjeta nueva (la misma tarea)
+    let card = st.card;
+    if(!card.isConnected){ const id = card.dataset.id; card = [...tab.querySelectorAll('.tarjeta')].find(c => c.dataset.id === id); if(!card){ st = null; return; } st.card = card; }
     const r = card.getBoundingClientRect();
     if(r.width < 30 || r.height < 10){ st = null; return; }
-    limpiarRestos(); App.arrastrando = true;
+    limpiarRestos();
     st.activo = true; st.offX = x - r.left; st.offY = y - r.top; st.x = x; st.y = y;
     const g = card.cloneNode(true); g.classList.add('fantasma');
     g.style.width = r.width+'px'; g.style.left = r.left+'px'; g.style.top = r.top+'px';
@@ -623,6 +633,7 @@ function iniciarArrastre(){
     col.classList.add('encima');
     const lista = col.querySelector('.col-lista'); st.lista = lista;
     st.hueco.style.setProperty('--cc', col.style.getPropertyValue('--cc'));
+    $$('.tarjeta', tab).forEach(c => { if(c.dataset.id === st.card.dataset.id && c.style.display !== 'none') c.style.display = 'none'; });   // si se ha redibujado
     const cards = $$('.tarjeta', lista).filter(c => c.style.display !== 'none');
     let antes = null;
     for(const c of cards){ const r = c.getBoundingClientRect(); if(st.y < r.top + r.height/2){ antes = c; break; } }
@@ -636,19 +647,19 @@ function iniciarArrastre(){
   };
   const soltar = async () => {
     cancelAnimationFrame(bucle);
-    const yo = st; st = null;                 // V19.4: se libera al momento (antes esperaba a guardar y se mezclaban arrastres)
+    const yo = st; st = null;
     const { card, hueco, ghost } = yo;
     ghost.remove(); tab.style.scrollSnapType = ''; document.body.style.userSelect = '';
     $$('.columna.encima').forEach(c => c.classList.remove('encima'));
     App.ignorarClick = true; setTimeout(() => App.ignorarClick = false, 80);
-    const lista = hueco.parentNode, col = lista && lista.closest('.columna');
     const id = card.dataset.id, t = App.tareas.find(x => x.id === id);
-    if(!lista || !card.isConnected){ hueco.remove(); limpiarRestos(); App.arrastrando = false; pintarTodo(); return; }
-    if(t && col){
-      const antes = t.colId, nueva = col.dataset.c;
-      lista.insertBefore(card, hueco); card.style.display = ''; hueco.remove();
-      const ids = $$('.tarjeta', lista).map(c => c.dataset.id);
-      const cambiadas = [];
+    const lista = hueco.isConnected ? hueco.parentNode : null, col = lista && lista.closest('.columna');
+    // V19.6.1: el orden se saca de dónde está el hueco (aunque el tablero se haya redibujado durante el arrastre)
+    const ids = [];
+    if(lista) for(const n of lista.children){ if(n === hueco) ids.push(id); else if(n.classList && n.classList.contains('tarjeta') && n.dataset.id !== id) ids.push(n.dataset.id); }
+    hueco.remove(); limpiarRestos();
+    if(t && col && ids.includes(id)){
+      const antes = t.colId, nueva = col.dataset.c, cambiadas = [];
       ids.forEach((tid, i) => { const x = App.tareas.find(z => z.id === tid); if(x && (x.orden !== i || x.id === id)){ x.orden = i; cambiadas.push(x); } });
       if(antes !== nueva){
         if(!colDe(antes).hecha) t.colPrev = antes;
@@ -657,16 +668,16 @@ function iniciarArrastre(){
         if(colDe(nueva).hecha && !colDe(antes).hecha){ t.hechaEn = Date.now(); Fiesta.celebrar(t); }
         toast('Movida a «'+colDe(nueva).nombre+'»');
       }
-      App.arrastrando = false; limpiarRestos(); pintarTodo();
+      pintarTodo();
       try{ for(const x of cambiadas) await guardarTarea(x); }catch(e){ console.warn(e); }
-    } else { hueco.remove(); card.style.display = ''; }
-    App.arrastrando = false; limpiarRestos(); pintarTodo();
+    }
+    pintarTodo();
   };
   const cancelar = () => {
     if(!st) return; clearTimeout(st.timer);
     const yo = st; st = null;
     if(yo.activo){ cancelAnimationFrame(bucle); yo.ghost && yo.ghost.remove(); yo.hueco && yo.hueco.remove(); yo.card.style.display=''; tab.style.scrollSnapType=''; document.body.style.userSelect=''; }
-    App.arrastrando = false; limpiarRestos(); pintarTodo();
+    limpiarRestos(); pintarTodo();
   };
 
   // Ratón (ordenador)
@@ -693,17 +704,17 @@ function iniciarArrastre(){
     st = { card:c, x0:t.clientX, y0:t.clientY };
     st.timer = setTimeout(() => { if(st && !st.activo){ empezar(st.x0, st.y0); if(st) mover(st.x0, st.y0); } }, 380);
   }, { passive:true });
-  tab.addEventListener('touchmove', e => {
+  document.addEventListener('touchmove', e => {
     if(!st) return;
     const t = e.touches[0];
     if(!st.activo){ if(Math.hypot(t.clientX-st.x0, t.clientY-st.y0) > 8){ clearTimeout(st.timer); st = null; } return; }
     e.preventDefault(); mover(t.clientX, t.clientY);
   }, { passive:false });
-  tab.addEventListener('touchend', e => {
+  document.addEventListener('touchend', e => {
     if(!st) return; clearTimeout(st.timer);
     if(st.activo){ e.preventDefault(); soltar(); } else st = null;
   });
-  tab.addEventListener('touchcancel', cancelar);
+  document.addEventListener('touchcancel', cancelar);
   tab.addEventListener('contextmenu', e => { if(e.target.closest('.tarjeta')) e.preventDefault(); });
 
   // Clics
@@ -1320,7 +1331,7 @@ function iniciarOrdenColumnas(){
     if(d.x < r.left+borde) tab.scrollLeft -= 10;
     else if(d.x > r.right-borde) tab.scrollLeft += 10;
     // La columna que se mueve nunca tapa la detección de las otras.
-    const otras = $$('.columna', tab).filter(c => c !== d.col);
+    const otras = $$('.columna', tab).filter(c => c.dataset.c !== d.colId);   // V19.6.1: por id (el tablero puede redibujarse)
     const destino = otras.find(c => { const q=c.getBoundingClientRect(); return d.x < q.left+q.width/2; });
     // No mover nodos bajo el dedo: Safari puede cancelar el gesto al recolocarlos.
     d.antes=destino || null;
@@ -1336,7 +1347,7 @@ function iniciarOrdenColumnas(){
     if(!cab || e.target.closest('.col-add') || (e.pointerType==='mouse' && e.button!==0) || e.isPrimary===false || d || guardando) return;
     e.preventDefault();
     const col=cab.closest('.columna'),r=cab.getBoundingClientRect();
-    d={col,cab,id:e.pointerId,x:e.clientX,y:e.clientY,x0:e.clientX,y0:e.clientY,dx:e.clientX-r.left,dy:e.clientY-r.top,mov:false};
+    d={col,cab,colId:col.dataset.c,id:e.pointerId,x:e.clientX,y:e.clientY,x0:e.clientX,y0:e.clientY,dx:e.clientX-r.left,dy:e.clientY-r.top,mov:false};
     // Capturar en el tablero estable: la cabecera cambiará de posición en el DOM.
     if(e.pointerType!=='touch')try{tab.setPointerCapture(e.pointerId);}catch(_){}
   };
@@ -1359,8 +1370,13 @@ function iniciarOrdenColumnas(){
     if(!actual.mov){if(e.type==='pointerup')toast('Arrastra la cabecera a izquierda o derecha. Mantén el dedo en el borde para seguir avanzando.');return;}
     sinClick=Date.now()+400;
     if(e.type==='pointerup'){
-      if(actual.antes)tab.insertBefore(actual.col,actual.antes);else tab.appendChild(actual.col);
-      const visibles=$$('.columna',tab).map(c=>colDe(c.dataset.c));let i=0;
+      // V19.6.1: el nuevo orden se calcula con los ids, sin mover nodos (si el tablero se había redibujado, antes podía repetir o perder una columna)
+      const orden=$$('.columna',tab).map(c=>c.dataset.c).filter((x,k,a)=>x!==actual.colId && a.indexOf(x)===k);
+      const pos=actual.antes?orden.indexOf(actual.antes.dataset.c):-1;
+      if(pos>=0)orden.splice(pos,0,actual.colId);else orden.push(actual.colId);
+      const vis=anterior.filter(c=>c.visible), visibles=orden.map(id=>vis.find(c=>c.id===id)).filter(Boolean);
+      if(visibles.length!==vis.length){pintarTodo();return;}   // por si acaso: si algo no cuadra, no se cambia nada
+      let i=0;
       App.ajustes.columnas=anterior.map(c=>c.visible?visibles[i++]:c);guardando=true;
       try{await guardarAjustes();toast('↔️ Orden de columnas guardado');}
       catch(err){App.ajustes.columnas=anterior;toast('No se ha podido guardar el orden');}
@@ -1396,7 +1412,7 @@ function iniciarOrdenEtiquetas(){
     if(!d?.arr)return;
     const r=box.getBoundingClientRect();
     if(d.x<r.left+35)box.scrollLeft-=7;else if(d.x>r.right-35)box.scrollLeft+=7;
-    const otros=botones().filter(b=>b!==d.b);
+    const otros=botones().filter(b=>b.dataset.c!==d.b.dataset.c);   // V19.6.1: por id
     d.antes=otros.find(b=>{const q=b.getBoundingClientRect();return d.x<q.left+q.width/2;})||null;
     botones().forEach(b=>b.classList.remove('chip-destino'));
     (d.antes||otros[otros.length-1])?.classList.add('chip-destino');

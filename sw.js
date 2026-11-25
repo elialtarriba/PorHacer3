@@ -1,12 +1,12 @@
 // PorHacer3 · service worker: la app funciona sin conexión
-const CACHE = 'porhacer3-v190';
+const CACHE = 'porhacer3-v191';
 const ARCHIVOS = [
-  './', './index.html', './manifest.json', './estilos.css?v=190', './estilos3.css?v=190',
-  './i18n.js?v=190', './iconos.js?v=190', './iconos-home.js?v=190', './mio.js?v=190', './agenda.js?v=190', './tickets.js?v=190', './gastos.js?v=190', './guardar.js?v=190', './aparatos.js?v=190', './pdfvisor.js?v=190', './sitios.js?v=190', './grabar.js?v=190', './estudio.js?v=190', './escribir.js?v=190', './celdas.js?v=190', './documentos.js?v=190', './edicion.js?v=190', './portada.js?v=190', './temas.js?v=190', './db.js?v=190', './firebase-config.js?v=190', './email-config.js?v=190', './nube.js?v=190',
-  './correo.js?v=190', './audio.js?v=190', './fiesta.js?v=190', './avisos.js?v=190', './bloc.js?v=190', './listas.js?v=190', './listas.png', './lame.min.js', './html2canvas.min.js', './jspdf.min.js', './pdf6.min.js?v=190', './pdf6.worker.min.js?v=190',
-  './fotos.js?v=190', './videos.js?v=190', './voz.js?v=190', './calendario.js?v=190', './ajustes.js?v=190',
-  './copias.js?v=190', './seguro.js?v=190', './app.js?v=190',
-  './zoom.js?v=190', './pipeta.js?v=190', './purify.min.js', './firebase-app-compat.js', './firebase-auth-compat.js', './firebase-firestore-compat.js', './logo.png', './calculadora.html?v=190', './logo_elibi.jpg', './icon-192.png', './icon-512.png', './apple-touch-icon.png'
+  './', './index.html', './manifest.json', './estilos.css?v=191', './estilos3.css?v=191',
+  './i18n.js?v=191', './iconos.js?v=191', './iconos-home.js?v=191', './mio.js?v=191', './agenda.js?v=191', './tickets.js?v=191', './gastos.js?v=191', './guardar.js?v=191', './aparatos.js?v=191', './pdfvisor.js?v=191', './sitios.js?v=191', './grabar.js?v=191', './estudio.js?v=191', './escribir.js?v=191', './celdas.js?v=191', './documentos.js?v=191', './edicion.js?v=191', './portada.js?v=191', './temas.js?v=191', './db.js?v=191', './firebase-config.js?v=191', './email-config.js?v=191', './nube.js?v=191',
+  './correo.js?v=191', './audio.js?v=191', './fiesta.js?v=191', './avisos.js?v=191', './bloc.js?v=191', './listas.js?v=191', './listas.png', './lame.min.js', './html2canvas.min.js', './jspdf.min.js', './pdf6.min.js?v=191', './pdf6.worker.min.js?v=191',
+  './fotos.js?v=191', './videos.js?v=191', './voz.js?v=191', './calendario.js?v=191', './ajustes.js?v=191',
+  './copias.js?v=191', './seguro.js?v=191', './app.js?v=191',
+  './zoom.js?v=191', './pipeta.js?v=191', './purify.min.js', './firebase-app-compat.js', './firebase-auth-compat.js', './firebase-firestore-compat.js', './logo.png', './calculadora.html?v=191', './logo_elibi.jpg', './icon-192.png', './icon-512.png', './apple-touch-icon.png'
 ];
 // V19: la librería de Firebase va dentro de la app (carpeta firebase/), así funciona sin internet desde el primer día
 
