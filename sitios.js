@@ -4,7 +4,7 @@
    Se guarda en «lo mío» (Mio, colección sitios): cada casa y cada sitio es un documento. */
 
 const Sitios = {
-  casa: null, camino: [], q: '', ED: null, pestIco: null, lista: false, ql: '',
+  casa: null, camino: [], q: '', ED: null, pestIco: null, lista: false, ql: '', lcasa: '',
 
   /* ---------- Datos ---------- */
   todos(){ return Mio.todos('sitios'); },
@@ -54,20 +54,25 @@ const Sitios = {
   },
 
   /* ---------- V28 · Lista de todas las cosas (de todas las casas) ---------- */
-  todasCosas(){
+  todasCosas(casa){
     const out = [];
-    this.todos().forEach(r => { if(r.tipo !== 'sitio' || !this.s(r.casa)) return;
+    this.todos().forEach(r => { if(r.tipo !== 'sitio' || !this.s(r.casa) || (casa && r.casa !== casa)) return;
       Object.entries(r.cosas || {}).forEach(([cid, c]) => out.push({ rid:r.id, cid, c })); });
     return out.sort((a, b) => (a.c.texto || 'Foto').localeCompare(b.c.texto || 'Foto', 'es', { sensitivity:'base' }));
   },
+  subLista(){ const n = this.todasCosas(this.lcasa).length;
+    return this.pl(n, 'cosa', 'cosas') + (this.lcasa ? ' en ' + this.s(this.lcasa).nombre : ' en ' + this.pl(this.casas().length, 'casa', 'casas')); },
   rutaTexto(rid){ const r = this.s(rid); return [((this.s(r.casa) || {}).nombre || ''), ...this.ruta(rid).map(i => this.s(i).nombre)].join(' '); },
   abrirLista(){ this.lista = true; this.ql = ''; this.pintar(); $('#stCuerpo').scrollTop = 0; },
   pintarLista(){
     const v = $('#vSitios'); v.style.removeProperty('--st-bg'); v.classList.remove('en-casa');
-    const n = this.todasCosas().length;
-    $('#stTit').textContent = 'Todas las cosas'; $('#stSub').textContent = this.pl(n, 'cosa', 'cosas') + ' en ' + this.pl(this.casas().length, 'casa', 'casas');
+    $('#stTit').textContent = 'Todas las cosas'; $('#stSub').textContent = this.subLista();
     $('#stAtras').hidden = false;
-    $('#stCuerpo').innerHTML = `<div class="st-buscar"><span class="st-lupa">${icono('buscar')}</span><input id="stLQ" type="search" autocomplete="off" enterkeyhint="search" placeholder="Buscar… Ej.: llaves" value="${esc(this.ql)}"><button id="stLQx" aria-label="Borrar búsqueda" ${this.ql ? '' : 'hidden'}>✕</button></div><div id="stLista"></div>`;
+    if(this.lcasa && !this.s(this.lcasa)) this.lcasa = '';
+    const cs = this.casas();
+    $('#stCuerpo').innerHTML = `<div class="st-lbusca"><div class="st-buscar"><span class="st-lupa">${icono('buscar')}</span><input id="stLQ" type="search" autocomplete="off" enterkeyhint="search" placeholder="Buscar… Ej.: llaves" value="${esc(this.ql)}"><button id="stLQx" aria-label="Borrar búsqueda" ${this.ql ? '' : 'hidden'}>✕</button></div>
+      <label class="st-lcasa ${this.lcasa ? 'on' : ''}"><span>🏠</span><select id="stLCasa" aria-label="Elegir casa"><option value="">Todas</option>${cs.map(h => `<option value="${h.id}" ${h.id === this.lcasa ? 'selected' : ''}>${esc(h.nombre)}</option>`).join('')}</select><em>▾</em></label></div><div id="stLista"></div>`;
+    $('#stLCasa').onchange = e => { this.lcasa = e.target.value; e.target.closest('.st-lcasa').classList.toggle('on', !!this.lcasa); this.filtrarLista(); };
     $('#stBarra').innerHTML = '';
     const i = $('#stLQ');
     i.oninput = () => { this.ql = i.value; this.filtrarLista(); };
@@ -78,10 +83,13 @@ const Sitios = {
   filtrarLista(){
     const caja = $('#stLista'); if(!caja) return;
     const x = $('#stLQx'); if(x) x.hidden = !this.ql;
-    const palabras = searchWordsH(this.ql), todas = this.todasCosas();
+    if(this.lcasa && !this.s(this.lcasa)) this.lcasa = '';
+    const palabras = searchWordsH(this.ql), todas = this.todasCosas(this.lcasa);
+    $('#stSub').textContent = this.subLista();
     const ls = palabras.length ? todas.filter(o => { const t = norm((o.c.texto || 'foto') + ' ' + this.rutaTexto(o.rid)); return palabras.every(w => t.includes(w)); }) : todas;
-    if(!todas.length){ caja.innerHTML = '<div class="st-vacio">Aún no has guardado ninguna cosa.<br>Entra en una casa y en un sitio, y pulsa <b>＋ Cosa</b>.</div>'; return; }
-    if(!ls.length){ caja.innerHTML = `<div class="st-vacio">No encuentro «${esc(this.ql)}».<br>Prueba con una sola palabra.</div>`; return; }
+    const enCasa = this.lcasa ? ' en ' + esc(this.s(this.lcasa).nombre) : '';
+    if(!todas.length){ caja.innerHTML = `<div class="st-vacio">Aún no hay ninguna cosa${enCasa}.<br>Entra en una casa y en un sitio, y pulsa <b>＋ Cosa</b>.</div>`; return; }
+    if(!ls.length){ caja.innerHTML = `<div class="st-vacio">No encuentro «${esc(this.ql)}»${enCasa}.<br>Prueba con una sola palabra${this.lcasa ? ' o elige «Todas» en las casas' : ''}.</div>`; return; }
     caja.innerHTML = (palabras.length ? `<div class="st-sec">${this.pl(ls.length, 'resultado', 'resultados')}</div>` : '') + ls.map(({ rid, cid, c }) => {
       const f = (c.fotos || []).map(z => Mio.foto(z)).filter(Boolean), h = this.s(this.s(rid).casa);
       return `<div class="desl-fila st-dfila st-lfila" data-id="${cid}" data-rid="${rid}"><div class="desl-del"><span>🗑 Eliminar</span></div><div class="desl-der"><span class="d1">📍 Dónde está</span><span class="d2">↔️ Cambiar de sitio</span></div><div class="desl-cara st-fila cosa" id="cosa-${cid}" data-cosa="${cid}" data-rid="${rid}"><div class="st-thumb">${f.length ? `<img src="${f[0]}" alt="" data-grande>` : '<span class="st-pto"></span>'}</div><div class="st-tx"><b>${c.texto ? esc(c.texto) : 'Foto'}</b><small>${this.icoHtml(h, '🏠')} ${esc(h.nombre)}</small></div><button class="st-mas" data-cosa="${cid}" data-rid="${rid}" aria-label="Opciones">⋯</button></div></div>`; }).join('')
@@ -519,7 +527,7 @@ const Sitios = {
         alDerechaLejos: (cid, fila) => { const rid = ridDe(fila); if(rid) this.moverCosa(rid, cid); } });
     $('#stBarra').addEventListener('click', e => { const b = e.target.closest('button'); if(!b) return; if('nuevositio' in b.dataset) this.editor('sitio', null); else if('nuevacosa' in b.dataset) this.nuevaCosa(); else if('todas' in b.dataset) this.abrirLista(); else if('otracasa' in b.dataset){ this.casa = null; this.camino = []; this.pintar(); this.editor('casa', null); } });
     Mio.al('sitios', () => { const fo = document.activeElement && document.activeElement.id;
-      if(this.activa() && this.lista && $('#stLista')){ this.filtrarLista(); $('#stSub').textContent = this.pl(this.todasCosas().length, 'cosa', 'cosas') + ' en ' + this.pl(this.casas().length, 'casa', 'casas'); return; }
+      if(this.activa() && this.lista && $('#stLista')){ this.filtrarLista(); return; }
       if(this.activa() && fo !== 'stQ') this.pintar(); else if(this.activa() && this.q) this.buscar(this.q); });
   }
 };

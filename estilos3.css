@@ -1822,3 +1822,11 @@ body.pipeta-on #editor{visibility:hidden}
 .st-lfila .st-tx small{display:flex;align-items:center;gap:4px}
 .st-lfila .st-tx small img{width:16px;height:16px}
 .st-donde-pop{flex-wrap:wrap;margin:6px 0 14px}
+/* V19.10 · Todas las cosas: elegir casa al lado del buscador */
+.st-lbusca{display:flex;gap:8px;align-items:stretch}
+.st-lbusca .st-buscar{flex:1;min-width:0}
+.st-lcasa{position:relative;flex:0 0 auto;max-width:42%;height:52px;margin-bottom:12px;box-sizing:border-box;display:flex;align-items:center;gap:4px;padding:0 26px 0 10px;border-radius:16px;background:var(--card);border:1.5px solid var(--line);font-weight:800;color:var(--dark)}
+.st-lcasa.on{background:#f08a1a;border-color:#e06f00;color:#fff}
+.st-lcasa select{appearance:none;-webkit-appearance:none;border:0;background:transparent;font:inherit;font-size:14px;color:inherit;min-width:0;width:100%;text-overflow:ellipsis;padding:0;outline:none}
+.st-lcasa em{position:absolute;right:9px;top:50%;transform:translateY(-50%);font-style:normal;pointer-events:none}
+.st-lcasa select option{color:#2c2c2e}
