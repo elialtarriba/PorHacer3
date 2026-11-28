@@ -1811,3 +1811,14 @@ body.pipeta-on #editor{visibility:hidden}
 .toast.toast-grande button{font-size:16px;padding:10px 16px;border-radius:12px;flex:none}
 .toast.toast-grande{width:min(calc(100vw - 24px),460px);justify-content:space-between}
 .toast.toast-grande span{flex:1;min-width:0}
+
+/* V28 · Sitios: botón «Todas las cosas» y lista con deslizar en dos tramos */
+.st-add.todas{background:var(--card);border:1.5px solid var(--line);color:var(--dark)}
+.st-lfila .desl-der .d2{display:none}
+.st-lfila.lejos .desl-der .d1{display:none}
+.st-lfila.lejos .desl-der .d2{display:inline}
+.st-lfila.dir-der.lejos .desl-der{background:#c25a00;opacity:1}
+.st-lfila.dir-der.listo:not(.lejos) .desl-der{background:#3a8fd6}
+.st-lfila .st-tx small{display:flex;align-items:center;gap:4px}
+.st-lfila .st-tx small img{width:16px;height:16px}
+.st-donde-pop{flex-wrap:wrap;margin:6px 0 14px}

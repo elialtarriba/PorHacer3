@@ -4,7 +4,7 @@
    Se guarda en «lo mío» (Mio, colección sitios): cada casa y cada sitio es un documento. */
 
 const Sitios = {
-  casa: null, camino: [], q: '', ED: null, pestIco: null,
+  casa: null, camino: [], q: '', ED: null, pestIco: null, lista: false, ql: '',
 
   /* ---------- Datos ---------- */
   todos(){ return Mio.todos('sitios'); },
@@ -16,8 +16,10 @@ const Sitios = {
   pal(c){ return PALETTES[c] || PALETTES.verde; },
   icoHtml(x, def){ return x && x.img ? `<img src="${x.img}" alt="">` : esc((x && x.emoji) || def || '📦'); },
   cuenta(casa){ const ss = this.todos().filter(x => x.tipo === 'sitio' && x.casa === casa); return { sitios:ss.length, cosas:ss.reduce((n, x) => n + Object.keys(x.cosas || {}).length, 0) }; },
-  meta(id){ const x = this.s(id), h = this.hijos(x.casa, id).length, c = Object.keys(x.cosas || {}).length, p = [];
-    if(h) p.push(h + (h === 1 ? ' sitio' : ' sitios')); if(c) p.push(c + (c === 1 ? ' cosa' : ' cosas')); return p.join(' · ') || 'Vacío'; },
+  // V28: cuenta las cosas del sitio Y las de todos los sitios que tiene dentro
+  cosasDentro(id){ return this.rama(id).reduce((n, i) => { const y = this.s(i); return n + (y ? Object.keys(y.cosas || {}).length : 0); }, 0); },
+  meta(id){ const x = this.s(id), h = this.hijos(x.casa, id).length, c = this.cosasDentro(id), p = [];
+    if(h) p.push(h + (h === 1 ? ' sitio' : ' sitios')); if(c || h) p.push(c + (c === 1 ? ' cosa' : ' cosas')); return p.join(' · ') || 'Vacío'; },
   async guardar(x){ await Mio.poner('sitios', x.id, x); },
   pl(n, a, b){ return n + ' ' + (n === 1 ? a : b); },
 
@@ -29,7 +31,7 @@ const Sitios = {
     if(this.casa && !this.s(this.casa)){ this.casa = null; this.camino = []; }
     const ult = this.camino[this.camino.length - 1];
     if(ult && !this.s(ult)) this.camino = ult ? this.ruta(this.camino.filter(i => this.s(i)).pop() || '') : [];
-    this.casa ? this.pintarCasa() : this.pintarCasas();
+    this.lista ? this.pintarLista() : this.casa ? this.pintarCasa() : this.pintarCasas();
   },
   pintarCasas(){
     const v = $('#vSitios'); v.style.removeProperty('--st-bg'); v.classList.remove('en-casa');
@@ -47,8 +49,54 @@ const Sitios = {
         <button class="st-casa-nueva" data-nuevacasa>＋ Nueva casa</button>
         ${cs.length ? '' : '<p class="st-ayuda">Empieza creando tu casa (o la del pueblo, el trastero, la oficina…). Dentro pondrás sus sitios: cocina, habitación… y dentro, las cosas que guardas.</p>'}
       </div>`;
-    $('#stBarra').innerHTML = '';
+    $('#stBarra').innerHTML = cs.length ? '<button class="st-add todas" data-todas>📋 Todas las cosas</button>' : '';
     this.enlazarBuscar();
+  },
+
+  /* ---------- V28 · Lista de todas las cosas (de todas las casas) ---------- */
+  todasCosas(){
+    const out = [];
+    this.todos().forEach(r => { if(r.tipo !== 'sitio' || !this.s(r.casa)) return;
+      Object.entries(r.cosas || {}).forEach(([cid, c]) => out.push({ rid:r.id, cid, c })); });
+    return out.sort((a, b) => (a.c.texto || 'Foto').localeCompare(b.c.texto || 'Foto', 'es', { sensitivity:'base' }));
+  },
+  rutaTexto(rid){ const r = this.s(rid); return [((this.s(r.casa) || {}).nombre || ''), ...this.ruta(rid).map(i => this.s(i).nombre)].join(' '); },
+  abrirLista(){ this.lista = true; this.ql = ''; this.pintar(); $('#stCuerpo').scrollTop = 0; },
+  pintarLista(){
+    const v = $('#vSitios'); v.style.removeProperty('--st-bg'); v.classList.remove('en-casa');
+    const n = this.todasCosas().length;
+    $('#stTit').textContent = 'Todas las cosas'; $('#stSub').textContent = this.pl(n, 'cosa', 'cosas') + ' en ' + this.pl(this.casas().length, 'casa', 'casas');
+    $('#stAtras').hidden = false;
+    $('#stCuerpo').innerHTML = `<div class="st-buscar"><span class="st-lupa">${icono('buscar')}</span><input id="stLQ" type="search" autocomplete="off" enterkeyhint="search" placeholder="Buscar… Ej.: llaves" value="${esc(this.ql)}"><button id="stLQx" aria-label="Borrar búsqueda" ${this.ql ? '' : 'hidden'}>✕</button></div><div id="stLista"></div>`;
+    $('#stBarra').innerHTML = '';
+    const i = $('#stLQ');
+    i.oninput = () => { this.ql = i.value; this.filtrarLista(); };
+    i.onkeydown = e => { if(e.key === 'Escape'){ i.value = ''; this.ql = ''; this.filtrarLista(); } if(e.key === 'Enter') i.blur(); };
+    $('#stLQx').onclick = () => { i.value = ''; this.ql = ''; this.filtrarLista(); i.focus(); };
+    this.filtrarLista();
+  },
+  filtrarLista(){
+    const caja = $('#stLista'); if(!caja) return;
+    const x = $('#stLQx'); if(x) x.hidden = !this.ql;
+    const palabras = searchWordsH(this.ql), todas = this.todasCosas();
+    const ls = palabras.length ? todas.filter(o => { const t = norm((o.c.texto || 'foto') + ' ' + this.rutaTexto(o.rid)); return palabras.every(w => t.includes(w)); }) : todas;
+    if(!todas.length){ caja.innerHTML = '<div class="st-vacio">Aún no has guardado ninguna cosa.<br>Entra en una casa y en un sitio, y pulsa <b>＋ Cosa</b>.</div>'; return; }
+    if(!ls.length){ caja.innerHTML = `<div class="st-vacio">No encuentro «${esc(this.ql)}».<br>Prueba con una sola palabra.</div>`; return; }
+    caja.innerHTML = (palabras.length ? `<div class="st-sec">${this.pl(ls.length, 'resultado', 'resultados')}</div>` : '') + ls.map(({ rid, cid, c }) => {
+      const f = (c.fotos || []).map(z => Mio.foto(z)).filter(Boolean), h = this.s(this.s(rid).casa);
+      return `<div class="desl-fila st-dfila st-lfila" data-id="${cid}" data-rid="${rid}"><div class="desl-del"><span>🗑 Eliminar</span></div><div class="desl-der"><span class="d1">📍 Dónde está</span><span class="d2">↔️ Cambiar de sitio</span></div><div class="desl-cara st-fila cosa" id="cosa-${cid}" data-cosa="${cid}" data-rid="${rid}"><div class="st-thumb">${f.length ? `<img src="${f[0]}" alt="" data-grande>` : '<span class="st-pto"></span>'}</div><div class="st-tx"><b>${c.texto ? esc(c.texto) : 'Foto'}</b><small>${this.icoHtml(h, '🏠')} ${esc(h.nombre)}</small></div><button class="st-mas" data-cosa="${cid}" data-rid="${rid}" aria-label="Opciones">⋯</button></div></div>`; }).join('')
+      + '<p class="desl-pista">👈 Desliza a la izquierda para eliminar · a la derecha 👉 para ver dónde está · más a la derecha 👉👉 para cambiarla de sitio</p>';
+  },
+  // deslizar un poco a la derecha: dónde está (con botones para ir allí o cambiarla de sitio)
+  dondeEsta(rid, cid){
+    const r = this.s(rid), c = r && r.cosas && r.cosas[cid]; if(!c) return;
+    const h = this.s(r.casa);
+    const p = popMio(`<h3 class="mp-h">📍 ${esc(c.texto || 'Foto')}</h3><div class="st-donde">Está en:</div>
+      <div class="st-camino st-donde-pop"><span class="st-chip">${this.icoHtml(h, '🏠')} ${esc(h.nombre)}</span><span class="st-sep">›</span>${this.chipsRuta(rid)}</div>
+      <div class="mp-fila"><button class="mp-b" data-a="ir">Ir allí</button><button class="mp-b" data-a="mover">Cambiar</button><button class="mp-b mp-pri" data-a="x">Vale</button></div>`);
+    p.onclick = e => { const b = e.target.closest('[data-a]'); if(!b) return; const a = b.dataset.a; cerrarPopMio();
+      if(a === 'ir'){ this.lista = false; this.irHallado(rid, cid); }
+      else if(a === 'mover') this.moverCosa(rid, cid); };
   },
   htmlBuscar(ph){ return `<div class="st-buscar"><span class="st-lupa">${icono('buscar')}</span><input id="stQ" type="search" autocomplete="off" enterkeyhint="search" placeholder="${ph}" value="${esc(this.q)}"><button id="stQx" aria-label="Borrar búsqueda" ${this.q ? '' : 'hidden'}>✕</button></div>`; },
   enlazarBuscar(){
@@ -91,9 +139,10 @@ const Sitios = {
       ...this.camino.map((id, i) => `<button class="st-chip ${i === this.camino.length - 1 ? 'cur' : ''}" data-nivel="${i + 1}">${this.icoHtml(this.s(id))} ${esc(this.s(id).nombre)}</button>`)].join('<span class="st-sep">›</span>');
   },
   chipsRuta(rid){ return this.ruta(rid).map((id, i, a) => `<span class="st-chip ${i === a.length - 1 ? 'cur' : ''}">${this.icoHtml(this.s(id))} ${esc(this.s(id).nombre)}</span>`).join('<span class="st-sep">›</span>'); },
-  abrirCasa(id){ this.casa = id; this.camino = []; this.q = ''; this.pintar(); $('#stCuerpo').scrollTop = 0; },
-  abrirSitio(id){ const x = this.s(id); if(!x) return; this.casa = x.casa; this.camino = this.ruta(id); this.pintar(); $('#stCuerpo').scrollTop = 0; },
-  atras(){ if(this.camino.length){ this.camino.pop(); this.pintar(); } else { this.casa = null; this.pintar(); } },
+  abrirCasa(id){ this.lista = false; this.casa = id; this.camino = []; this.q = ''; this.pintar(); $('#stCuerpo').scrollTop = 0; },
+  abrirSitio(id){ const x = this.s(id); if(!x) return; this.lista = false; this.casa = x.casa; this.camino = this.ruta(id); this.pintar(); $('#stCuerpo').scrollTop = 0; },
+  atras(){ if(this.lista){ this.lista = false; this.casa = null; this.camino = []; this.pintar(); return; }
+    if(this.camino.length){ this.camino.pop(); this.pintar(); } else { this.casa = null; this.pintar(); } },
 
   /* ---------- «¿Dónde está?» ---------- */
   buscar(q){
@@ -183,8 +232,8 @@ const Sitios = {
     toast('🏠 «' + h.nombre + '» ya es una casa');
     this.abrirCasa(h.id);
   },
-  menuCosa(cid){
-    const rid = this.camino[this.camino.length - 1], r = this.s(rid), c = r && r.cosas && r.cosas[cid]; if(!c) return;
+  menuCosa(cid, rid0){
+    const rid = rid0 || this.camino[this.camino.length - 1], r = this.s(rid), c = r && r.cosas && r.cosas[cid]; if(!c) return;
     const fs = (c.fotos || []).map(f => ({ f, s:Mio.foto(f) })).filter(x => x.s);
     const hj = hojaMio(esc(c.texto || 'Foto'), `
       <div class="st-donde">Está en:</div><div class="st-camino">${this.chipsRuta(rid)}</div>
@@ -197,7 +246,7 @@ const Sitios = {
     hj.onclick = async e => {
       const img = e.target.closest('img[data-grande]'); if(img){ verFotoGrande(img.src); return; }
       const q = e.target.closest('[data-quitarfoto]');
-      if(q){ const n = this.copia(rid); n.cosas[cid].fotos = (n.cosas[cid].fotos || []).filter(f => f !== q.dataset.quitarfoto); await this.guardar(n); await Mio.quitarFotos([q.dataset.quitarfoto]); this.menuCosa(cid); return; }
+      if(q){ const n = this.copia(rid); n.cosas[cid].fotos = (n.cosas[cid].fotos || []).filter(f => f !== q.dataset.quitarfoto); await this.guardar(n); await Mio.quitarFotos([q.dataset.quitarfoto]); this.menuCosa(cid, rid); return; }
       const b = e.target.closest('[data-a]'); if(!b) return; const a = b.dataset.a;
       if(a === 'mover') return this.moverSheet('cosa', rid, cid);
       if(a === 'nombre') return this.renombrarCosa(rid, cid);
@@ -244,11 +293,11 @@ const Sitios = {
   brillar(domId){ setTimeout(() => { const el = document.getElementById(domId); if(!el) return; el.scrollIntoView({ block:'center', behavior:'smooth' }); el.classList.add('hallada'); setTimeout(() => el.classList.remove('hallada'), 3200); }, 80); },
   segDeshacer(){ return +(lsGet('ph3-st-deshacer') || 5); },
   // deslizar a la izquierda: se borra, con «Deshacer» unos segundos (Configuración › Sitios)
-  async borrarCosaYa(rid, cid){
+  async borrarCosaYa(rid, cid, segs){
     const r = this.s(rid), c = r && r.cosas && r.cosas[cid]; if(!c) return;
     const n = this.copia(rid); delete n.cosas[cid]; await this.guardar(n);
-    const seg = this.segDeshacer();
-    toast('🗑 «' + (c.texto || 'Foto') + '» eliminado', 'Deshacer', async () => { const m = this.copia(rid); m.cosas[cid] = c; await this.guardar(m); this.brillar('cosa-' + cid); toast('↩️ Vuelve a estar'); }, seg * 1000);
+    const seg = segs || this.segDeshacer();
+    toast('🗑 «' + (c.texto || 'Foto') + '» eliminado', 'Deshacer', async () => { const m = this.copia(rid); m.cosas[cid] = c; await this.guardar(m); this.brillar('cosa-' + cid); toast('↩️ Vuelve a estar'); }, seg * 1000, false, !!segs);
     setTimeout(() => { const m = this.s(rid); if(!m || !m.cosas || !m.cosas[cid]) Mio.quitarFotos(c.fotos || []); }, seg * 1000 + 1500);
   },
   // deslizar a la derecha (o «Mover»): ir entrando en casas y sitios hasta donde va, y Aceptar
@@ -459,15 +508,19 @@ const Sitios = {
       else if(d.casa) this.abrirCasa(d.casa);
       else if(d.menusitio) this.menuSitio(d.menusitio);
       else if(d.abrir) this.abrirSitio(d.abrir);
-      else if(d.cosa) this.menuCosa(d.cosa);
+      else if(d.cosa) this.menuCosa(d.cosa, this.lista ? d.rid : null);
       else if(d.nivel != null){ this.camino = this.camino.slice(0, +d.nivel); this.pintar(); }
       else if(d.ir) this.irHallado(d.ir, d.ircosa);
       else if(d.quitaradj){ (async () => { if(!await confirmarMio('Quitar foto', '¿Quitar esta foto del sitio?', 'Quitar')) return; const id = this.camino[this.camino.length - 1], n = this.copia(id); n.fotos = (n.fotos || []).filter(f => f !== d.quitaradj); await this.guardar(n); await Mio.quitarFotos([d.quitaradj]); })(); }
     });
-    deslizarBorrar($('#stCuerpo'), cid => { const rid = this.camino[this.camino.length - 1]; if(rid) this.borrarCosaYa(rid, cid); },
-      { alDerecha: cid => { const rid = this.camino[this.camino.length - 1]; if(rid) this.moverCosa(rid, cid); } });
-    $('#stBarra').addEventListener('click', e => { const b = e.target.closest('button'); if(!b) return; if('nuevositio' in b.dataset) this.editor('sitio', null); else if('nuevacosa' in b.dataset) this.nuevaCosa(); else if('otracasa' in b.dataset){ this.casa = null; this.camino = []; this.pintar(); this.editor('casa', null); } });
-    Mio.al('sitios', () => { if(this.activa() && !(document.activeElement && document.activeElement.id === 'stQ')) this.pintar(); else if(this.activa() && this.q) this.buscar(this.q); });
+    const ridDe = fila => this.lista ? fila && fila.dataset.rid : this.camino[this.camino.length - 1];
+    deslizarBorrar($('#stCuerpo'), (cid, fila) => { const rid = ridDe(fila); if(rid) this.borrarCosaYa(rid, cid, this.lista ? 4 : null); },
+      { alDerecha: (cid, fila) => { const rid = ridDe(fila); if(!rid) return; if(this.lista) this.dondeEsta(rid, cid); else this.moverCosa(rid, cid); },
+        alDerechaLejos: (cid, fila) => { const rid = ridDe(fila); if(rid) this.moverCosa(rid, cid); } });
+    $('#stBarra').addEventListener('click', e => { const b = e.target.closest('button'); if(!b) return; if('nuevositio' in b.dataset) this.editor('sitio', null); else if('nuevacosa' in b.dataset) this.nuevaCosa(); else if('todas' in b.dataset) this.abrirLista(); else if('otracasa' in b.dataset){ this.casa = null; this.camino = []; this.pintar(); this.editor('casa', null); } });
+    Mio.al('sitios', () => { const fo = document.activeElement && document.activeElement.id;
+      if(this.activa() && this.lista && $('#stLista')){ this.filtrarLista(); $('#stSub').textContent = this.pl(this.todasCosas().length, 'cosa', 'cosas') + ' en ' + this.pl(this.casas().length, 'casa', 'casas'); return; }
+      if(this.activa() && fo !== 'stQ') this.pintar(); else if(this.activa() && this.q) this.buscar(this.q); });
   }
 };
 // palabras para buscar (como en HOME: sin «de, la, el…» y sin plurales)

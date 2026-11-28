@@ -1,6 +1,6 @@
 /* PorHacer · app principal: tablero de columnas, tareas y editor */
 
-const VERSION = 'V19.8';
+const VERSION = 'V19.9';
 const $ = (s, r=document) => r.querySelector(s);
 const $$ = (s, r=document) => Array.from(r.querySelectorAll(s));
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -58,12 +58,12 @@ function bordeDe(t){ return App.ajustes.bordeColumna ? colDe(t.colId).color : (t
 function abrir(id){ $('#'+id).classList.add('abierto'); }
 function cerrar(id){ $('#'+id).classList.remove('abierto'); if(id === 'ajustes' && typeof TemaSec !== 'undefined') TemaSec.aplicar(TemaSec.DE_VISTA[document.body.dataset.vista] || null); }
 let _toastT;
-function toast(txt, accion, fn, ms=3200, grande=false){
+function toast(txt, accion, fn, ms=3200, grande=false, exacto=false){   // V28: exacto = dura justo «ms» aunque tenga botón
   const t = $('#toast'); t.classList.toggle('toast-grande', !!grande);   // V19.4: aviso grande (Deshacer en Listas)
   t.innerHTML = '<span>'+esc(txt)+'</span>' + (accion ? '<button>'+esc(accion)+'</button>' : '');
   if(accion) t.querySelector('button').onclick = () => { t.classList.remove('ver'); fn && fn(); };
   t.classList.add('ver'); clearTimeout(_toastT);
-  _toastT = setTimeout(() => t.classList.remove('ver'), accion ? Math.max(ms, 6000) : ms);
+  _toastT = setTimeout(() => t.classList.remove('ver'), accion && !exacto ? Math.max(ms, 6000) : ms);
 }
 /* Con el ratón: arrastrar para mover las barras de pestañas y la rueda para ir de lado */
 (function(){

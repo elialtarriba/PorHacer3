@@ -410,13 +410,14 @@ async function guardarFoto(src, nombre){
 // html de cada fila: <div class="desl-fila" data-id="…"><div class="desl-del"><span>🗑 Eliminar</span></div><button class="desl-cara …">…</button></div>
 function deslizarBorrar(cont, alBorrar, op){
   op = op || {};   // op.alDerecha(id, fila): deslizar hacia la derecha (p. ej. mover). Hace falta un .desl-der en la fila
-  let D = null; const UMBRAL = 100;
+  let D = null; const UMBRAL = 100, UMBRAL2 = 190;   // op.alDerechaLejos(id, fila): deslizar MÁS a la derecha
   cont.addEventListener('pointerdown', e => { const cara = e.target.closest('.desl-cara'); if(!cara || e.button > 0 || e.target.closest('textarea,input,select,label') || cara.closest('.ed')) return; D = { cara, fila:cara.closest('.desl-fila'), x:e.clientX, y:e.clientY, dx:0, mov:false, id:e.pointerId }; });
   cont.addEventListener('pointermove', e => {
     if(!D || e.pointerId !== D.id) return;
     const der = op.alDerecha && D.fila.querySelector('.desl-der'), rdx = e.clientX - D.x, dx = der ? rdx : Math.min(0, rdx), dy = e.clientY - D.y;
     if(!D.mov){ if(Math.abs(rdx) < 8) return; if(Math.abs(dy) > Math.abs(rdx)){ D = null; return; } D.mov = true; try{ D.cara.setPointerCapture(e.pointerId); }catch(_){} D.fila.classList.add('desliza'); }
     D.dx = dx; D.cara.style.transform = `translateX(${dx}px)`; D.fila.classList.toggle('dir-der', dx > 0); D.fila.classList.toggle('listo', Math.abs(dx) > UMBRAL);
+    if(op.alDerechaLejos) D.fila.classList.toggle('lejos', dx > UMBRAL2);   // V28: deslizar más a la derecha = otra acción
   });
   const suelta = () => {
     if(!D) return; const d = D; D = null; if(!d.mov) return;
@@ -428,10 +429,11 @@ function deslizarBorrar(cont, alBorrar, op){
         setTimeout(() => d.fila.remove(), 230); alBorrar(d.fila.dataset.id, d.fila); }, 180);
       return;
     }
-    const aDer = d.dx > UMBRAL && op.alDerecha;
+    const lejos = d.dx > UMBRAL2 && op.alDerechaLejos, aDer = !lejos && d.dx > UMBRAL && op.alDerecha;
     d.cara.style.transition = 'transform .25s'; d.cara.style.transform = '';
-    setTimeout(() => { d.fila.classList.remove('desliza', 'listo', 'dir-der'); d.cara.style.transition = ''; }, 260);
-    if(aDer) setTimeout(() => op.alDerecha(d.fila.dataset.id, d.fila), 120);
+    setTimeout(() => { d.fila.classList.remove('desliza', 'listo', 'dir-der', 'lejos'); d.cara.style.transition = ''; }, 260);
+    if(lejos) setTimeout(() => op.alDerechaLejos(d.fila.dataset.id, d.fila), 120);
+    else if(aDer) setTimeout(() => op.alDerecha(d.fila.dataset.id, d.fila), 120);
   };
   cont.addEventListener('pointerup', suelta); cont.addEventListener('pointercancel', suelta);
   // después de deslizar no cuenta como «tocar»
